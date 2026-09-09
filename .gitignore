@@ -1,0 +1,41 @@
+# Build e dipendenze
+**/bin/
+**/obj/
+**/node_modules/
+.pnpm-store/
+**/dist/
+**/.output/
+**/.tanstack/
+**/coverage/
+**/TestResults/
+**/test-results/
+**/playwright-report/
+
+# Configurazione locale e segreti
+.env
+.env.*
+!.env.example
+!**/.env.example
+**/appsettings.*.local.json
+*.user
+*.suo
+.vs/
+.idea/
+.claude/settings.local.json
+
+# Dati di lavoro, importazioni e immagini scaricate
+.local/
+artifacts/
+*.bak
+*.dump
+*.bacpac
+
+# File macchina e scratch
+.DS_Store
+**/.DS_Store
+.worktrees/
+
+
+# Output SDK isolato nei container e scratch skill
+**/.artifacts/
+.superpowers/

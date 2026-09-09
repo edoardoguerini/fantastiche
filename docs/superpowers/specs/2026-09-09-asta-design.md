@@ -8,6 +8,8 @@ Consentire ai partecipanti di una lega di fantacalcio di entrare con il proprio 
 
 La web app deve adattarsi a telefono, tablet e desktop e poter essere aggiunta alla schermata Home senza pubblicazione negli store.
 
+Modalità concordata: Classic, con ruoli P/D/C/A. Mantra escluso dalla prima versione.
+
 ## Stack
 
 - Frontend: TanStack Start, React e TypeScript, con Vite e modalità SPA come impostazione iniziale proposta.
@@ -15,10 +17,39 @@ La web app deve adattarsi a telefono, tablet e desktop e poter essere aggiunta a
 - Interfaccia: Tailwind CSS e shadcn/ui.
 - PWA: manifest e service worker da configurare e verificare nella build di Start.
 - Backend separato: ASP.NET Core, con API HTTP e SignalR.
-- Persistenza: Entity Framework Core e Azure SQL Database con modello DTU.
+- Identità: ASP.NET Core Identity, con persistenza tramite Entity Framework Core.
+- Email: Mailgun, come ACKSD, con coda persistita e invio asincrono tramite Scheduler.
+- Persistenza: Azure SQL Database con modello DTU; Entity Framework Core per migrazioni e configurazione ordinaria, Dapper per query delle schermate e operazioni critiche dell’asta.
 - Hosting: Azure; livello DTU e servizi di hosting specifici da dimensionare in fase di deployment mediante misure di carico.
+- Infrastruttura come codice: Bicep, da predisporre in una fase successiva.
+- Immagini giocatori: importazione dal CSV verso Azure Blob Storage, con associazione tramite ID del giocatore; trasferimento da eseguire quando l’ambiente sarà configurato.
 
 Frontend e backend avranno build e deploy indipendenti. Il frontend non accederà direttamente al database. Tutte le regole dell’asta risiedono nel backend.
+
+L’organizzazione delle cartelle e della documentazione riprende il progetto ACKS, adattata a Fantastiche: [decisione e differenze](../../decisions/0001-struttura-e-convenzioni.md). Backend in `be/`, frontend in `fe/`, infrastruttura in `infra/`; guide e istruzioni per Claude/Codex co-locate. Questa preparazione non costituisce ancora il bootstrap eseguibile.
+
+## Accesso ai dati: EF Core e Dapper
+
+Un unico schema Azure SQL viene gestito dalle migrazioni EF Core, incluse le tabelle utilizzate da Dapper. La tabella `__EFMigrationsHistory` registra le migrazioni applicate.
+
+- EF Core gestisce la persistenza di ASP.NET Core Identity e le operazioni ordinarie di configurazione, come leghe e impostazioni.
+- Dapper gestisce le query delle schermate con SQL esplicito e proiezioni dei soli campi necessari, oltre al percorso di scrittura critico dell’asta.
+- Avvio, rilanci e aggiudicazioni usano transazioni SQL esplicite tramite Dapper. Tutte le istruzioni della singola operazione condividono connessione e transazione; le notifiche SignalR vengono emesse dopo il commit.
+- Ogni operazione ha un unico percorso di scrittura. Non si modificano con Dapper entità che verranno poi salvate da un DbContext con uno stato non aggiornato.
+- Le query SQL sono parametrizzate. L’accesso a dati privati verifica appartenenza e permessi della lega anche nei percorsi Dapper.
+- Indici mirati, paginazione degli storici e test di carico su Azure SQL verificano prestazioni e consumo DTU; la scelta di Dapper da sola non garantisce questi risultati.
+
+La fonte di identità è `AspNetUsers`, senza una seconda tabella utenti duplicata. `SuperAdmin` è un ruolo globale Identity ed è l’unico abilitato a creare leghe nella prima versione. I permessi per lega, incluso quello di organizzatore, sono conservati in `LeagueMembers`.
+
+Le squadre fantacalcio sono `Teams`, le squadre reali `Clubs`. `TeamMembers` collega gli utenti alle squadre. Essere organizzatore ed essere giocatore sono indipendenti: lo stesso utente può avere entrambi i compiti nella stessa lega. Per rilanciare serve un’associazione valida alla squadra e alla lega stagionale dell’asta; il solo permesso di organizzatore non basta. Il chiamante è determinato dal turno, non da un ruolo Identity.
+
+## Budget e rose
+
+Budget e composizione della rosa sono configurabili per lega stagionale. Valori iniziali confermati: 500 crediti e 25 giocatori, suddivisi in 3 portieri, 8 difensori, 8 centrocampisti e 6 attaccanti. Le regole vengono salvate nella LeagueSeason, preservando le stagioni precedenti.
+
+## Inviti e logo
+
+L’organizzatore inserisce nome/email dei partecipanti: il server crea l’account senza password se nuovo, oppure riusa quello esistente, e predispone l’appartenenza Pending. Il link personale apre un form pubblico con nome/logo della lega, impostazione iniziale della password o login e scelta del nome squadra. L’accettazione attiva l’appartenenza e crea la squadra. Ogni lega ha un logo caricabile dall’organizzatore e conservato su Blob Storage. L’eventuale nuovo account, membership Pending, invito ed email vengono salvati nella stessa transazione; lo Scheduler invia tramite Mailgun. Il link contiene un token casuale specifico per invito, utente e lega, mentre la verifica usa l’hash salvato nel database. Dettaglio nella [guida inviti ed email](../../../be/docs/domains/invitations-email.md).
 
 ## Organizzazione e chiamate
 
@@ -90,4 +121,4 @@ Un’interruzione del backend non cancella le offerte persistite. Alla ripartenz
 
 ## Confini della specifica
 
-Questo documento fissa il nucleo della sessione d’asta. Prima di implementare i relativi moduli serviranno decisioni separate su accesso e inviti, provenienza del listone, regole di composizione delle rose e budget iniziale. Non sono ancora requisiti concordati funzioni di annullamento acquisti, aste parallele nella stessa lega o gestione dell’intera stagione.
+Questo documento fissa il nucleo della sessione d’asta. Prima di implementare i relativi moduli serviranno decisioni separate sul trasporto dell’autenticazione, durata e reinvio degli inviti, importazione del listone e gestione operativa delle squadre con più utenti. Non sono ancora requisiti concordati funzioni di annullamento acquisti, aste parallele nella stessa lega o gestione dell’intera stagione. Abbonamenti e pagamenti sono esclusi dalla prima versione e non bloccano la progettazione.

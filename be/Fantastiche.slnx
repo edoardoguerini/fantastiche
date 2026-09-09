@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Fantastiche.Application/Fantastiche.Application.csproj" />
+    <Project Path="src/Fantastiche.Core/Fantastiche.Core.csproj" />
+    <Project Path="src/Fantastiche.Gateways/Fantastiche.Gateways.csproj" />
+    <Project Path="src/Fantastiche.Infrastructure/Fantastiche.Infrastructure.csproj" />
+    <Project Path="src/Fantastiche.Scheduler/Fantastiche.Scheduler.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Fantastiche.IntegrationTests/Fantastiche.IntegrationTests.csproj" />
+    <Project Path="tests/Fantastiche.UnitTests/Fantastiche.UnitTests.csproj" />
+  </Folder>
+</Solution>
