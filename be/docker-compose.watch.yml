@@ -1,0 +1,65 @@
+x-app-environment: &app-environment
+  ASPNETCORE_ENVIRONMENT: Development
+  DOTNET_ENVIRONMENT: Development
+  ConnectionStrings__Fantastiche: 'Server=sqlserver;Database=Fantastiche;User Id=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True'
+  DataProtection__KeyPath: /app/.local/keys
+  Email__LocalDirectory: /app/.local/mail
+  Email__Provider: Local
+  Email__EnableExternalDelivery: "false"
+services:
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    entrypoint: [dotnet, run, --no-launch-profile, --project, src/Fantastiche.Application/Fantastiche.Application.csproj, --, --migrate]
+    env_file: [.env]
+    environment: *app-environment
+    volumes:
+      - .:/app
+      - nuget-cache:/root/.nuget/packages
+      - migration-artifacts:/app/.artifacts
+    networks: [app]
+    depends_on:
+      sqlserver: {condition: service_healthy}
+  api:
+    restart: on-failure:3
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    env_file: [.env]
+    environment:
+      <<: *app-environment
+      ASPNETCORE_URLS: http://+:6060
+    ports: ["127.0.0.1:${API_PORT:-6060}:6060"]
+    volumes:
+      - .:/app
+      - nuget-cache:/root/.nuget/packages
+      - api-artifacts:/app/.artifacts
+    networks: [app]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD-SHELL, 'timeout 2 bash -c "</dev/tcp/localhost/6060" || exit 1']
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 60s
+  scheduler:
+    restart: on-failure:3
+    build:
+      context: .
+      dockerfile: Dockerfile.scheduler.dev
+    env_file: [.env]
+    environment: *app-environment
+    volumes:
+      - .:/app
+      - nuget-cache:/root/.nuget/packages
+      - scheduler-artifacts:/app/.artifacts
+    networks: [app]
+    depends_on:
+      api: {condition: service_healthy}
+volumes:
+  nuget-cache:
+  migration-artifacts:
+  api-artifacts:
+  scheduler-artifacts:

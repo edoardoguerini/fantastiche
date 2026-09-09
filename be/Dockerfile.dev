@@ -1,0 +1,10 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0
+WORKDIR /app
+ENV DOTNET_USE_POLLING_FILE_WATCHER=true \
+    DOTNET_WATCH_RESTART_ON_RUDE_EDIT=true \
+    DOTNET_ENVIRONMENT=Development \
+    ASPNETCORE_ENVIRONMENT=Development \
+    ASPNETCORE_URLS=http://+:6060 \
+    FANTASTICHE_CONTAINER=true
+EXPOSE 6060
+ENTRYPOINT ["dotnet", "watch", "run", "--no-launch-profile", "--project", "src/Fantastiche.Application/Fantastiche.Application.csproj"]

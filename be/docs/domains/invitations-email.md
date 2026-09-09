@@ -1,0 +1,57 @@
+# Inviti, logo della lega ed email
+
+## Decisioni concordate
+
+Il SuperAdmin crea la lega e assegna l’organizzatore. L’organizzatore invita i partecipanti tramite email; al primo accesso la configurazione guidata propone impostazioni e inviti, che rimangono accessibili successivamente.
+
+L’organizzatore inserisce nome ed email. Se l’email non corrisponde a un account esistente, il backend predispone un utente Identity senza password. Se esiste, riusa quell’utente senza modificarne credenziali o profilo. Crea l’appartenenza alla lega in stato Pending e un invito personale. Il flusso sostituisce la precedente proposta di registrazione autonoma dal form.
+
+L’invitato apre il form pubblico dal link personale, con nome e logo della lega. Per un account nuovo imposta la password; per un account già attivo effettua il login con quello associato all’invito. Sceglie il nome della squadra e conferma l’adesione. Il server valida il token, scadenza, stato e associazione a utente/lega, attiva l’appartenenza, crea Team e TeamMember e consuma l’invito atomicamente. Anche l’impostazione iniziale della password deve essere coordinata con la transazione tramite gli store Identity. Un invito di lega non permette di reimpostare la password di un account già attivo.
+
+Pending non concede accesso ai dati privati né diritto di rilancio. L’apertura del link, inclusa quella da parte di scanner email, non consuma l’invito: serve la conferma esplicita tramite un’operazione di scrittura.
+
+Il form pubblico non espone rose, partecipanti o altri dati privati. Il logo è una proprietà della lega; l’organizzatore lo carica/modifica e il file viene conservato in Azure Blob Storage. In assenza del logo usare un segnaposto con le iniziali.
+
+## Provider e invio asincrono
+
+Provider scelto: **Mailgun**, come nel progetto ACKSD. Verifica del riferimento: `be/src/Acksd.Gateways/Mailgun/MailgunEmailSender.cs` implementa `IEmailSender`; `be/src/Acksd.Scheduler/Jobs/EmailDispatchJob.cs` delega a `IEmailDispatcher`.
+
+L’API salva l’eventuale nuovo account, l’appartenenza Pending, l’invito ed EmailMessage nella stessa transazione EF Core, coordinata con gli store Identity. Non chiama Mailgun nella richiesta HTTP. Lo Scheduler preleva la coda persistita, invia tramite il gateway Mailgun e registra esito e tentativi, con retry degli errori temporanei.
+
+- `LeagueInvitations`: lega, utente destinatario, email destinataria, mittente, hash del token, scadenza e stato di accettazione/revoca. Il token è casuale, unico per invito e non derivato dall’email; nell’email viaggia il token originale, non il suo hash.
+- `EmailMessages`: invito di riferimento, destinatario, template/payload, stato invio, tentativi, prossimo tentativo e identificativo del messaggio del provider quando disponibile.
+- Stati di recapito e accettazione distinti. Accettazione da parte del provider non dimostra consegna nella casella: non mostrarla come consegna verificata senza evidenza aggiuntiva.
+- Inviti scaduti o revocati non vengono spediti dalla coda in ritardo; l’accettazione verifica comunque sempre lo stato corrente.
+- Reinvio e revoca disponibili all’organizzatore. Durata implementata: 72 ore; il reinvio revoca il precedente invito e ne crea uno nuovo, mentre un invito già revocato richiede una nuova creazione. Ogni nuovo invito ha un token distinto, anche per lo stesso utente in leghe diverse.
+
+## Affidabilità implementata nel primo incremento
+
+Acquisizione atomica dei messaggi con lease o meccanismo equivalente, per evitare che due worker li spediscano contemporaneamente. Il sistema deve tollerare un crash dopo l’invio e prima della registrazione dell’esito: non assumere una garanzia exactly-once del provider. L’accettazione dell’invito è idempotente e non crea due squadre.
+
+Conservare solo l’hash per verificare il token dell’invito. Poiché l’email asincrona deve contenere il link originale, il materiale sensibile necessario alla spedizione deve essere protetto nella coda, con una gestione delle chiavi definita prima dell’implementazione; niente token nei log.
+
+Il link è una credenziale temporanea: per l’account nuovo la sua disponibilità abilita l’attivazione. Non si presume un’ulteriore verifica OTP concordata. Il riuso di un link consumato non deve ripetere impostazione password, creazione squadra o adesione. Vincoli univoci e transazioni devono gestire anche inviti concorrenti verso la stessa email normalizzata, senza duplicare account o membership.
+
+## Organizzazione prevista
+
+- Core/Email: contratti del mittente.
+- Gateways/Mailgun: adapter provider.
+- Infrastructure/Leagues: inviti e adesione.
+- Infrastructure/Emails: coda, template e dispatcher.
+- Scheduler/Jobs: job sottile che richiama il dispatcher.
+
+Lo Scheduler usa BackgroundService e PeriodicTimer, senza Hangfire. Il timer d’asta non dipende dalla coda email né dai suoi intervalli di polling.
+
+Dominio mittente, indirizzo From, regione del servizio e credenziali Fantastiche sono da configurare; nessuna credenziale o risorsa ACKSD viene riutilizzata implicitamente. Bicep predisporrà la configurazione Azure necessaria. Questa decisione non crea account Mailgun, non configura DNS e non invia email.
+
+## Dettagli del primo incremento
+
+L’invito iniziale di tipo Organizer attiva solo il permesso di gestione, senza imporre una squadra. L’organizzatore può successivamente invitare sé stesso come Participant per giocare. Il SuperAdmin può reinviare l’invito iniziale prima che esista un organizzatore attivo.
+
+Il payload email è protetto con ASP.NET Data Protection; il token è conservato come hash SHA256 per la verifica. Il link usa `/invito#token=...`: il frammento non viene inviato dal browser al server. L’anteprima API legge `X-Invitation-Token` e disabilita la cache; l’accettazione riceve il token nel JSON con antiforgery. Il form frontend non è ancora implementato.
+
+Il replay di un invito già consumato richiede l’account destinatario autenticato e restituisce il risultato salvato. Il link consumato da solo non permette di recuperare informazioni private. Tutte le mutazioni onboarding usano transazione serializable e un lock SQL applicativo dedicato; l’accettazione iniziale coordina Identity e dominio nello stesso DbContext.
+
+La coda acquisisce ogni messaggio in transazione READ COMMITTED esplicita con hint compatibili con RCSI. Lease 2 minuti, timeout mittente 30 secondi, massimo 5 tentativi, backoff 60/120/240/480 secondi. Un errore SQL dopo l’invio lascia il lease recuperabile. La revoca concorrente all’ultima fase della chiamata al provider non può annullare una spedizione già in corso, ma invalida sempre l’accettazione del link.
+
+[Setup e configurazione chiavi](../getting-started/development-setup.md). [Contratto Mailgun HTTP](https://documentation.mailgun.com/docs/mailgun/user-manual/sending-messages/send-http).

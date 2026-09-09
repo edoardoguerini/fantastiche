@@ -1,0 +1,9 @@
+**/bin
+**/obj
+.artifacts
+.local
+.env
+.env.*
+**/TestResults
+**/test-results
+**/*.user

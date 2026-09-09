@@ -1,0 +1,5 @@
+name: fantastiche
+include:
+  - path:
+      - ./be/docker-compose.yml
+      - ./be/docker-compose.watch.yml

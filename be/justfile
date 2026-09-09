@@ -1,0 +1,91 @@
+set shell := ["bash", "-uc"]
+solution := "Fantastiche.slnx"
+app-project := "src/Fantastiche.Application/Fantastiche.Application.csproj"
+infra-project := "src/Fantastiche.Infrastructure/Fantastiche.Infrastructure.csproj"
+watch-files := "-f docker-compose.yml -f docker-compose.watch.yml"
+
+[private]
+default: help
+
+help:
+    @just --list
+
+alias list := help
+
+# Genera la password SQL locale se .env manca
+env:
+    @python3 scripts/dev.py env
+
+# Avvia solo il database dedicato
+up: env
+    docker compose up -d --wait
+
+down:
+    docker compose down
+
+restart:
+    docker compose restart
+
+logs:
+    docker compose logs -f
+
+ps:
+    docker compose ps
+
+# API, SQL Server e Scheduler in container; hot reload
+watch: env
+    docker compose {{watch-files}} up --build
+
+watch-down:
+    docker compose {{watch-files}} down
+
+watch-logs:
+    docker compose {{watch-files}} logs -f api scheduler
+
+restore:
+    python3 scripts/dev.py dotnet restore {{solution}}
+
+build:
+    python3 scripts/dev.py dotnet build {{solution}} --no-restore
+
+rebuild: clean restore build
+
+clean:
+    python3 scripts/dev.py dotnet clean {{solution}}
+
+tools:
+    python3 scripts/dev.py dotnet tool restore
+
+migrate: tools
+    python3 scripts/dev.py dotnet ef database update --project {{infra-project}} --startup-project {{app-project}}
+
+[positional-arguments]
+migrate-add name: tools
+    python3 scripts/dev.py dotnet ef migrations add "$1" --project {{infra-project}} --startup-project {{app-project}} --output-dir Common/Persistence/Migrations
+
+migrate-script: tools
+    python3 scripts/dev.py dotnet ef migrations script --project {{infra-project}} --startup-project {{app-project}} --idempotent --output .local/migration-script.sql
+
+migrate-check: tools
+    python3 scripts/dev.py dotnet ef migrations has-pending-model-changes --project {{infra-project}} --startup-project {{app-project}}
+
+# Bootstrap esplicito: leggere Bootstrap__Email/Password/DisplayName dal proprio .env
+bootstrap-admin:
+    docker compose {{watch-files}} run --rm --no-deps --entrypoint dotnet api run --no-launch-profile --project {{app-project}} -- --bootstrap-superadmin
+
+test:
+    python3 scripts/dev.py dotnet test {{solution}}
+
+[positional-arguments]
+test-unit *args:
+    python3 scripts/dev.py dotnet test tests/Fantastiche.UnitTests/Fantastiche.UnitTests.csproj "$@"
+
+[positional-arguments]
+test-int *args:
+    python3 scripts/dev.py dotnet test tests/Fantastiche.IntegrationTests/Fantastiche.IntegrationTests.csproj "$@"
+
+fmt:
+    python3 scripts/dev.py dotnet format {{solution}}
+
+lint:
+    python3 scripts/dev.py dotnet format {{solution}} --verify-no-changes
