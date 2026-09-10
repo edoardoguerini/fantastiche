@@ -1,10 +1,11 @@
 using Dapper;
+using Fantastiche.Infrastructure.Catalog;
 using Fantastiche.Infrastructure.Common;
 using Fantastiche.Infrastructure.Common.Persistence;
 
 namespace Fantastiche.Infrastructure.Auctions;
 
-public sealed class GetAuctionRosterQueryHandler(FantasticheDbContext db) : IRequestHandler<GetAuctionRosterQuery, AuctionPage<AuctionRosterView>>
+public sealed class GetAuctionRosterQueryHandler(FantasticheDbContext db, PlayerPhotoStorage photos, ClubLogoStorage logos) : IRequestHandler<GetAuctionRosterQuery, AuctionPage<AuctionRosterView>>
 {
     public async Task<AuctionPage<AuctionRosterView>> HandleAsync(GetAuctionRosterQuery request, CancellationToken ct)
     {
@@ -15,6 +16,8 @@ public sealed class GetAuctionRosterQueryHandler(FantasticheDbContext db) : IReq
             request.TeamId,
             read.Session.LeagueSeasonId,
             read.Session.LeagueId,
+            PhotoBaseUrl = photos.PublicBaseUrl,
+            ClubLogoBaseUrl = logos.PublicBaseUrl,
             Skip = (request.Page - 1) * request.PageSize,
             request.PageSize
         };
@@ -28,14 +31,19 @@ public sealed class GetAuctionRosterQueryHandler(FantasticheDbContext db) : IReq
         }
 
         // La rosa appartiene alla stagione; ogni acquisto conserva il suo listone originario.
-        using var results = await read.Connection.QueryMultipleAsync(new CommandDefinition("""
+        using var results = await read.Connection.QueryMultipleAsync(new CommandDefinition($"""
             SELECT COUNT(*) FROM RosterEntries
             WHERE LeagueSeasonId = @LeagueSeasonId AND LeagueId = @LeagueId AND (@TeamId IS NULL OR TeamId = @TeamId);
-            SELECT r.PlayerId, r.TeamId, r.PlayerAuctionId, entry.Name, r.Role, entry.ClubName, r.Price, r.AcquiredAt
+            SELECT r.PlayerId, r.TeamId, r.PlayerAuctionId, entry.Name, r.Role, entry.ClubName, r.Price, r.AcquiredAt,
+                   {PlayerPhotoStorage.SqlProjection}, {ClubLogoStorage.SqlProjection}
             FROM RosterEntries r
             INNER JOIN PlayerAuctions auction ON auction.Id = r.PlayerAuctionId
               AND auction.LeagueSeasonId = r.LeagueSeasonId AND auction.LeagueId = r.LeagueId
             INNER JOIN ListEntries entry ON entry.ListVersionId = auction.ListVersionId AND entry.PlayerId = r.PlayerId
+            INNER JOIN Players player ON player.Id = r.PlayerId
+            LEFT JOIN PlayerMedia media ON media.Source = player.Source AND media.ExternalId = player.ExternalId
+            INNER JOIN Clubs club ON club.Id = entry.ClubId
+            LEFT JOIN ClubMedia clubMedia ON clubMedia.Source = club.Source AND clubMedia.NormalizedClubName = club.NormalizedName
             WHERE r.LeagueSeasonId = @LeagueSeasonId AND r.LeagueId = @LeagueId AND (@TeamId IS NULL OR r.TeamId = @TeamId)
             ORDER BY r.AcquiredAt DESC, r.PlayerId
             OFFSET @Skip ROWS FETCH NEXT @PageSize ROWS ONLY;

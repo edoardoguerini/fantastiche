@@ -286,11 +286,11 @@ namespace Fantastiche.Infrastructure.Common.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Deadline", "Id")
-                        .HasFilter("[Status] = 0");
-
                     b.HasIndex("SessionId")
                         .IsUnique()
+                        .HasFilter("[Status] = 0");
+
+                    b.HasIndex("Deadline", "Id")
                         .HasFilter("[Status] = 0");
 
                     b.HasIndex("ListVersionId", "PlayerId");
@@ -390,6 +390,51 @@ namespace Fantastiche.Infrastructure.Common.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Clubs", (string)null);
+                });
+
+            modelBuilder.Entity("Fantastiche.Infrastructure.Catalog.ClubMedia", b =>
+                {
+                    b.Property<string>("Source")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("NormalizedClubName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("BlobName")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<long>("ContentLength")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset>("DownloadedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<string>("SourceUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.HasKey("Source", "NormalizedClubName");
+
+                    b.ToTable("ClubMedia", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ClubMedia_ContentLength", "[ContentLength] > 0");
+                        });
                 });
 
             modelBuilder.Entity("Fantastiche.Infrastructure.Catalog.ListEntry", b =>
@@ -517,6 +562,51 @@ namespace Fantastiche.Infrastructure.Common.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Players", (string)null);
+                });
+
+            modelBuilder.Entity("Fantastiche.Infrastructure.Catalog.PlayerMedia", b =>
+                {
+                    b.Property<string>("Source")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("BlobName")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<long>("ContentLength")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset>("DownloadedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<string>("SourceUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.HasKey("Source", "ExternalId");
+
+                    b.ToTable("PlayerMedia", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PlayerMedia_ContentLength", "[ContentLength] > 0");
+                        });
                 });
 
             modelBuilder.Entity("Fantastiche.Infrastructure.Common.Authentication.ApplicationUser", b =>

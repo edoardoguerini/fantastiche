@@ -1,0 +1,201 @@
+.invitation-page {
+  min-height: 100svh;
+  padding-block: 3rem;
+}
+.invitation-panel {
+  padding-bottom: 1rem;
+}
+.invitation-form,
+.invite-participant-form {
+  display: grid;
+  gap: 1.25rem;
+}
+.invitation-hint,
+.invitation-expiry,
+.invitation-message,
+.invitation-account {
+  color: var(--muted-foreground);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.invitation-hint {
+  margin-bottom: 1rem;
+}
+.invitation-expiry {
+  font-size: 0.78rem;
+  margin-bottom: 1.5rem;
+}
+.invitation-message {
+  display: grid;
+  gap: 0.75rem;
+}
+.invitation-message[role='alert'] > p:first-child {
+  color: var(--foreground);
+}
+.invitation-success {
+  color: var(--foreground);
+  font-size: 0.9rem;
+  margin-block: 0.75rem;
+}
+.invitation-account {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.invitation-account strong {
+  overflow-wrap: anywhere;
+}
+.invitation-account button {
+  margin-top: 0.5rem;
+}
+.participants-panel {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+}
+.participants-panel h2 {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+.participants-panel h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+}
+.participants-panel h3 > span {
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+  margin-left: 0.5rem;
+}
+.participants-panel header > p:last-child,
+.participants-loading {
+  color: var(--muted-foreground);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.participants-loading {
+  margin-top: 2rem;
+}
+.invitation-eyebrow {
+  color: var(--muted-foreground);
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  margin-bottom: 0.5rem;
+}
+.participants-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  margin-top: 2rem;
+}
+.participants-grid > div {
+  min-width: 0;
+}
+.invite-participant-fields {
+  display: grid;
+  gap: 1rem;
+}
+.invite-participant-form > button {
+  justify-self: start;
+}
+.participant-list,
+.invitation-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.participant-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-block: 0.8rem;
+  border-bottom: 1px solid var(--border);
+}
+.participant-list li > div {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.participant-list strong,
+.invitation-recipient strong {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.participant-list p,
+.participant-list li > span {
+  font-size: 0.78rem;
+  color: var(--muted-foreground);
+}
+.invitation-history {
+  margin-top: 2.5rem;
+}
+.invitation-list > li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-block: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.invitation-recipient {
+  flex: 1 1 14rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.invitation-recipient p {
+  font-size: 0.85rem;
+  color: var(--muted-foreground);
+  margin-block: 0.2rem;
+}
+.invitation-recipient small {
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+}
+.invitation-status {
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+.invitation-status--revoked,
+.invitation-status--expired {
+  color: var(--muted-foreground);
+}
+.invitation-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.invitation-revoke {
+  flex-basis: 100%;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  padding-block: 0.5rem;
+}
+.invitation-revoke > p {
+  margin-bottom: 0.75rem;
+}
+.invitation-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  font-size: 0.8rem;
+}
+@media (max-width: 700px) {
+  .participants-grid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  .invitation-page {
+    padding-top: 1.5rem;
+  }
+  .invitation-list > li {
+    gap: 0.75rem;
+  }
+  .invitation-actions {
+    width: 100%;
+  }
+}

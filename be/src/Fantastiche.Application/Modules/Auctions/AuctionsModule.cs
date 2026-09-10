@@ -40,6 +40,10 @@ public sealed class AuctionsModule : IRegistrableModule
             .WithSummary("Rosa della stagione")
             .WithDescription("Acquisti della stagione, con nome e ruolo originali dell’aggiudicazione. Filtro facoltativo per squadra e paginazione.")
             .Produces<ApiResponse<AuctionPage<AuctionRosterView>>>();
+        group.MapGet("/{sessionId:guid}/Catalog", Catalog).WithName("GetAuctionCatalog")
+            .WithSummary("Listone della sessione con disponibilità stagionale")
+            .WithDescription("Ricerca e ruolo paginati. Per default esclude acquisti della stagione e giocatore chiamato; availableOnly=false include anche gli indisponibili e la squadra acquirente.")
+            .Produces<ApiResponse<AuctionPage<AuctionCatalogPlayerView>>>();
     }
 
     private static void CommandMetadata(RouteHandlerBuilder route)
@@ -99,6 +103,15 @@ public sealed class AuctionsModule : IRegistrableModule
         await validator.ValidateAndThrowAsync(request, ct);
         return ApiResults.Ok(await publisher.QueryAsync<GetAuctionBidsQuery, AuctionPage<AuctionBidView>>(
             new(context.CreateRequestContext(), sessionId, playerAuctionId, request.Page, request.PageSize), ct));
+    }
+
+    private static async Task<IResult> Catalog(Guid sessionId, string? search, string? role, bool? availableOnly, int? page, int? pageSize,
+        HttpContext context, IValidator<AuctionCatalogRequest> validator, IRequestPublisher publisher, CancellationToken ct)
+    {
+        var request = new AuctionCatalogRequest(search?.Trim(), role?.Trim().ToUpperInvariant(), page ?? 1, pageSize ?? 30);
+        await validator.ValidateAndThrowAsync(request, ct);
+        return ApiResults.Ok(await publisher.QueryAsync<GetAuctionCatalogQuery, AuctionPage<AuctionCatalogPlayerView>>(
+            new(context.CreateRequestContext(), sessionId, request.Search, request.Role, availableOnly ?? true, request.Page, request.PageSize), ct));
     }
 
     private static async Task<IResult> Roster(Guid sessionId, Guid? teamId, int? page, int? pageSize, HttpContext context,

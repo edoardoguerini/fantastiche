@@ -1,5 +1,6 @@
 set shell := ["bash", "-uc"]
 mod be
+mod fe
 
 [private]
 default: help
@@ -36,12 +37,15 @@ down-be:
 
 install:
     @just be restore
+    @just fe install
 
 test:
     @just be test
+    @just fe test
 
 lint:
     @just be lint
+    @just fe lint
 
 alias watch-all := up-all
 alias watch-all-down := down-all

@@ -4,6 +4,7 @@ using System.Text.Json;
 using Dapper;
 using Fantastiche.Core.Auth;
 using Fantastiche.Core.Exceptions;
+using Fantastiche.Infrastructure.Catalog;
 using Fantastiche.Infrastructure.Common.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -89,9 +90,9 @@ internal sealed class AuctionReadSession : IAsyncDisposable
         }
     }
 
-    internal async Task<AuctionSessionView> ReadStateAsync(CancellationToken ct)
+    internal async Task<AuctionSessionView> ReadStateAsync(PlayerPhotoStorage photos, ClubLogoStorage logos, CancellationToken ct)
     {
-        using var grid = await connection.QueryMultipleAsync(new CommandDefinition("""
+        using var grid = await connection.QueryMultipleAsync(new CommandDefinition($"""
             SELECT s.Id, s.LeagueId, s.LeagueSeasonId, s.ListVersionId, s.Status, s.Version,
                    CASE WHEN s.Status = 2 THEN NULL ELSE currentEntry.TeamId END AS CurrentTeamId,
                    TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00') AS ServerTime
@@ -107,10 +108,15 @@ internal sealed class AuctionReadSession : IAsyncDisposable
 
             SELECT TOP (1) pa.Id, pa.PlayerId, entry.Name, pa.Role, entry.ClubName,
                    pa.CallerTeamId, pa.WinningTeamId, pa.CurrentAmount, pa.DurationSeconds,
-                   pa.IncrementOptionsJson, pa.Deadline, pa.Status, pa.StartedAt, pa.ClosedAt
+                   pa.IncrementOptionsJson, pa.Deadline, pa.Status, pa.StartedAt, pa.ClosedAt,
+                   {PlayerPhotoStorage.SqlProjection}, {ClubLogoStorage.SqlProjection}
             FROM PlayerAuctions pa
             INNER JOIN ListEntries entry
               ON entry.ListVersionId = pa.ListVersionId AND entry.PlayerId = pa.PlayerId
+            INNER JOIN Players player ON player.Id = pa.PlayerId
+            LEFT JOIN PlayerMedia media ON media.Source = player.Source AND media.ExternalId = player.ExternalId
+            INNER JOIN Clubs club ON club.Id = entry.ClubId
+            LEFT JOIN ClubMedia clubMedia ON clubMedia.Source = club.Source AND clubMedia.NormalizedClubName = club.NormalizedName
             WHERE pa.SessionId = @sessionId
             ORDER BY pa.Number DESC;
 
@@ -135,6 +141,8 @@ internal sealed class AuctionReadSession : IAsyncDisposable
         {
             sessionId = Session.Id,
             leagueSeasonId = Session.LeagueSeasonId,
+            PhotoBaseUrl = photos.PublicBaseUrl,
+            ClubLogoBaseUrl = logos.PublicBaseUrl,
             leagueId = Session.LeagueId
         }, transaction, cancellationToken: ct));
 
@@ -156,7 +164,9 @@ internal sealed class AuctionReadSession : IAsyncDisposable
             auctionRow.Deadline,
             PlayerStatus(auctionRow.Status),
             auctionRow.StartedAt,
-            auctionRow.ClosedAt);
+            auctionRow.ClosedAt,
+            auctionRow.PhotoUrl,
+            auctionRow.ClubLogoUrl);
 
         return new AuctionSessionView(
             header.Id,
@@ -192,7 +202,7 @@ internal sealed class AuctionReadSession : IAsyncDisposable
     internal static DomainException NotFound() =>
         new("resource.not_found", "Risorsa non disponibile.", 404);
 
-    private static async Task RequireAccessAsync(
+    internal static async Task RequireAccessAsync(
         DbConnection connection,
         DbTransaction transaction,
         RequestContext context,
@@ -225,7 +235,7 @@ internal sealed class AuctionReadSession : IAsyncDisposable
             throw new DomainException("auth.forbidden", "Operazione non consentita.", 403);
     }
 
-    private static void RequireAuthenticated(RequestContext context)
+    internal static void RequireAuthenticated(RequestContext context)
     {
         if (context.UserId is null || context.UserId == Guid.Empty)
             throw new DomainException("auth.required", "Accesso richiesto.", 401);
@@ -281,5 +291,7 @@ internal sealed class AuctionReadSession : IAsyncDisposable
         public int Status { get; init; }
         public DateTimeOffset StartedAt { get; init; }
         public DateTimeOffset? ClosedAt { get; init; }
+        public string? PhotoUrl { get; init; }
+        public string? ClubLogoUrl { get; init; }
     }
 }

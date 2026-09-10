@@ -1,6 +1,7 @@
 # Backend — Documentazione
 
 - [Setup e stato dei comandi](getting-started/development-setup.md).
+- [Storage locale Azurite e immagini](getting-started/local-storage.md).
 - [Architettura](architecture/overview.md).
 - [Struttura cartelle](architecture/project-structure.md).
 - [CQRS e dispatch](architecture/cqrs.md).

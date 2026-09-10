@@ -1,0 +1,13 @@
+# Sala d’asta frontend
+
+Approvata in conversazione il 10 settembre: struttura ispirata alla schermata mobile FantaLab fornita dall’utente. Tabellone orizzontale di tutte le squadre in alto; asta corrente, timer e rilanci accessibili; schede Listone, La mia rosa, Storico sotto. Desktop con aree affiancate, mobile con comandi vicini al fondo. Palette Forest Green e crema, Sora/Geist, bordi al 10%, Font Awesome Classic Light locale. Nessuna statistica o fotografia di calciatori inventata.
+
+Chiamata libera dal listone secondo il motore già implementato. Il chiamante sceglie giocatore, durata (default 15 secondi, valori 5/10/15/20/25/30) e incrementi (default 1/5/10). L’avvio offre 1 credito. Il prezzo inviato è un totale assoluto deciso al click; nessun aumento automatico in risposta ad offerte concorrenti. Massima offerta compatibile con budget e riserva per completare la rosa; server autorevole. La scadenza non determina aggiudicazioni client: si attende lo stato Closed.
+
+Organizzatore e SuperAdmin possono creare la sessione, mettere in pausa/riprendere, saltare turno, riordinare e terminare tra giocatori. Solo membri di una squadra partecipante possono chiamare e rilanciare. Lettura server dell’appartenenza personale: non dedurre la squadra da email o credenziali demo. Conferma nel prodotto per la conclusione anticipata.
+
+Trasporto SignalR `/hubs/Auctions`: WatchSession, UnwatchSession, AuctionChanged con versione. Recupero stato e ricevute dopo riconnessione. Richieste mutative conservano RequestId e payload in sessionStorage separati per utente/sessione fino ad esito determinato; niente retry ciechi, offerte offline o token salvati nel browser. Stato ricevuto datato con ServerTime e orologio monotono per il countdown; comandi disabilitati finché la sincronizzazione non è affidabile. Query private isolate per utente e sessione, cancellate al logout. Un polling lento di sicurezza recupera notifiche perse.
+
+API di supporto: contesto della stanza (squadra personale, permesso di gestione, squadre, listone, ultima sessione), catalogo disponibile nella specifica stagione e listone della sessione. Tutte le letture autorizzate server, filtri e paginazione. Tabellone con budget, conteggi per ruolo e ultimi acquisti; rosa e storico dagli acquisti persistiti. Non includere presenza online non supportata dal protocollo.
+
+Dati demo locali: otto account già attivati in Gli ultimi del bar, 2026/27; Luca organizzatore e partecipante. Preparare un listone sintetico chiaramente denominato e sessione reale usando API, non credenziali o mock nell’app. La pagina inviti resta successiva come richiesto dall’utente. Nessun push/deploy o invio email esterno.

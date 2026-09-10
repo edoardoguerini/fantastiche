@@ -20,7 +20,9 @@ public sealed class FantasticheDbContext(DbContextOptions<FantasticheDbContext> 
     public DbSet<TeamMember> TeamMembers => Set<TeamMember>();
     public DbSet<EmailMessage> EmailMessages => Set<EmailMessage>();
     public DbSet<Player> Players => Set<Player>();
+    public DbSet<PlayerMedia> PlayerMedia => Set<PlayerMedia>();
     public DbSet<Club> Clubs => Set<Club>();
+    public DbSet<ClubMedia> ClubMedia => Set<ClubMedia>();
     public DbSet<ListVersion> ListVersions => Set<ListVersion>();
     public DbSet<ListEntry> ListEntries => Set<ListEntry>();
     public DbSet<AuctionSession> AuctionSessions => Set<AuctionSession>();

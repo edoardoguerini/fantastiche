@@ -1,0 +1,8 @@
+pnpm-lock.yaml
+src/routeTree.gen.ts
+dist
+node_modules
+.tanstack
+test-results
+playwright-report
+src/assets/fontawesome/

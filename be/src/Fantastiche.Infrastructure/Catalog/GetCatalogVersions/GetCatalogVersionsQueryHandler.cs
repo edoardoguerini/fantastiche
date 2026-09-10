@@ -15,7 +15,7 @@ public sealed class GetCatalogVersionsQueryHandler(FantasticheDbContext db)
         var seasonName = CatalogQueryRules.Optional(request.SeasonName, 50);
         var parameters = new
         {
-            showDrafts = request.Context.IsSuperAdmin,
+            showDrafts = await CatalogAuthorization.IsSuperAdminAsync(db, request.Context, ct),
             seasonName,
             offset = (request.Page - 1) * request.PageSize,
             request.PageSize

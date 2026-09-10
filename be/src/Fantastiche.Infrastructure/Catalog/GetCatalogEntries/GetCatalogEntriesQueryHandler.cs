@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Fantastiche.Infrastructure.Catalog;
 
-public sealed class GetCatalogEntriesQueryHandler(FantasticheDbContext db)
+public sealed class GetCatalogEntriesQueryHandler(FantasticheDbContext db, PlayerPhotoStorage photos, ClubLogoStorage logos)
     : IRequestHandler<GetCatalogEntriesQuery, CatalogPage<CatalogEntryView>>
 {
     public async Task<CatalogPage<CatalogEntryView>> HandleAsync(GetCatalogEntriesQuery request, CancellationToken ct)
@@ -23,7 +23,7 @@ public sealed class GetCatalogEntriesQueryHandler(FantasticheDbContext db)
             "SELECT Status FROM ListVersions WHERE Id = @id;",
             new { id = request.ListVersionId },
             cancellationToken: ct));
-        if (status is null || status == (int)ListVersionStatus.Draft && !request.Context.IsSuperAdmin)
+        if (status is null || status == (int)ListVersionStatus.Draft && !await CatalogAuthorization.IsSuperAdminAsync(db, request.Context, ct))
             throw CatalogQueryRules.NotFound();
 
         var parameters = new
@@ -33,6 +33,8 @@ public sealed class GetCatalogEntriesQueryHandler(FantasticheDbContext db)
             role,
             club,
             offset = (request.Page - 1) * request.PageSize,
+            PhotoBaseUrl = photos.PublicBaseUrl,
+            ClubLogoBaseUrl = logos.PublicBaseUrl,
             request.PageSize
         };
         const string where = """
@@ -47,9 +49,12 @@ public sealed class GetCatalogEntriesQueryHandler(FantasticheDbContext db)
             WHERE {where};
 
             SELECT e.PlayerId, p.ExternalId, e.Name, e.FullName, e.Role, e.ClubName,
-                   e.BirthDate, e.Nationality, e.PreferredFoot
+                   e.BirthDate, e.Nationality, e.PreferredFoot, {PlayerPhotoStorage.SqlProjection}, {ClubLogoStorage.SqlProjection}
             FROM ListEntries e
             INNER JOIN Players p ON p.Id = e.PlayerId
+            LEFT JOIN PlayerMedia media ON media.Source = p.Source AND media.ExternalId = p.ExternalId
+            INNER JOIN Clubs club ON club.Id = e.ClubId
+            LEFT JOIN ClubMedia clubMedia ON clubMedia.Source = club.Source AND clubMedia.NormalizedClubName = club.NormalizedName
             WHERE {where}
             ORDER BY e.Name, e.PlayerId
             OFFSET @offset ROWS FETCH NEXT @PageSize ROWS ONLY;

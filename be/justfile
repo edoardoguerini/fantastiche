@@ -16,7 +16,7 @@ alias list := help
 env:
     @python3 scripts/dev.py env
 
-# Avvia solo il database dedicato
+# Avvia SQL e storage Azurite dedicati
 up: env
     docker compose up -d --wait
 
@@ -32,7 +32,7 @@ logs:
 ps:
     docker compose ps
 
-# API, SQL Server e Scheduler in container; hot reload
+# API, SQL Server, Azurite e Scheduler in container; hot reload
 watch: env
     docker compose {{watch-files}} up --build
 
@@ -89,3 +89,25 @@ fmt:
 
 lint:
     python3 scripts/dev.py dotnet format {{solution}} --verify-no-changes
+
+# SDK Azure isolato, usato soltanto dall’importatore locale delle immagini
+storage-tools:
+    python3.13 -m venv .local/storage-venv
+    .local/storage-venv/bin/pip install -r scripts/requirements-storage.txt
+
+# Scarica le card del CSV e le carica nell’Azurite dedicato
+[positional-arguments]
+photos-import csv: env
+    .local/storage-venv/bin/python scripts/import-player-photos.py "$1"
+
+# Associa i blob già caricati agli ID della fonte nel database locale
+photos-register:
+    python3 scripts/dev.py dotnet run --no-launch-profile --project {{app-project}} -- --import-player-media "{{justfile_directory()}}/.local/player-photos/manifest.json"
+
+# Scarica gli stemmi dal manifest di URL verificati e li carica in Azurite
+[positional-arguments]
+club-logos-import manifest: env
+    .local/storage-venv/bin/python scripts/import-player-photos.py "$1" --clubs
+
+club-logos-register:
+    python3 scripts/dev.py dotnet run --no-launch-profile --project {{app-project}} -- --import-club-media "{{justfile_directory()}}/.local/club-logos/manifest.json"

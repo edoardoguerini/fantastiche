@@ -1,6 +1,7 @@
 using System.Data;
 using System.Security.Cryptography;
 using System.Text;
+using Fantastiche.Core.Auth;
 using Fantastiche.Core.Exceptions;
 using Fantastiche.Infrastructure.Common.Persistence;
 using Fantastiche.Infrastructure.Leagues;
@@ -15,13 +16,13 @@ public sealed class CatalogWorkflow(FantasticheDbContext db, TimeProvider clock)
 
     public async Task<ListVersionView> ImportAsync(ImportCatalogCommand request, CancellationToken ct)
     {
-        RequireAdmin(request.Context.UserId, request.Context.IsSuperAdmin);
+        await RequireAdminAsync(request.Context, ct);
         var seasonName = Required(request.SeasonName, 50);
         var rows = FantacalcioCsvParser.Parse(request.Csv);
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(request.Csv)));
 
         await using var tx = await BeginCatalogTransactionAsync(ct);
-        RequireAdmin(request.Context.UserId, request.Context.IsSuperAdmin);
+        await RequireAdminAsync(request.Context, ct);
 
         var existing = await db.ListVersions.AsNoTracking().SingleOrDefaultAsync(x =>
             x.Source == FantacalcioCsvSource && x.SeasonName == seasonName && x.ContentHash == hash, ct);
@@ -91,7 +92,7 @@ public sealed class CatalogWorkflow(FantasticheDbContext db, TimeProvider clock)
     public async Task<ListVersionView> PublishAsync(PublishCatalogCommand request, CancellationToken ct)
     {
         await using var tx = await BeginCatalogTransactionAsync(ct);
-        RequireAdmin(request.Context.UserId, request.Context.IsSuperAdmin);
+        await RequireAdminAsync(request.Context, ct);
         var version = await db.ListVersions.SingleOrDefaultAsync(x => x.Id == request.ListVersionId, ct) ?? throw NotFound();
         if (version.Status == ListVersionStatus.Draft)
         {
@@ -110,7 +111,7 @@ public sealed class CatalogWorkflow(FantasticheDbContext db, TimeProvider clock)
 
         var season = await db.LeagueSeasons.SingleOrDefaultAsync(
             x => x.Id == request.LeagueSeasonId && x.LeagueId == request.LeagueId, ct) ?? throw NotFound();
-        if (!request.Context.IsSuperAdmin)
+        if (!await CatalogAuthorization.IsSuperAdminAsync(db, request.Context, ct))
         {
             var organizer = await db.LeagueMembers.AsNoTracking().AnyAsync(x =>
                 x.LeagueId == request.LeagueId &&
@@ -172,11 +173,11 @@ public sealed class CatalogWorkflow(FantasticheDbContext db, TimeProvider clock)
         return value.Trim();
     }
 
-    private static string NormalizeClubName(string value) => value.Trim().ToUpperInvariant();
+    internal static string NormalizeClubName(string value) => value.Trim().ToUpperInvariant();
 
-    private static void RequireAdmin(Guid? userId, bool isSuperAdmin)
+    private async Task RequireAdminAsync(RequestContext context, CancellationToken ct)
     {
-        if (userId is null || !isSuperAdmin) throw Forbidden();
+        if (!await CatalogAuthorization.IsSuperAdminAsync(db, context, ct)) throw Forbidden();
     }
 
     private static DomainException Unauthorized() => new("auth.required", "Accesso richiesto.", 401);

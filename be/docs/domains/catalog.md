@@ -12,6 +12,8 @@ Il catalogo è condiviso tra le leghe. Ogni listone è una versione con stagione
 
 `GET /api/Catalog/Versions?seasonName=2026%2F27&page=1&pageSize=50` elenca le versioni: tutti gli utenti autenticati vedono quelle pubblicate, solo il SuperAdmin vede anche le bozze. `GET /api/Leagues/{leagueId}/Seasons/{leagueSeasonId}/Catalog` restituisce la versione scelta oppure `data: null`. Questo dettaglio richiede appartenenza attiva alla lega o SuperAdmin.
 
+I privilegi SuperAdmin sono verificati nel database anche con cookie già emesso: una claim rimasta dopo la revoca non permette importazione, pubblicazione, consultazione delle bozze né bypass dei permessi della lega. Restano validi gli eventuali permessi ordinari di membro/organizzatore attivo e la lettura dei listoni pubblicati.
+
 La prima scelta è consentita; ripetere lo stesso ID è idempotente. La sostituzione con un’altra versione restituisce 409: richiede il futuro flusso controllato tra sessioni d’asta. Non esistono endpoint che modifichino o eliminino gli snapshot. La consultazione paginata della bozza è disponibile; un confronto automatico delle differenze tra versioni non è ancora implementato.
 
 ## Formato importato
@@ -62,4 +64,44 @@ Le scritture del catalogo usano una transazione e un applock dedicato, distinto 
 
 Test pertinenti: `FantacalcioCsvParserTests`, `CatalogTests`, scenari catalogo in `HttpFlowTests`. Eseguire `just be test`, `just be migrate-check` e `just be lint`. Gli esiti della sessione sono nel [documento di passaggio](../../../docs/workflow/backend-handoff.md).
 
-Immagini, Blob, sincronizzazione automatica dei fornitori e motore d’asta restano incrementi successivi.
+## Card dei calciatori e loghi dei club
+
+`PlayerMedia` conserva i metadati delle card PNG con chiave naturale `Source` + `ExternalId`. `ClubMedia` conserva quelli dei loghi PNG con chiave `Source` + `NormalizedClubName`; la normalizzazione è la stessa del catalogo (`Trim` e maiuscolo invariant). Nessuna FK richiede che giocatori o club siano già importati: le immagini possono precedere il listone. Le card sono immagini illustrate, non fotografie ritratto.
+
+Importazione solo mediante CLI locale, usando la normale configurazione SQL. Dal root del repository, dopo le migrazioni:
+
+```sh
+just be photos-register
+just be club-logos-register
+```
+
+Le ricette passano percorsi assoluti dei manifest a `--import-player-media` e `--import-club-media`. Anche invocando direttamente la CLI, usare un percorso assoluto: `dotnet run` imposta come directory corrente il progetto Application.
+
+Manifest JSON: `{source: "FantacalcioCsv", items: [...]}`. Ogni card contiene `externalId`, `sourceUrl`, `blobName`, `contentType`, `contentLength`, `sha256`, `downloadedAt`; per i loghi `clubName` sostituisce `externalId`. Esempio di elemento card:
+
+```json
+{
+  "externalId": "4431",
+  "sourceUrl": "https://content.fantacalcio.it/web/campioncini/21/card/4431.png?v=817",
+  "blobName": "fantacalcio/4431.png",
+  "contentType": "image/png",
+  "contentLength": 123,
+  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "downloadedAt": "2026-09-10T00:00:00Z"
+}
+```
+
+Il manifest è letto e validato prima della transazione SQL. Sono ammessi metadati PNG da URL HTTPS di `content.fantacalcio.it`, nomi blob relativi senza traversal, lunghezza 1 byte–10 MiB e hash SHA-256 esadecimale. File oltre 10 MiB, envelope errato o JSON malformato interrompono il comando con exit code 1. Elementi invalidi e identità duplicate sono scartati e contati; per i duplicati rimane il primo valido. L’upsert con transazione serializable e lock dedicato è ripetibile e non elimina media assenti. Il riepilogo distingue inseriti, aggiornati, invariati e scartati. La CLI verifica i metadati; download, verifica del contenuto PNG e upload spettano all’importatore locale. Nessun endpoint pubblico di upload.
+
+Gli URL per il browser hanno configurazione separata, vuota per default:
+
+| Chiave | Valore locale |
+| --- | --- |
+| `Storage:PlayerPhotos:PublicBaseUrl` | `http://localhost:10010/fantastiche/player-photos` |
+| `Storage:ClubLogos:PublicBaseUrl` | `http://localhost:10010/fantastiche/club-logos` |
+
+Variabili d’ambiente: `Storage__PlayerPhotos__PublicBaseUrl` e `Storage__ClubLogos__PublicBaseUrl`. I base URL non contengono credenziali, query o frammenti; devono essere raggiungibili dal browser, quindi non usare il DNS interno Docker.
+
+Catalogo globale, catalogo d’asta, `currentAuction` e rosa includono `photoUrl` e `clubLogoUrl`, entrambi nullable. L’URL è base pubblico + `/` + nome blob e richiede configurazione e metadati presenti. Le card sono associate tramite Players.Source/ExternalId, mai tramite nome del calciatore. Il logo passa dal ClubId di ListEntries e da Clubs.Source/NormalizedName. La rosa segue il listone originale dell’acquisto e conserva il club di quello snapshot anche dopo un trasferimento.
+
+Test: parser dei due manifest, URL opzionali/separati, import prima del catalogo, replay concorrente, aggiornamento senza cancellazione degli assenti, corrispondenza fonte/identità, logo dello snapshot originale, fallback null e contratti HTTP. Sincronizzazione periodica del fornitore e deploy Blob Azure restano incrementi successivi.

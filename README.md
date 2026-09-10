@@ -4,9 +4,9 @@ Applicazione per aste di fantacalcio Classic, progettata per telefono, tablet e 
 
 ## Stato
 
-Backend implementato: solution .NET, Identity, leghe/stagioni, inviti, coda email, Scheduler, catalogo Classic versionato e motore d’asta con rilanci, aggiudicazione automatica e SignalR. Ambiente Docker e comandi `just` seguono ACKSD. Frontend e infrastruttura Azure restano da realizzare.
+Backend implementato: solution .NET, Identity, leghe/stagioni, inviti, coda email, Scheduler, catalogo Classic versionato e motore d’asta con rilanci, aggiudicazione automatica e SignalR. Ambiente Docker e comandi `just` seguono ACKSD. Frontend implementato: login centrato in dark mode, sessione cookie, elenco/dettaglio/creazione leghe e sala d’asta realtime con turni, rilanci, rose e controlli organizzatore. Sono disponibili anche attivazione tramite invito, gestione partecipanti e inviti, importazione/anteprima/pubblicazione listoni e scelta del listone della lega. Card e stemmi sono serviti da Azurite locale. PWA e infrastruttura Azure restano da realizzare.
 
-Avvio locale: `just be env`, `just up-all`. API e Scalar su `http://localhost:6060/scalar`; dettagli e credenziali locali nella [guida setup](be/docs/getting-started/development-setup.md). Risultati delle verifiche nel [passaggio backend](docs/workflow/backend-handoff.md).
+Avvio locale: `just be env`, `just up-all`. API e Scalar su `http://localhost:6060/scalar`; dettagli e credenziali locali nella [guida setup](be/docs/getting-started/development-setup.md). Frontend: `just fe install`, poi `just fe dev` su `http://localhost:6061/login`. Risultati nelle guide [backend](docs/workflow/backend-handoff.md) e [frontend](fe/docs/getting-started/development-setup.md).
 
 ## Orientamento
 

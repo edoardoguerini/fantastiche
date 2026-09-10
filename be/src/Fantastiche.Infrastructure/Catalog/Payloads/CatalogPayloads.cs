@@ -21,6 +21,8 @@ public sealed record CatalogEntryView(
     string ClubName,
     DateTime BirthDate,
     string Nationality,
-    string PreferredFoot);
+    string PreferredFoot,
+    string? PhotoUrl = null,
+    string? ClubLogoUrl = null);
 
 public sealed record LeagueCatalogView(Guid LeagueId, Guid LeagueSeasonId, Guid ListVersionId);

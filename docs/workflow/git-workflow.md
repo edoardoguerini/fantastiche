@@ -2,6 +2,10 @@
 
 ## Stato attuale
 
+Il backend è stato integrato in `master` tramite PR #1. Il frontend, la sala d’asta, gli inviti, la gestione catalogo e lo storage locale sono sviluppati su `feature/fe-bootstrap`. Dopo le verifiche l’utente ha autorizzato commit, push e apertura della PR verso `master`. Il merge resta un passaggio separato.
+
+## Incremento backend precedente
+
 Il lavoro backend prosegue sul branch `feature/be-bootstrap`, mantenuto su richiesta dell’utente. Il remote `origin` punta a `https://github.com/edoardoguerini/fantastiche.git`. Dopo la verifica del backend, l’utente ha autorizzato commit e push di questo incremento sullo stesso branch. Questa attività non configura Boards, branch protetti o pipeline e non esegue merge. Non creare work item nel progetto ACKS.
 
 ## Modello di riferimento da attivare

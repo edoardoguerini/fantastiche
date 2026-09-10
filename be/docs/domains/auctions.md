@@ -28,6 +28,7 @@ Tutte le route richiedono cookie autenticato; le mutazioni richiedono anche `X-X
 |---|---|
 | POST `/api/Auctions/Sessions` | Crea sessione con LeagueId, LeagueSeasonId e TeamOrder |
 | GET `/api/Leagues/{leagueId}/Seasons/{leagueSeasonId}/Auction` | Recupera sessione attiva/pausa, oppure null |
+| GET `/api/Leagues/{leagueId}/Seasons/{leagueSeasonId}/AuctionRoom` | Contesto sala, squadra personale, permessi e squadre attive della stagione |
 | GET `/api/Auctions/Sessions/{sessionId}` | Stato, turno, ultima asta, budget, conteggi rosa e versione |
 | POST `/api/Auctions/Sessions/{sessionId}/Players` | RequestId, PlayerId, DurationSeconds, Increments |
 | POST `/api/Auctions/Sessions/{sessionId}/Bids` | RequestId, PlayerAuctionId, Amount |
@@ -35,12 +36,21 @@ Tutte le route richiedono cookie autenticato; le mutazioni richiedono anche `X-X
 | GET `/api/Auctions/Sessions/{sessionId}/Commands/{requestId}` | Ricevuta del proprio comando |
 | GET `/api/Auctions/Sessions/{sessionId}/Players/{playerAuctionId}/Bids` | Storico offerte accettate, page/pageSize |
 | GET `/api/Auctions/Sessions/{sessionId}/Roster` | Rosa della stagione, teamId/page/pageSize facoltativi |
+| GET `/api/Auctions/Sessions/{sessionId}/Catalog` | Listone della sessione con disponibilità stagionale, search/role/availableOnly/page/pageSize |
 
 Per Start, Bid e Control il client genera un UUID RequestId e lo conserva fino al recupero dell’esito. Stesso utente, sessione, RequestId e payload restituiscono la ricevuta originaria. Il riuso con payload o tipo comando diverso restituisce 409. Sono persistiti anche i rifiuti di dominio; errori sintattici o accessi estranei alla lega possono precedere la ricevuta.
 
 La risposta a un comando rifiutato ha lo status HTTP appropriato, `isSuccess=false` e il risultato persistito in `data`, compresi `accepted=false`, codice e versione. La GET della ricevuta ha esito positivo quando riesce a recuperarla, anche se il comando originario era rifiutato. Create non usa RequestId: il vincolo della sessione attiva e la relativa GET consentono il recupero.
 
 Lo stato include l’ultima asta anche dopo la chiusura; `currentTeamId` è null per una sessione Completed. La rosa comprende gli acquisti dell’intera stagione, inclusi quelli di sessioni precedenti, con nomi e club dal listone originale di ciascun acquisto.
+
+### Contesto sala e catalogo
+
+`AuctionRoom` restituisce `{leagueId, leagueSeasonId, myTeamId, canManage, sessionId, listVersionId, teams}` anche prima della creazione della sessione. `myTeamId` proviene da TeamMembers con membership attiva e rimane null per chi organizza senza giocare. `canManage` richiede SuperAdmin verificato nel database oppure organizzatore attivo. Le `teams` hanno `{id, name, budget, goalkeepers, defenders, midfielders, forwards}` e comprendono le squadre della stagione con almeno un membro attivo, ordinate per nome/id. Budget e conteggi riflettono gli acquisti persistiti della stagione.
+
+`sessionId` indica la sessione Active/Paused, altrimenti la Completed creata più recentemente, oppure null. `listVersionId` segue il listone della sessione selezionata; in assenza di sessioni segue la configurazione stagionale, eventualmente null. Questa lettura e il catalogo richiedono appartenenza attiva o SuperAdmin ancora valido: membri Pending, estranei e vecchie claim revocate non danno accesso. Le query Dapper acquisiscono il lock condiviso della stagione e ricontrollano l’autorizzazione dopo il lock.
+
+`Catalog` restituisce `AuctionPage` (`items`, `page`, `pageSize`, `total`) con elementi `{playerId, name, role, clubName, isAvailable, teamId}` dal listone fissato nella sessione. `availableOnly` è true per default: esclude acquisti di tutta la stagione e la chiamata aperta, anche in un’altra sessione della stessa stagione. Con false include anche questi giocatori; `teamId` identifica soltanto la squadra acquirente, ed è null per la chiamata ancora aperta. `search` cerca nome e nome completo, rimuove gli spazi esterni e accetta fino a 200 caratteri, trattando letteralmente i caratteri jolly SQL. `role` accetta P/D/C/A senza distinzione maiuscole/minuscole. Default page=1 e pageSize=30, limiti rispettivamente 1–10000 e 1–100; ordine stabile per nome/id. Filtri e paginazione non validi restituiscono 400.
 
 ## SignalR e recupero client
 
