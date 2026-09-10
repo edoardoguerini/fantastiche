@@ -23,6 +23,14 @@ public sealed record CatalogEntryView(
     string Nationality,
     string PreferredFoot,
     string? PhotoUrl = null,
-    string? ClubLogoUrl = null);
+    string? ClubLogoUrl = null,
+    string? MantraRole = null,
+    int? CurrentQuotation = null,
+    int? InitialQuotation = null,
+    int? CurrentMantraQuotation = null,
+    int? InitialMantraQuotation = null,
+    int? Fvm = null,
+    int? MantraFvm = null,
+    bool? IsTransferred = null);
 
 public sealed record LeagueCatalogView(Guid LeagueId, Guid LeagueSeasonId, Guid ListVersionId);

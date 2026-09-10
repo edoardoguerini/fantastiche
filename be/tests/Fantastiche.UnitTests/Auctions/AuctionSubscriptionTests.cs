@@ -12,6 +12,25 @@ namespace Fantastiche.UnitTests.Auctions;
 public sealed class AuctionSubscriptionTests
 {
     [Fact]
+    public void PresenceCountsDistinctUsersInTheSessionAndRemovesDisconnectedUsers()
+    {
+        var registry = new AuctionSubscriptionRegistry();
+        var sessionId = Guid.CreateVersion7();
+        var userId = Guid.CreateVersion7();
+        registry.TryWatch("tab-1", userId, sessionId, 1);
+        registry.TryWatch("tab-2", userId, sessionId, 1);
+        registry.TryWatch("other-user", Guid.CreateVersion7(), sessionId, 1);
+        registry.TryWatch("other-room", Guid.CreateVersion7(), Guid.CreateVersion7(), 1);
+        Assert.Equal(2, registry.CountConnectedUsers(sessionId));
+        registry.RemoveConnection("tab-1");
+        Assert.Equal(2, registry.CountConnectedUsers(sessionId));
+        registry.Unwatch("tab-2", sessionId);
+        Assert.Equal(1, registry.CountConnectedUsers(sessionId));
+        registry.RemoveConnection("other-user");
+        Assert.Equal(0, registry.CountConnectedUsers(sessionId));
+    }
+
+    [Fact]
     public void WatchLimitsEachConnectionToSixteenDistinctSessions()
     {
         var registry = new AuctionSubscriptionRegistry();

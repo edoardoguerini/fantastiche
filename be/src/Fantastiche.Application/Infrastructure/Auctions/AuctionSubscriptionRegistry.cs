@@ -64,6 +64,13 @@ public sealed class AuctionSubscriptionRegistry
     public void RemoveConnection(string connectionId)
         => connections.TryRemove(connectionId, out _);
 
+    public int CountConnectedUsers(Guid sessionId)
+        => GetObservers()
+            .Where(observer => observer.SessionId == sessionId)
+            .Select(observer => observer.UserId)
+            .Distinct()
+            .Count();
+
     public IReadOnlyList<AuctionObserver> GetObservers()
     {
         var observers = new List<AuctionObserver>();

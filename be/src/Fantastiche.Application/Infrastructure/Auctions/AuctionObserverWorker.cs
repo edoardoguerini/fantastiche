@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 namespace Fantastiche.Application.Infrastructure.Auctions;
 
 public sealed record AuctionChanged(Guid SessionId, long Version);
+public sealed record AuctionPresenceChanged(Guid SessionId, int ConnectedUsers);
 
 public sealed class AuctionObserverWorker(
     AuctionSubscriptionRegistry subscriptions,
@@ -14,6 +15,8 @@ public sealed class AuctionObserverWorker(
     IOptions<AuctionRealtimeOptions> options,
     ILogger<AuctionObserverWorker> logger) : BackgroundService
 {
+    private readonly Dictionary<(string ConnectionId, Guid SessionId), int> knownPresence = [];
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -38,6 +41,11 @@ public sealed class AuctionObserverWorker(
     private async Task ObserveAsync(CancellationToken cancellationToken)
     {
         var observers = subscriptions.GetObservers();
+        var activeSubscriptions = observers.Select(observer => (observer.ConnectionId, observer.SessionId)).ToHashSet();
+        foreach (var key in knownPresence.Keys.Where(key => !activeSubscriptions.Contains(key)).ToArray())
+        {
+            knownPresence.Remove(key);
+        }
         if (observers.Count == 0)
         {
             return;
@@ -57,19 +65,36 @@ public sealed class AuctionObserverWorker(
             if (!observation.HasAccess)
             {
                 subscriptions.Unwatch(observation.ConnectionId, observation.SessionId);
-                continue;
+                knownPresence.Remove((observation.ConnectionId, observation.SessionId));
             }
+        }
 
-            if (!subscriptions.NeedsNotification(
-                    observation.ConnectionId,
-                    observation.SessionId,
-                    observation.Version))
-            {
-                continue;
-            }
-
+        var counts = observations.Where(observation => observation.HasAccess)
+            .Select(observation => observation.SessionId).Distinct()
+            .ToDictionary(sessionId => sessionId, subscriptions.CountConnectedUsers);
+        foreach (var observation in observations.Where(observation => observation.HasAccess))
+        {
             try
             {
+                var key = (observation.ConnectionId, observation.SessionId);
+                var count = counts[observation.SessionId];
+                if (!knownPresence.TryGetValue(key, out var previousCount) || count != previousCount)
+                {
+                    await hub.Clients.Client(observation.ConnectionId).SendAsync(
+                        "AuctionPresenceChanged",
+                        new AuctionPresenceChanged(observation.SessionId, count),
+                        cancellationToken);
+                    knownPresence[key] = count;
+                }
+
+                if (!subscriptions.NeedsNotification(
+                        observation.ConnectionId,
+                        observation.SessionId,
+                        observation.Version))
+                {
+                    continue;
+                }
+
                 await hub.Clients.Client(observation.ConnectionId).SendAsync(
                     "AuctionChanged",
                     new AuctionChanged(observation.SessionId, observation.Version),

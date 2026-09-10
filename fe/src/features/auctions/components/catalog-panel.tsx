@@ -1,3 +1,4 @@
+import { PlayerValuation } from './player-valuation'
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Input } from '@/components/primitives/input'
@@ -12,7 +13,6 @@ import {
   type RosterRules,
 } from '../types/auction.types'
 import { canBuyRole } from '../validations/auction-rules'
-import { PlayerCallForm } from './player-call-form'
 import { PlayerPhoto } from './player-photo'
 import { ClubLabel } from './club-label'
 
@@ -22,24 +22,21 @@ export function CatalogPanel({
   canCall,
   team,
   rules,
-  onStart,
+  onSelect,
+  selectedPlayerId,
 }: {
   userId: string
   sessionId: string
   canCall: boolean
   team?: AuctionTeam
   rules: RosterRules
-  onStart: (
-    player: CatalogEntry,
-    duration: number,
-    increments: number[],
-  ) => Promise<void>
+  onSelect: (player: CatalogEntry) => void
+  selectedPlayerId?: string
 }) {
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
   const [role, setRole] = useState('')
   const [page, setPage] = useState(1)
-  const [selected, setSelected] = useState<CatalogEntry | null>(null)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebounced(search)
@@ -70,6 +67,7 @@ export function CatalogPanel({
             <button
               key={item.id}
               type="button"
+              data-role={item.id}
               aria-pressed={role === item.id}
               onClick={() => {
                 setRole(item.id)
@@ -81,18 +79,6 @@ export function CatalogPanel({
           ))}
         </div>
       </div>
-      {selected && canCall && (
-        <PlayerCallForm
-          key={selected.playerId}
-          player={selected}
-          disabled={!canCall}
-          onCancel={() => setSelected(null)}
-          onStart={async (duration, increments) => {
-            await onStart(selected, duration, increments)
-            setSelected(null)
-          }}
-        />
-      )}
       <div className="catalog-caption">
         <span>Calciatori disponibili</span>
         <span>{result.data?.total ?? '—'}</span>
@@ -114,26 +100,34 @@ export function CatalogPanel({
               player.isAvailable &&
               canBuyRole(team, rules, player.role)
             return (
-              <div className="catalog-row" key={player.playerId}>
+              <div
+                className={`catalog-row ${selectedPlayerId === player.playerId ? 'catalog-row--selected' : ''}`}
+                data-role={player.role}
+                key={player.playerId}
+              >
                 <PlayerPhoto url={player.photoUrl} role={player.role} />
                 <div>
                   <h3>{player.name}</h3>
                   <p className="player-club-line">
-                    <span>{player.role}</span>
+                    <span className={`catalog-role role-${player.role}`}>
+                      {player.role}
+                    </span>
                     <ClubLabel
                       name={player.clubName}
                       logoUrl={player.clubLogoUrl}
                     />
                   </p>
+                  <PlayerValuation player={player} compact />
                 </div>
                 {canCall ? (
                   <Button
                     variant="outline"
                     disabled={!eligible}
-                    onClick={() => setSelected(player)}
-                    aria-label={`Chiama ${player.name}`}
+                    onClick={() => onSelect(player)}
+                    aria-pressed={selectedPlayerId === player.playerId}
+                    aria-label={`Seleziona ${player.name}`}
                   >
-                    Chiama <Icon name="plus" />
+                    Scegli <Icon name="plus" />
                   </Button>
                 ) : (
                   <span className="catalog-available">Disponibile</span>

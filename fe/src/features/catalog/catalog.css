@@ -186,3 +186,16 @@
   gap: 0.35rem;
   align-items: center;
 }
+
+.catalog-transferred {
+  display: inline-block;
+  margin-left: 8px;
+  color: #efaa99;
+  font-size: 12px;
+}
+.catalog-market-data {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+}

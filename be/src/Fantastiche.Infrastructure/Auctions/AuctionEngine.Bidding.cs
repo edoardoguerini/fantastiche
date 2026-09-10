@@ -31,6 +31,9 @@ public sealed partial class AuctionEngine
             if (team != caller) throw Error("auction.not_caller", "Può chiamare soltanto la squadra di turno.", 403);
             var role = await c.QuerySingleOrDefaultAsync<string>(Sql("SELECT Role FROM ListEntries WHERE ListVersionId = @ListVersionId AND PlayerId = @PlayerId",
                 new { s.ListVersionId, request.PlayerId }, tx, token)) ?? throw Error("resource.not_found", "Giocatore non presente nel listone della sessione.", 404);
+            if (await c.ExecuteScalarAsync<bool>(Sql("SELECT COALESCE(IsTransferred, 0) FROM ListEntries WHERE ListVersionId = @ListVersionId AND PlayerId = @PlayerId",
+                new { s.ListVersionId, request.PlayerId }, tx, token)))
+                throw Error("auction.player_transferred", "Il giocatore è ceduto e non può essere chiamato.");
             if (await c.ExecuteScalarAsync<int>(Sql("SELECT COUNT(*) FROM RosterEntries WHERE LeagueSeasonId = @LeagueSeasonId AND LeagueId = @LeagueId AND PlayerId = @PlayerId",
                 new { s.LeagueSeasonId, s.LeagueId, request.PlayerId }, tx, token)) != 0)
                 throw Error("auction.player_unavailable", "Giocatore già acquistato nella stagione.");

@@ -107,6 +107,8 @@ internal sealed class AuctionReadSession : IAsyncDisposable
             ORDER BY Position;
 
             SELECT TOP (1) pa.Id, pa.PlayerId, entry.Name, pa.Role, entry.ClubName,
+                   entry.BirthDate, entry.Nationality, entry.PreferredFoot,
+                   entry.CurrentQuotation, entry.InitialQuotation, entry.Fvm,
                    pa.CallerTeamId, pa.WinningTeamId, pa.CurrentAmount, pa.DurationSeconds,
                    pa.IncrementOptionsJson, pa.Deadline, pa.Status, pa.StartedAt, pa.ClosedAt,
                    {PlayerPhotoStorage.SqlProjection}, {ClubLogoStorage.SqlProjection}
@@ -166,7 +168,13 @@ internal sealed class AuctionReadSession : IAsyncDisposable
             auctionRow.StartedAt,
             auctionRow.ClosedAt,
             auctionRow.PhotoUrl,
-            auctionRow.ClubLogoUrl);
+            auctionRow.ClubLogoUrl,
+            auctionRow.BirthDate,
+            auctionRow.Nationality,
+            auctionRow.PreferredFoot,
+            auctionRow.CurrentQuotation,
+            auctionRow.InitialQuotation,
+            auctionRow.Fvm);
 
         return new AuctionSessionView(
             header.Id,
@@ -293,5 +301,11 @@ internal sealed class AuctionReadSession : IAsyncDisposable
         public DateTimeOffset? ClosedAt { get; init; }
         public string? PhotoUrl { get; init; }
         public string? ClubLogoUrl { get; init; }
+        public DateTime? BirthDate { get; init; }
+        public string? Nationality { get; init; }
+        public string? PreferredFoot { get; init; }
+        public int? CurrentQuotation { get; init; }
+        public int? InitialQuotation { get; init; }
+        public int? Fvm { get; init; }
     }
 }

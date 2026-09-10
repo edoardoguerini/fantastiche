@@ -41,6 +41,9 @@ public sealed partial class AuctionQueryTests(SqlFixture fixture) : IClassFixtur
         Assert.Equal(scenario.CurrentAuctionId, state.CurrentAuction!.Id);
         Assert.Equal("Closed", state.CurrentAuction.Status);
         Assert.Equal("Difensore attuale", state.CurrentAuction.Name);
+        Assert.Equal(new DateTime(2001, 1, 1), state.CurrentAuction.BirthDate);
+        Assert.Equal("Italia", state.CurrentAuction.Nationality);
+        Assert.Equal("Sinistro", state.CurrentAuction.PreferredFoot);
         Assert.Equal([1, 3], state.CurrentAuction.Increments);
         Assert.Equal(TimeSpan.Zero, state.ServerTime.Offset);
 

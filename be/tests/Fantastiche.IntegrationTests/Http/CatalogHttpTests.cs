@@ -10,8 +10,8 @@ namespace Fantastiche.IntegrationTests.Http;
 public sealed partial class HttpFlowTests
 {
     private static string CatalogCsv(string name = "Portiere Uno") => string.Join("\n",
-        string.Join(",", new[] { "101", name, "Giocatore Uno", "P", "Por", "x", "x", "x", "x", "Club Uno", "x", "x", "Destro", "Italia", "01/07/2000 00:00:00", "https://example.test/101.png", "x", "x", "x" }),
-        string.Join(",", new[] { "102", "Attaccante Due", "Giocatore Due", "A", "Pc", "x", "x", "x", "x", "Club Due", "x", "x", "Sinistro", "Italia", "01/07/2001 00:00:00", "https://example.test/102.png", "x", "x", "x" }));
+        string.Join(",", new[] { "101", name, "Giocatore Uno", "P", "Por", "17", "16", "17", "16", "Club Uno", "57", "57", "Destro", "Italia", "01/07/2000 00:00:00", "https://example.test/101.png", "0", "x", "x" }),
+        string.Join(",", new[] { "102", "Attaccante Due", "Giocatore Due", "A", "Pc", "17", "16", "17", "16", "Club Due", "57", "57", "Sinistro", "Italia", "01/07/2001 00:00:00", "https://example.test/102.png", "0", "x", "x" }));
 
     [Fact]
     public async Task CatalogRequiresAuthenticationAndAntiforgery()

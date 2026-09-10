@@ -5,6 +5,24 @@ namespace Fantastiche.IntegrationTests.Auctions;
 public sealed partial class AuctionEngineTests
 {
     [Fact]
+    public async Task TransferredPlayerIsExcludedAndDirectCallIsRejectedWithoutChangingBudget()
+    {
+        var data = await Seed();
+        var session = await Create(data);
+        await Execute("UPDATE ListEntries SET IsTransferred = 1 WHERE PlayerId = @id", new { id = data.Players[0] });
+        var available = await Send<GetAuctionCatalogQuery, AuctionPage<AuctionCatalogPlayerView>>(new(data.Users[0], session.Id));
+        Assert.DoesNotContain(available.Items, x => x.PlayerId == data.Players[0]);
+        var all = await Send<GetAuctionCatalogQuery, AuctionPage<AuctionCatalogPlayerView>>(new(data.Users[0], session.Id, AvailableOnly: false));
+        Assert.False(Assert.Single(all.Items, x => x.PlayerId == data.Players[0]).IsAvailable);
+        var call = await Start(data, session.Id);
+        Assert.False(call.Accepted);
+        Assert.Equal("auction.player_transferred", call.ErrorCode);
+        var snapshot = await Send<GetAuctionStateQuery, AuctionSessionView>(new(data.Users[0], session.Id));
+        Assert.Null(snapshot.CurrentAuction);
+        Assert.All(snapshot.Teams, team => Assert.Equal(10, team.Budget));
+    }
+
+    [Fact]
     public async Task SessionCatalogExcludesTheOpenCallThenPreservesTheSeasonPurchaseAcrossSessions()
     {
         var data = await Seed();

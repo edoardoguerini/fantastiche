@@ -42,7 +42,7 @@ Per Start, Bid e Control il client genera un UUID RequestId e lo conserva fino a
 
 La risposta a un comando rifiutato ha lo status HTTP appropriato, `isSuccess=false` e il risultato persistito in `data`, compresi `accepted=false`, codice e versione. La GET della ricevuta ha esito positivo quando riesce a recuperarla, anche se il comando originario era rifiutato. Create non usa RequestId: il vincolo della sessione attiva e la relativa GET consentono il recupero.
 
-Lo stato include l’ultima asta anche dopo la chiusura; `currentTeamId` è null per una sessione Completed. La rosa comprende gli acquisti dell’intera stagione, inclusi quelli di sessioni precedenti, con nomi e club dal listone originale di ciascun acquisto.
+Il giocatore nello snapshot espone anche BirthDate, Nationality e PreferredFoot, letti dalla ListEntry della versione fissata nella sua asta. Lo stato include l’ultima asta anche dopo la chiusura; `currentTeamId` è null per una sessione Completed. La rosa comprende gli acquisti dell’intera stagione, inclusi quelli di sessioni precedenti, con nomi e club dal listone originale di ciascun acquisto.
 
 ### Contesto sala e catalogo
 
@@ -55,6 +55,8 @@ Lo stato include l’ultima asta anche dopo la chiusura; `currentTeamId` è null
 ## SignalR e recupero client
 
 Hub autenticato `/hubs/Auctions`. `WatchSession(sessionId)` restituisce lo stato autorevole e registra l’osservazione; `UnwatchSession(sessionId)` la rimuove. Ogni connessione può osservare al massimo 16 sessioni.
+
+`AuctionPresenceChanged` comunica SessionId e ConnectedUsers dopo la verifica dei permessi effettuata dall’observer. Il conteggio include gli utenti distinti con almeno una sottoscrizione alla sessione, organizzatori compresi, e si aggiorna a ingresso, uscita e revoca. Più connessioni dello stesso utente non aumentano il numero. Il conteggio è in memoria e relativo alla singola istanza API: per una distribuzione multiistanza occorre aggregare le presenze in un registro condiviso. Le disconnessioni improvvise si riflettono dopo il rilevamento del timeout SignalR.
 
 `AuctionChanged` comunica SessionId e Version. Il client ignora versioni già viste e ricarica lo stato; dopo una riconnessione ripete WatchSession e recupera le ricevute dei comandi con risposta incerta. Nessuna offerta offline e nessun timer client decide l’aggiudicazione.
 

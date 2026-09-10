@@ -44,14 +44,15 @@ public sealed class GetAuctionCatalogQueryHandler(FantasticheDbContext db, Playe
               AND (@Role IS NULL OR entry.Role = @Role)
             """;
         const string available = """
-            roster.PlayerId IS NULL AND NOT EXISTS (
+            COALESCE(entry.IsTransferred, 0) = 0 AND roster.PlayerId IS NULL AND NOT EXISTS (
                 SELECT 1 FROM PlayerAuctions auction WHERE auction.PlayerId = entry.PlayerId
                 AND auction.LeagueSeasonId = @LeagueSeasonId AND auction.LeagueId = @LeagueId AND auction.Status = 0)
             """;
         using var result = await read.Connection.QueryMultipleAsync(new CommandDefinition($"""
             SELECT COUNT(*) {source} AND (@AvailableOnly = 0 OR ({available}));
             SELECT entry.PlayerId, entry.Name, entry.Role, entry.ClubName,
-                   CAST(CASE WHEN {available} THEN 1 ELSE 0 END AS bit) AS IsAvailable, roster.TeamId, {PlayerPhotoStorage.SqlProjection}, {ClubLogoStorage.SqlProjection}
+                   CAST(CASE WHEN {available} THEN 1 ELSE 0 END AS bit) AS IsAvailable, roster.TeamId, {PlayerPhotoStorage.SqlProjection}, {ClubLogoStorage.SqlProjection},
+                   entry.CurrentQuotation, entry.InitialQuotation, entry.Fvm, entry.IsTransferred
             {source} AND (@AvailableOnly = 0 OR ({available}))
             ORDER BY entry.Name, entry.PlayerId
             OFFSET @Skip ROWS FETCH NEXT @PageSize ROWS ONLY;

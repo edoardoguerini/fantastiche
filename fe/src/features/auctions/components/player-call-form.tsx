@@ -1,3 +1,4 @@
+import { PlayerValuation } from './player-valuation'
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { Button } from '@/components/primitives/button'
@@ -46,83 +47,94 @@ export function PlayerCallForm({
   })
   return (
     <form
-      className="player-call-form"
+      className="player-call-form auction-stage auction-stage--preview"
+      data-role={player.role}
+      aria-label="Anteprima chiamata"
       noValidate
       onSubmit={(event) => {
         event.preventDefault()
         void form.handleSubmit()
       }}
     >
+      <div className="auction-stage-top">
+        <span className="auction-eyebrow">La tua selezione</span>
+        <span className="auction-preview-badge">Anteprima privata</span>
+      </div>
       <div className="player-call-heading">
-        <PlayerPhoto url={player.photoUrl} role={player.role} />
+        <PlayerPhoto url={player.photoUrl} role={player.role} large />
         <div>
-          <span className="auction-eyebrow">LA TUA CHIAMATA</span>
-          <h3>{player.name}</h3>
+          <span className={`catalog-role role-${player.role}`}>
+            {player.role}
+          </span>
+          <h2>{player.name}</h2>
           <p className="player-club-line">
             <ClubLabel name={player.clubName} logoUrl={player.clubLogoUrl} /> ·
             Offerta iniziale 1 credito
           </p>
+          <PlayerValuation player={player} />
         </div>
       </div>
-      <div className="call-settings">
-        <form.Field name="duration">
-          {(field) => (
-            <div className="form-field">
-              <label htmlFor="call-duration">Timer</label>
-              <select
-                id="call-duration"
-                value={field.state.value}
-                onChange={(event) =>
-                  field.handleChange(Number(event.target.value))
-                }
-                disabled={disabled}
-              >
-                {[5, 10, 15, 20, 25, 30].map((seconds) => (
-                  <option key={seconds} value={seconds}>
-                    {seconds} secondi
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </form.Field>
-        <form.Field name="increments">
-          {(field) => (
-            <div className="form-field">
-              <label htmlFor="call-increments">Incrementi dei rilanci</label>
-              <Input
-                id="call-increments"
-                value={field.state.value}
-                onChange={(event) => field.handleChange(event.target.value)}
-                onBlur={field.handleBlur}
-                disabled={disabled}
-                aria-invalid={field.state.meta.errors.length > 0}
-                aria-describedby={
-                  field.state.meta.errors.length
-                    ? 'increments-error'
-                    : undefined
-                }
-              />
-              {field.state.meta.errors[0] && (
-                <p className="field-error" id="increments-error" role="alert">
-                  {field.state.meta.errors[0].message}
-                </p>
-              )}
-            </div>
-          )}
-        </form.Field>
-      </div>
-      <div className="call-actions">
-        <Button variant="ghost" onClick={onCancel} disabled={disabled}>
-          Annulla
-        </Button>
-        <form.Subscribe selector={(state) => state.isSubmitting}>
-          {(busy) => (
-            <Button type="submit" disabled={disabled || busy}>
-              Chiama a 1 credito
-            </Button>
-          )}
-        </form.Subscribe>
+      <div className="call-settings-row">
+        <div className="call-settings">
+          <form.Field name="duration">
+            {(field) => (
+              <div className="form-field">
+                <label htmlFor="call-duration">Timer</label>
+                <select
+                  id="call-duration"
+                  value={field.state.value}
+                  onChange={(event) =>
+                    field.handleChange(Number(event.target.value))
+                  }
+                  disabled={disabled}
+                >
+                  {[5, 10, 15, 20, 25, 30].map((seconds) => (
+                    <option key={seconds} value={seconds}>
+                      {seconds} secondi
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </form.Field>
+          <form.Field name="increments">
+            {(field) => (
+              <div className="form-field">
+                <label htmlFor="call-increments">Incrementi dei rilanci</label>
+                <Input
+                  id="call-increments"
+                  value={field.state.value}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  onBlur={field.handleBlur}
+                  disabled={disabled}
+                  aria-invalid={field.state.meta.errors.length > 0}
+                  aria-describedby={
+                    field.state.meta.errors.length
+                      ? 'increments-error'
+                      : undefined
+                  }
+                />
+                {field.state.meta.errors[0] && (
+                  <p className="field-error" id="increments-error" role="alert">
+                    {field.state.meta.errors[0].message}
+                  </p>
+                )}
+              </div>
+            )}
+          </form.Field>
+        </div>
+        <div className="call-actions">
+          <Button variant="ghost" onClick={onCancel} disabled={disabled}>
+            Annulla
+          </Button>
+          <form.Subscribe selector={(state) => state.isSubmitting}>
+            {(busy) => (
+              <Button type="submit" disabled={disabled || busy}>
+                Chiama a 1 credito
+              </Button>
+            )}
+          </form.Subscribe>
+        </div>
       </div>
     </form>
   )

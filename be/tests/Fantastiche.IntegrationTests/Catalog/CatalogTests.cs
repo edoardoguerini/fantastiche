@@ -18,6 +18,39 @@ public sealed class CatalogTests(SqlFixture fixture) : IClassFixture<SqlFixture>
     private static int nextExternalId = 1_000_000;
 
     [Fact]
+    public async Task ReimportCompletesMissingMarketDataWithoutReplacingPublishedVersion()
+    {
+        var csv = Csv(Row(UniqueExternalId(), "Portiere", "Portiere Uno", "P", "Roma"));
+        var season = UniqueSeason();
+        var version = await Send<ImportCatalogCommand, ListVersionView>(new(fixture.Admin, season, csv));
+        var published = await Send<PublishCatalogCommand, ListVersionView>(new(fixture.Admin, version.Id));
+        var playerId = await Run(async services =>
+        {
+            var db = services.GetRequiredService<FantasticheDbContext>();
+            var entry = await db.ListEntries.SingleAsync(x => x.ListVersionId == version.Id);
+            Assert.Equal(17, entry.CurrentQuotation);
+            Assert.Equal(57, entry.Fvm);
+            entry.CurrentQuotation = null;
+            entry.Fvm = null;
+            entry.IsTransferred = null;
+            await db.SaveChangesAsync();
+            return entry.PlayerId;
+        });
+        var replay = await Send<ImportCatalogCommand, ListVersionView>(new(fixture.Admin, season, csv));
+        Assert.Equal(published, replay);
+        await Run(async services =>
+        {
+            var entry = await services.GetRequiredService<FantasticheDbContext>().ListEntries
+                .SingleAsync(x => x.ListVersionId == version.Id);
+            Assert.Equal(playerId, entry.PlayerId);
+            Assert.Equal(17, entry.CurrentQuotation);
+            Assert.Equal(57, entry.Fvm);
+            Assert.False(entry.IsTransferred);
+        });
+        Assert.Equal(replay, await Send<ImportCatalogCommand, ListVersionView>(new(fixture.Admin, season, csv)));
+    }
+
+    [Fact]
     public async Task ImportRequiresAnAuthenticatedSuperAdminAndConcurrentReplayReturnsOneDraft()
     {
         var externalId = UniqueExternalId();
@@ -327,8 +360,8 @@ public sealed class CatalogTests(SqlFixture fixture) : IClassFixture<SqlFixture>
     {
         var values = new[]
         {
-            externalId, name, fullName, role, "", "", "", "", "", club,
-            "", "", "Destro", "Italia", "01/01/2000 00:00:00", "", "", "", ""
+            externalId, name, fullName, role, "Dc", "17", "16", "18", "15", club,
+            "57", "60", "Destro", "Italia", "01/01/2000 00:00:00", "", "0", "", ""
         };
         return string.Join(',', values.Select(Escape));
     }

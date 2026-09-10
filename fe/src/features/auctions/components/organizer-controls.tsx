@@ -13,7 +13,6 @@ export function OrganizerControls({
   disabled: boolean
   onControl: (action: string, teamOrder?: string[]) => Promise<void>
 }) {
-  const [expanded, setExpanded] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const [editingOrder, setEditingOrder] = useState(false)
   const [order, setOrder] = useState(
@@ -23,97 +22,90 @@ export function OrganizerControls({
   if (session.status === 'Completed') return null
   return (
     <section className="organizer-controls">
-      <button
-        className="organizer-toggle"
-        type="button"
-        aria-expanded={expanded}
-        onClick={() => setExpanded(!expanded)}
-      >
-        <Icon name="sliders" />
-        Gestisci asta
-        <Icon name={expanded ? 'chevron-up' : 'chevron-down'} />
-      </button>
-      {expanded && (
-        <div className="organizer-body">
-          <p>I controlli sono disponibili tra un giocatore e il successivo.</p>
-          <div className="organizer-buttons">
-            <Button
-              variant="outline"
+      <div className="organizer-body">
+        <p>
+          {session.status === 'Paused'
+            ? 'Sessione in pausa'
+            : 'Sessione aperta'}
+        </p>
+        <p>I controlli sono disponibili tra un giocatore e il successivo.</p>
+        <div className="organizer-buttons">
+          <Button
+            variant="outline"
+            disabled={disabled || open}
+            onClick={() =>
+              void onControl(session.status === 'Paused' ? 'Resume' : 'Pause')
+            }
+          >
+            <Icon name={session.status === 'Paused' ? 'play' : 'pause'} />
+            {session.status === 'Paused' ? 'Riprendi' : 'Pausa'}
+          </Button>
+          <Button
+            variant="outline"
+            disabled={disabled || open}
+            onClick={() => void onControl('SkipTurn')}
+          >
+            Salta turno
+          </Button>
+          <Button
+            variant="outline"
+            disabled={disabled || open}
+            onClick={() => {
+              setOrder(session.teams.map(({ id, name }) => ({ id, name })))
+              setEditingOrder(!editingOrder)
+            }}
+          >
+            Ordine chiamate
+          </Button>
+          <Button
+            variant="ghost"
+            disabled={disabled || open}
+            onClick={() => setConfirm(true)}
+          >
+            Termina asta
+          </Button>
+        </div>
+        {editingOrder && (
+          <div>
+            <TeamOrderEditor
+              order={order}
+              onChange={setOrder}
               disabled={disabled || open}
-              onClick={() =>
-                void onControl(session.status === 'Paused' ? 'Resume' : 'Pause')
-              }
-            >
-              <Icon name={session.status === 'Paused' ? 'play' : 'pause'} />
-              {session.status === 'Paused' ? 'Riprendi' : 'Pausa'}
-            </Button>
+            />
             <Button
-              variant="outline"
-              disabled={disabled || open}
-              onClick={() => void onControl('SkipTurn')}
-            >
-              Salta turno
-            </Button>
-            <Button
-              variant="outline"
               disabled={disabled || open}
               onClick={() => {
-                setOrder(session.teams.map(({ id, name }) => ({ id, name })))
-                setEditingOrder(!editingOrder)
+                void onControl(
+                  'Reorder',
+                  order.map((team) => team.id),
+                )
+                setEditingOrder(false)
               }}
             >
-              Ordine chiamate
-            </Button>
-            <Button
-              variant="ghost"
-              disabled={disabled || open}
-              onClick={() => setConfirm(true)}
-            >
-              Termina asta
+              Salva ordine
             </Button>
           </div>
-          {editingOrder && (
-            <div>
-              <TeamOrderEditor
-                order={order}
-                onChange={setOrder}
-                disabled={disabled || open}
-              />
+        )}
+        {confirm && (
+          <div className="auction-notice" role="alert">
+            <p>Terminare questa sessione? Gli acquisti restano nelle rose.</p>
+            <div className="organizer-buttons">
+              <Button variant="ghost" onClick={() => setConfirm(false)}>
+                Annulla
+              </Button>
               <Button
                 disabled={disabled || open}
                 onClick={() => {
-                  void onControl(
-                    'Reorder',
-                    order.map((team) => team.id),
-                  )
-                  setEditingOrder(false)
+                  void onControl('Complete')
+                  setConfirm(false)
                 }}
               >
-                Salva ordine
+                Conferma conclusione
               </Button>
             </div>
-          )}
-          {confirm && (
-            <div className="auction-notice" role="alert">
-              <p>Terminare questa sessione? Gli acquisti restano nelle rose.</p>
-              <div className="organizer-buttons">
-                <Button variant="ghost" onClick={() => setConfirm(false)}>
-                  Annulla
-                </Button>
-                <Button
-                  disabled={disabled || open}
-                  onClick={() => {
-                    void onControl('Complete')
-                    setConfirm(false)
-                  }}
-                >
-                  Conferma conclusione
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </section>
   )
 }

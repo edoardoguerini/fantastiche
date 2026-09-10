@@ -40,7 +40,13 @@ public sealed record AuctionPlayerView(
     DateTimeOffset StartedAt,
     DateTimeOffset? ClosedAt,
     string? PhotoUrl = null,
-    string? ClubLogoUrl = null);
+    string? ClubLogoUrl = null,
+    DateTime? BirthDate = null,
+    string? Nationality = null,
+    string? PreferredFoot = null,
+    int? CurrentQuotation = null,
+    int? InitialQuotation = null,
+    int? Fvm = null);
 
 public sealed record AuctionTeamView(
     Guid Id,
@@ -70,7 +76,11 @@ public sealed record AuctionCatalogPlayerView(
     bool IsAvailable,
     Guid? TeamId,
     string? PhotoUrl = null,
-    string? ClubLogoUrl = null);
+    string? ClubLogoUrl = null,
+    int? CurrentQuotation = null,
+    int? InitialQuotation = null,
+    int? Fvm = null,
+    bool? IsTransferred = null);
 
 public sealed record AuctionBidView(
     Guid Id,

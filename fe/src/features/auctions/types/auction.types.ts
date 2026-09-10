@@ -19,6 +19,13 @@ export const roomSchema = z.object({
   teams: z.array(teamSchema),
 })
 export const playerAuctionSchema = z.object({
+  currentQuotation: z.number().int().nonnegative().nullable().optional(),
+  initialQuotation: z.number().int().nonnegative().nullable().optional(),
+  fvm: z.number().int().nonnegative().nullable().optional(),
+
+  birthDate: z.string().nullable().optional(),
+  nationality: z.string().nullable().optional(),
+  preferredFoot: z.string().nullable().optional(),
   clubLogoUrl: z.string().nullable().optional(),
   photoUrl: z.string().nullable().optional(),
   id: z.string(),
@@ -61,6 +68,10 @@ export const receiptSchema = z.object({
   message: z.string().nullable().optional(),
 })
 export const catalogEntrySchema = z.object({
+  currentQuotation: z.number().int().nonnegative().nullable().optional(),
+  initialQuotation: z.number().int().nonnegative().nullable().optional(),
+  fvm: z.number().int().nonnegative().nullable().optional(),
+  isTransferred: z.boolean().nullable().optional(),
   clubLogoUrl: z.string().nullable().optional(),
   photoUrl: z.string().nullable().optional(),
   playerId: z.string(),

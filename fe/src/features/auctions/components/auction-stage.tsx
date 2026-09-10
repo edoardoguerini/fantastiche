@@ -1,4 +1,6 @@
+import { PlayerValuation } from './player-valuation'
 import { Icon } from '@/components/common/icon'
+import { Button } from '@/components/primitives/button'
 import type { TimedSession } from '../types/auction.types'
 import { PlayerPhoto } from './player-photo'
 import { ClubLabel } from './club-label'
@@ -7,10 +9,16 @@ export function AuctionStage({
   session,
   seconds,
   myTeamId,
+  connected,
+  canCall,
+  onChoose,
 }: {
   session: TimedSession
   seconds: number
   myTeamId: string | null
+  connected: boolean
+  canCall: boolean
+  onChoose: () => void
 }) {
   const auction = session.currentAuction
   const caller = session.teams.find((team) => team.id === session.currentTeamId)
@@ -18,20 +26,22 @@ export function AuctionStage({
     (team) => team.id === auction?.winningTeamId,
   )
   const open = auction?.status === 'Open'
+  const age = playerAge(auction?.birthDate, session.serverTime)
   return (
     <section
-      className={`auction-stage ${open ? 'auction-stage--live' : ''}`}
+      className={`auction-stage ${open ? 'auction-stage--live' : 'auction-stage--waiting'}`}
+      data-role={open ? auction.role : undefined}
       aria-label="Asta corrente"
     >
       <div className="auction-stage-top">
         <span className="auction-eyebrow">
           {open
-            ? 'ORA ALL’ASTA'
+            ? 'Ora all’asta'
             : session.status === 'Completed'
-              ? 'ASTA CONCLUSA'
+              ? 'Asta conclusa'
               : session.status === 'Paused'
-                ? 'ASTA IN PAUSA'
-                : 'PROSSIMA CHIAMATA'}
+                ? 'Asta in pausa'
+                : 'Prossima chiamata'}
         </span>
         {open && (
           <span
@@ -45,84 +55,168 @@ export function AuctionStage({
           </span>
         )}
       </div>
-      {auction ? (
+      {open && auction ? (
         <>
           <div className="auction-player-heading">
             <PlayerPhoto url={auction.photoUrl} role={auction.role} large />
-            <div>
+            <div className="auction-player-details">
               <p className="player-club-line">
-                <span>{auction.role}</span>
+                <span className={`catalog-role role-${auction.role}`}>
+                  {auction.role}
+                </span>
                 <ClubLabel
                   name={auction.clubName}
                   logoUrl={auction.clubLogoUrl}
                 />
               </p>
               <h2>{auction.name}</h2>
+              <PlayerValuation player={auction} />
+              <div className="auction-price-row">
+                <div>
+                  <span>Offerta attuale</span>
+                  <p className="auction-price">
+                    {auction.currentAmount}
+                    <small>crediti</small>
+                  </p>
+                </div>
+                <div
+                  className={`auction-winner ${winner?.id === myTeamId ? 'auction-winner--mine' : ''}`}
+                >
+                  <Icon name="flag" />
+                  <span>
+                    {winner?.id === myTeamId
+                      ? 'Sei in testa'
+                      : (winner?.name ?? '—')}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="auction-price-row">
-            <div>
-              <span>{open ? 'Offerta attuale' : 'Aggiudicato a'}</span>
-              <p className="auction-price">
-                {auction.currentAmount}
-                <small>crediti</small>
-              </p>
-            </div>
+          <div className="auction-time-track">
             <div
-              className={`auction-winner ${winner?.id === myTeamId ? 'auction-winner--mine' : ''}`}
-            >
-              <Icon name={open ? 'flag' : 'check'} />
-              <span>
-                {winner?.id === myTeamId
-                  ? open
-                    ? 'Sei in testa'
-                    : 'È tuo!'
-                  : (winner?.name ?? '—')}
-              </span>
-            </div>
+              style={{
+                width: `${Math.min(100, (seconds / auction.durationSeconds) * 100)}%`,
+              }}
+            />
           </div>
-          {open ? (
-            <div className="auction-time-track">
-              <div
-                style={{
-                  width: `${Math.min(100, (seconds / auction.durationSeconds) * 100)}%`,
-                }}
-              />
-            </div>
-          ) : null}
           <p className="auction-stage-note" aria-live="polite">
-            {open
-              ? seconds === 0
+            {!connected
+              ? 'Riconnessione in corso. I rilanci sono temporaneamente sospesi.'
+              : seconds === 0
                 ? 'Attendi la conferma dell’aggiudicazione…'
-                : `Ogni rilancio accettato riavvia i ${auction.durationSeconds} secondi.`
-              : session.status === 'Completed'
-                ? 'La sessione è terminata. Puoi consultare rose e acquisti.'
-                : session.status === 'Paused'
-                  ? 'L’organizzatore riprenderà la sessione.'
-                  : caller?.id === myTeamId
-                    ? 'Tocca a te. Scegli il prossimo giocatore dal listone.'
-                    : `La prossima chiamata spetta a ${caller?.name ?? '—'}.`}
+                : `Ogni rilancio accettato riavvia i ${auction.durationSeconds} secondi.`}
           </p>
         </>
       ) : (
         <div className="auction-waiting">
-          <Icon name="futbol" />
-          <h2>
-            {session.status === 'Paused'
-              ? 'Una breve pausa.'
-              : caller?.id === myTeamId
-                ? 'Tocca a te.'
-                : `Tocca a ${caller?.name ?? '—'}.`}
-          </h2>
-          <p>
-            {session.status === 'Paused'
-              ? 'La chiamata riprenderà quando l’organizzatore riavvia la sessione.'
-              : caller?.id === myTeamId
-                ? 'Scegli un giocatore dal listone. La prima offerta è di 1 credito.'
-                : 'Il prossimo giocatore apparirà qui appena verrà chiamato.'}
-          </p>
+          <div className="auction-waiting-icon">
+            <Icon
+              name={session.status === 'Completed' ? 'trophy' : 'bolt'}
+              variant="jelly"
+            />
+          </div>
+          <div className="auction-waiting-copy">
+            <h2>
+              {!connected
+                ? 'Ci riconnettiamo alla sala.'
+                : session.status === 'Completed'
+                  ? 'Sessione conclusa.'
+                  : session.status === 'Paused'
+                    ? 'Una breve pausa.'
+                    : caller?.id === myTeamId
+                      ? `Tocca a te, ${caller.name}.`
+                      : `È il turno di ${caller?.name ?? '—'}.`}
+            </h2>
+            <p>
+              {!connected
+                ? 'Attendi la sincronizzazione prima di una nuova chiamata.'
+                : session.status === 'Completed'
+                  ? 'Tutti gli acquisti sono disponibili in Rose e Storico.'
+                  : session.status === 'Paused'
+                    ? 'La chiamata riprenderà quando l’organizzatore riavvia la sessione.'
+                    : caller?.id === myTeamId
+                      ? 'Scegli il prossimo calciatore. La chiamata parte da 1 credito.'
+                      : 'In attesa della scelta del prossimo calciatore.'}
+            </p>
+            {caller?.id === myTeamId && session.status === 'Active' && (
+              <Button disabled={!canCall} onClick={onChoose}>
+                Scegli dal listone
+              </Button>
+            )}
+          </div>
+          {auction && (
+            <div className="auction-last-purchase" data-role={auction.role}>
+              <PlayerPhoto url={auction.photoUrl} role={auction.role} />
+              <div>
+                <span>Ultimo acquisto</span>
+                <strong>{auction.name}</strong>
+                <div className="last-purchase-club">
+                  <span
+                    className={`catalog-role role-${auction.role}`}
+                    title={
+                      {
+                        P: 'Portiere',
+                        D: 'Difensore',
+                        C: 'Centrocampista',
+                        A: 'Attaccante',
+                      }[auction.role]
+                    }
+                  >
+                    {auction.role}
+                  </span>
+                  <ClubLabel
+                    name={auction.clubName}
+                    logoUrl={auction.clubLogoUrl}
+                  />
+                </div>
+                {(age !== null ||
+                  auction.nationality ||
+                  auction.preferredFoot) && (
+                  <dl className="last-purchase-facts">
+                    {age !== null && (
+                      <div>
+                        <dt>Età</dt>
+                        <dd>{age} anni</dd>
+                      </div>
+                    )}
+                    {auction.nationality && (
+                      <div>
+                        <dt>Nazionalità</dt>
+                        <dd>{auction.nationality}</dd>
+                      </div>
+                    )}
+                    {auction.preferredFoot && (
+                      <div>
+                        <dt>Piede</dt>
+                        <dd>{auction.preferredFoot}</dd>
+                      </div>
+                    )}
+                  </dl>
+                )}
+              </div>
+              <p>
+                {winner?.name ?? '—'}{' '}
+                <strong>{auction.currentAmount} crediti</strong>
+              </p>
+            </div>
+          )}
         </div>
       )}
     </section>
   )
+}
+
+function playerAge(birthDate: string | null | undefined, serverTime: string) {
+  if (!birthDate) return null
+  const birth = new Date(`${birthDate.slice(0, 10)}T00:00:00Z`)
+  const today = new Date(serverTime)
+  if (!Number.isFinite(birth.getTime()) || !Number.isFinite(today.getTime()))
+    return null
+  const beforeBirthday =
+    today.getUTCMonth() < birth.getUTCMonth() ||
+    (today.getUTCMonth() === birth.getUTCMonth() &&
+      today.getUTCDate() < birth.getUTCDate())
+  const age =
+    today.getUTCFullYear() - birth.getUTCFullYear() - Number(beforeBirthday)
+  return age >= 0 ? age : null
 }

@@ -95,7 +95,15 @@ public static class FantacalcioCsvParser
                 clubName,
                 birthDate.Date,
                 nationality,
-                preferredFoot));
+                preferredFoot,
+                Required(fields[4], 50, rowNumber, "ruolo Mantra"),
+                NonNegativeInteger(fields[5], rowNumber, "quotazione attuale"),
+                NonNegativeInteger(fields[6], rowNumber, "quotazione iniziale"),
+                NonNegativeInteger(fields[7], rowNumber, "quotazione attuale Mantra"),
+                NonNegativeInteger(fields[8], rowNumber, "quotazione iniziale Mantra"),
+                NonNegativeInteger(fields[10], rowNumber, "FVM"),
+                NonNegativeInteger(fields[11], rowNumber, "FVM Mantra"),
+                Transferred(fields[16], rowNumber)));
         }
 
         if (rows.Count == 0)
@@ -105,6 +113,20 @@ public static class FantacalcioCsvParser
 
         return rows;
     }
+
+    private static int NonNegativeInteger(string value, int row, string field)
+    {
+        if (!int.TryParse(value.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var number))
+            throw InvalidCsv($"Riga {row}, campo {field}: è richiesto un intero non negativo.");
+        return number;
+    }
+
+    private static bool Transferred(string value, int row) => value.Trim() switch
+    {
+        "0" => false,
+        "1" => true,
+        _ => throw InvalidCsv($"Riga {row}, campo ceduto: sono ammessi soltanto 0 e 1.")
+    };
 
     private static string NormalizeExternalId(string value, int rowNumber)
     {

@@ -98,12 +98,12 @@ it('una sincronizzazione precedente non riabilita i rilanci dopo la disconnessio
   await act(async () => {
     finish()
   })
-  expect(hook.result.current).toBe('reconnecting')
+  expect(hook.result.current.status).toBe('reconnecting')
   act(() => {
     hub.state = 'Connected'
     hub.reconnected()
   })
-  await waitFor(() => expect(hook.result.current).toBe('online'))
+  await waitFor(() => expect(hook.result.current.status).toBe('online'))
   hook.unmount()
   client.clear()
 })

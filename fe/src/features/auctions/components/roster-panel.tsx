@@ -3,7 +3,12 @@ import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/primitives/button'
 import { ErrorState, LoadingState } from '@/components/common/page-state'
 import { rosterQueryOptions } from '../actions/auction.queries'
-import type { AuctionTeam } from '../types/auction.types'
+import {
+  roles,
+  type AuctionTeam,
+  type RosterRules,
+} from '../types/auction.types'
+import { emptySlots, maxOffer } from '../validations/auction-rules'
 import { PlayerPhoto } from './player-photo'
 import { ClubLabel } from './club-label'
 
@@ -12,6 +17,7 @@ export function RosterPanel({
   sessionId,
   teamId,
   teams,
+  rules,
   history = false,
   onTeamChange,
 }: {
@@ -19,10 +25,12 @@ export function RosterPanel({
   sessionId: string
   teamId: string
   teams: AuctionTeam[]
+  rules?: RosterRules
   history?: boolean
   onTeamChange: (id: string) => void
 }) {
   const [page, setPage] = useState(1)
+  const team = teams.find((value) => value.id === teamId)
   const result = useQuery(
     rosterQueryOptions(userId, sessionId, history ? '' : teamId, page),
   )
@@ -45,6 +53,26 @@ export function RosterPanel({
               </option>
             ))}
           </select>
+        </div>
+      )}
+      {!history && team && rules && (
+        <div className="roster-summary">
+          <p>
+            <strong>{team.budget}</strong> crediti disponibili{' '}
+            <span>
+              Offerta max {maxOffer(team.budget, emptySlots(team, rules))}
+            </span>
+          </p>
+          <div className="roster-capacity">
+            {roles.map((role) => (
+              <p key={role.id}>
+                <span className={`role-${role.id}`}>{role.label}</span>
+                <strong>
+                  {team[role.field]} / {rules[role.field]}
+                </strong>
+              </p>
+            ))}
+          </div>
         </div>
       )}
       {result.isPending ? (

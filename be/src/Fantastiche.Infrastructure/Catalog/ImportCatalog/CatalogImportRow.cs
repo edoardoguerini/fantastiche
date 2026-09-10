@@ -8,4 +8,12 @@ public sealed record CatalogImportRow(
     string ClubName,
     DateTime BirthDate,
     string Nationality,
-    string PreferredFoot);
+    string PreferredFoot,
+    string MantraRole,
+    int CurrentQuotation,
+    int InitialQuotation,
+    int CurrentMantraQuotation,
+    int InitialMantraQuotation,
+    int Fvm,
+    int MantraFvm,
+    bool IsTransferred);

@@ -16,6 +16,7 @@ public sealed class ListEntryConfiguration : IEntityTypeConfiguration<ListEntry>
         b.Property(x => x.BirthDate).HasColumnType("date");
         b.Property(x => x.Nationality).HasMaxLength(200).IsRequired();
         b.Property(x => x.PreferredFoot).HasMaxLength(50).IsRequired();
+        b.Property(x => x.MantraRole).HasMaxLength(50);
         b.HasIndex(x => new { x.ListVersionId, x.Role, x.ClubName });
         b.HasOne<ListVersion>().WithMany().HasForeignKey(x => x.ListVersionId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne<Player>().WithMany().HasForeignKey(x => x.PlayerId).OnDelete(DeleteBehavior.Restrict);

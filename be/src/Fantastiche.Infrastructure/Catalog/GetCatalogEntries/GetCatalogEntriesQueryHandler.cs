@@ -49,7 +49,8 @@ public sealed class GetCatalogEntriesQueryHandler(FantasticheDbContext db, Playe
             WHERE {where};
 
             SELECT e.PlayerId, p.ExternalId, e.Name, e.FullName, e.Role, e.ClubName,
-                   e.BirthDate, e.Nationality, e.PreferredFoot, {PlayerPhotoStorage.SqlProjection}, {ClubLogoStorage.SqlProjection}
+                   e.BirthDate, e.Nationality, e.PreferredFoot, {PlayerPhotoStorage.SqlProjection}, {ClubLogoStorage.SqlProjection},
+                   e.MantraRole, e.CurrentQuotation, e.InitialQuotation, e.CurrentMantraQuotation, e.InitialMantraQuotation, e.Fvm, e.MantraFvm, e.IsTransferred
             FROM ListEntries e
             INNER JOIN Players p ON p.Id = e.PlayerId
             LEFT JOIN PlayerMedia media ON media.Source = p.Source AND media.ExternalId = p.ExternalId

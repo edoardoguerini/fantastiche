@@ -156,6 +156,9 @@ export function CatalogEntriesPreview({
                   />
                   <div>
                     <strong>{entry.name}</strong>
+                    {entry.isTransferred && (
+                      <span className="catalog-transferred">Ceduto</span>
+                    )}
                     <p className="catalog-player-club">
                       <CatalogPlayerImage
                         key={entry.clubLogoUrl ?? entry.clubName}
@@ -163,6 +166,12 @@ export function CatalogEntriesPreview({
                         kind="club"
                       />
                       {entry.clubName}
+                    </p>
+                    <p className="catalog-market-data">
+                      {entry.currentQuotation != null && (
+                        <span>Qt. {entry.currentQuotation}</span>
+                      )}
+                      {entry.fvm != null && <span>FVM {entry.fvm}</span>}
                     </p>
                   </div>
                   <span

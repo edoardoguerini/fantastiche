@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils/cn'
+import '@/assets/fontawesome/css/jelly.css'
 
 type IconName =
   | 'coins'
@@ -20,6 +21,12 @@ type IconName =
   | 'arrow-up-right'
   | 'right-from-bracket'
   | 'trophy'
+  | 'list'
+  | 'shirt'
+  | 'clock-rotate-left'
+  | 'clock'
+  | 'bolt'
+  | 'users'
 
 export function Icon({
   name,
@@ -28,15 +35,15 @@ export function Icon({
   label,
 }: {
   name: IconName
-  variant?: 'light' | 'regular' | 'solid'
+  variant?: 'light' | 'regular' | 'solid' | 'jelly'
   className?: string
   label?: string
 }) {
   return (
     <i
       className={cn(
-        'fa-classic',
-        `fa-${variant}`,
+        variant === 'jelly' ? 'fa-jelly' : 'fa-classic',
+        `fa-${variant === 'jelly' ? 'regular' : variant}`,
         `fa-${name}`,
         'fa-fw',
         className,

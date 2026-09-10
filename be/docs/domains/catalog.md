@@ -5,7 +5,7 @@ Il catalogo è condiviso tra le leghe. Ogni listone è una versione con stagione
 ## Flusso
 
 1. Il SuperAdmin invia `POST /api/Catalog/Imports` con JSON `{ "seasonName": "2026/27", "csv": "contenuto del file" }`.
-2. La risposta contiene l’ID della versione in stato `Draft`, il numero di righe e l’hash. Il file viene validato integralmente prima della scrittura; un errore annulla l’importazione. Un file identico per la stessa stagione restituisce la versione esistente.
+2. La risposta contiene l’ID della versione in stato `Draft`, il numero di righe e l’hash. Il file viene validato integralmente prima della scrittura; un errore annulla l’importazione. Un file identico per la stessa stagione restituisce la versione esistente e completa soltanto i nuovi campi di mercato ancora nulli, anche se la versione è pubblicata.
 3. `GET /api/Catalog/Versions/{id}/Entries` consente di controllare le righe della bozza. Sono disponibili `search`, `role`, `club`, `page` e `pageSize`; ruolo Classic P/D/C/A, massimo 100 righe per pagina.
 4. `POST /api/Catalog/Versions/{id}/Publish` rende la versione consultabile agli utenti autenticati. Ripetere la pubblicazione conserva la data originale.
 5. L’organizzatore attivo o il SuperAdmin sceglie il listone con `PUT /api/Leagues/{leagueId}/Seasons/{leagueSeasonId}/Catalog`, corpo `{ "listVersionId": "UUID" }`. La versione deve essere pubblicata e avere la stessa stagione della lega; il confronto segue la collation SQL anche durante la selezione, come durante l’importazione.
@@ -14,7 +14,7 @@ Il catalogo è condiviso tra le leghe. Ogni listone è una versione con stagione
 
 I privilegi SuperAdmin sono verificati nel database anche con cookie già emesso: una claim rimasta dopo la revoca non permette importazione, pubblicazione, consultazione delle bozze né bypass dei permessi della lega. Restano validi gli eventuali permessi ordinari di membro/organizzatore attivo e la lettura dei listoni pubblicati.
 
-La prima scelta è consentita; ripetere lo stesso ID è idempotente. La sostituzione con un’altra versione restituisce 409: richiede il futuro flusso controllato tra sessioni d’asta. Non esistono endpoint che modifichino o eliminino gli snapshot. La consultazione paginata della bozza è disponibile; un confronto automatico delle differenze tra versioni non è ancora implementato.
+La prima scelta è consentita; ripetere lo stesso ID è idempotente. La sostituzione con un’altra versione restituisce 409: richiede il futuro flusso controllato tra sessioni d’asta. Il reimport dello stesso hash può completare i campi di mercato mancanti; non modifica valori già presenti, anagrafica, identificativi o data di pubblicazione e non elimina gli snapshot. La consultazione paginata della bozza è disponibile; un confronto automatico delle differenze tra versioni non è ancora implementato.
 
 ## Formato importato
 
@@ -25,15 +25,27 @@ CSV Fantacalcio osservato: 19 colonne, separatore virgola, UTF-8 con BOM facolta
 | 1 | ID esterno del giocatore |
 | 2–3 | Nome breve e completo |
 | 4 | Ruolo Classic |
+| 5 | Ruolo Mantra |
+| 6–7 | Quotazione Classic attuale e iniziale |
+| 8–9 | Quotazione Mantra attuale e iniziale |
 | 10 | Club reale nello snapshot |
+| 11–12 | FVM Classic e Mantra |
 | 13–14 | Piede e nazionalità |
 | 15 | Data di nascita, formato `dd/MM/yyyy HH:mm:ss` |
 
-Le altre colonne non vengono interpretate. In particolare il flag della colonna 17 non è usato come disponibilità, e le quotazioni/statistiche non sono esposte finché il mapping non sarà confermato. Le righe del listone costituiscono il suo perimetro: l’assenza in un nuovo CSV non cancella il giocatore dagli snapshot precedenti.
+| 17 | Ceduto: 0 = no, 1 = sì |
+
+Quotazioni e FVM sono interi non negativi, zero compreso. Il mapping è stato confrontato con il file Excel della stessa stagione. Le colonne 18–19 non vengono interpretate: media voto e fantamedia non sono esposte senza un mapping verificato. Il catalogo globale conserva e segnala i ceduti; il catalogo d’asta disponibile li esclude e il server rifiuta nuove chiamate con `auction.player_transferred`. Gli acquisti preesistenti restano nello storico. Le righe del listone costituiscono il suo perimetro: l’assenza in un nuovo CSV non cancella il giocatore dagli snapshot precedenti.
 
 Il catalogo associa le identità attraverso fonte/ID esterno, mai attraverso il nome. Un trasferimento cambia il club nello snapshot nuovo, preservando PlayerId e la versione precedente. Clubs indica i club reali, Teams continua a indicare le squadre della lega. Il modello è circoscritto alla fonte CSV attuale: non introduce matching automatico tra fornitori.
 
 Il contenuto originale non viene conservato nel database: viene calcolato l’hash e vengono salvati i campi mappati. Conservare il file originale fuori Git se servirà rielaborarlo con un mapping esteso. La stagione è fornita dall’importatore perché il CSV non la contiene.
+
+## Recupero di importazioni precedenti
+
+Applicare la migrazione `AddCatalogMarketData`, poi reimportare il CSV originale con la stessa stagione: il controllo di hash recupera la versione esistente. Le otto proprietà aggiunte sono nullable per distinguere dati non acquisiti da valori zero. Il completamento avviene in transazione, controllando numero e identità delle righe, senza cambiare sessioni, acquisti o budget. Un file diverso crea una nuova bozza e non modifica automaticamente il listone della lega.
+
+Dopo il recupero ricaricare le sale e le anteprime catalogo già aperte: questa operazione amministrativa non incrementa la versione della sessione e non emette una notifica realtime di catalogo. Il controllo server sui ceduti è efficace subito, anche per un client con dati precedenti in cache.
 
 ## Uso locale
 

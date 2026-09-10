@@ -34,7 +34,12 @@ export function useAuctionCommand(
     }
   }, [])
   const refresh = useCallback(
-    () => client.invalidateQueries({ queryKey: auctionKeys.all(userId) }),
+    () =>
+      client.invalidateQueries({
+        queryKey: auctionKeys.all(userId),
+        // I conteggi dello snapshot aggiornano le rose dopo le aggiudicazioni.
+        predicate: (query) => query.queryKey[2] !== 'roster',
+      }),
     [client, userId],
   )
   const finish = useCallback(

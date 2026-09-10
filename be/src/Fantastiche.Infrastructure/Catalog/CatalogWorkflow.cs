@@ -28,6 +28,7 @@ public sealed class CatalogWorkflow(FantasticheDbContext db, TimeProvider clock)
             x.Source == FantacalcioCsvSource && x.SeasonName == seasonName && x.ContentHash == hash, ct);
         if (existing is not null)
         {
+            await CompleteMarketDataAsync(existing.Id, rows, ct);
             await tx.CommitAsync(ct);
             return View(existing);
         }
@@ -80,13 +81,46 @@ public sealed class CatalogWorkflow(FantasticheDbContext db, TimeProvider clock)
                 ClubName = row.ClubName,
                 BirthDate = row.BirthDate,
                 Nationality = row.Nationality,
-                PreferredFoot = row.PreferredFoot
+                PreferredFoot = row.PreferredFoot,
+                MantraRole = row.MantraRole,
+                CurrentQuotation = row.CurrentQuotation,
+                InitialQuotation = row.InitialQuotation,
+                CurrentMantraQuotation = row.CurrentMantraQuotation,
+                InitialMantraQuotation = row.InitialMantraQuotation,
+                Fvm = row.Fvm,
+                MantraFvm = row.MantraFvm,
+                IsTransferred = row.IsTransferred
             });
         }
 
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return View(version);
+    }
+
+    // Il medesimo hash permette di recuperare i campi prima ignorati senza cambiare lo snapshot originale.
+    private async Task CompleteMarketDataAsync(Guid versionId, IReadOnlyList<CatalogImportRow> rows, CancellationToken ct)
+    {
+        var sourceRows = rows.ToDictionary(row => row.ExternalId, StringComparer.Ordinal);
+        var entries = await (from entry in db.ListEntries
+                             join player in db.Players on entry.PlayerId equals player.Id
+                             where entry.ListVersionId == versionId
+                             select new { Entry = entry, player.ExternalId }).ToListAsync(ct);
+        if (entries.Count != rows.Count || entries.Any(item => !sourceRows.ContainsKey(item.ExternalId)))
+            throw new DomainException("catalog.source_mismatch", "Il file non corrisponde ai giocatori della versione esistente.", 409);
+        foreach (var item in entries)
+        {
+            var row = sourceRows[item.ExternalId];
+            item.Entry.MantraRole ??= row.MantraRole;
+            item.Entry.CurrentQuotation ??= row.CurrentQuotation;
+            item.Entry.InitialQuotation ??= row.InitialQuotation;
+            item.Entry.CurrentMantraQuotation ??= row.CurrentMantraQuotation;
+            item.Entry.InitialMantraQuotation ??= row.InitialMantraQuotation;
+            item.Entry.Fvm ??= row.Fvm;
+            item.Entry.MantraFvm ??= row.MantraFvm;
+            item.Entry.IsTransferred ??= row.IsTransferred;
+        }
+        await db.SaveChangesAsync(ct);
     }
 
     public async Task<ListVersionView> PublishAsync(PublishCatalogCommand request, CancellationToken ct)

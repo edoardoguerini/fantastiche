@@ -8,7 +8,7 @@ namespace Fantastiche.UnitTests.Catalog;
 public sealed class FantacalcioCsvParserTests
 {
     [Fact]
-    public void Parse_WithValidRowMapsFieldsAndIgnoresUnmappedColumns()
+    public void Parse_WithValidRowMapsFieldsAndMarketValues()
     {
         var csv = BuildRow(
             externalId: "42",
@@ -31,6 +31,14 @@ public sealed class FantacalcioCsvParserTests
         Assert.Equal(new DateTime(1999, 2, 3), row.BirthDate);
         Assert.Equal("Italia", row.Nationality);
         Assert.Equal("Destro", row.PreferredFoot);
+        Assert.Equal("Dc", row.MantraRole);
+        Assert.Equal(17, row.CurrentQuotation);
+        Assert.Equal(16, row.InitialQuotation);
+        Assert.Equal(18, row.CurrentMantraQuotation);
+        Assert.Equal(15, row.InitialMantraQuotation);
+        Assert.Equal(57, row.Fvm);
+        Assert.Equal(60, row.MantraFvm);
+        Assert.False(row.IsTransferred);
     }
 
     [Fact]
@@ -239,6 +247,30 @@ public sealed class FantacalcioCsvParserTests
         AssertInvalidCsv(BuildRow(externalId: externalId), "riga 1", "ID esterno");
     }
 
+    [Theory]
+    [InlineData(5, "-1")]
+    [InlineData(6, "abc")]
+    [InlineData(10, "1.5")]
+    [InlineData(11, "")]
+    [InlineData(16, "2")]
+    public void ParseRejectsInvalidMarketValues(int column, string value)
+    {
+        var fields = BuildRow().Split(',');
+        fields[column] = value;
+        AssertInvalidCsv(string.Join(',', fields), "riga 1");
+    }
+
+    [Fact]
+    public void ParsePreservesZeroQuotationAndTransferredFlag()
+    {
+        var fields = BuildRow().Split(',');
+        fields[5] = "0";
+        fields[16] = "1";
+        var row = Assert.Single(FantacalcioCsvParser.Parse(string.Join(',', fields)));
+        Assert.Equal(0, row.CurrentQuotation);
+        Assert.True(row.IsTransferred);
+    }
+
     private static void AssertInvalidCsv(string csv, params string[] expectedMessageParts)
     {
         var error = Assert.Throws<DomainException>(() => FantacalcioCsvParser.Parse(csv));
@@ -283,6 +315,14 @@ public sealed class FantacalcioCsvParserTests
         fields[1] = name;
         fields[2] = fullName;
         fields[3] = role;
+        fields[4] = "Dc";
+        fields[5] = "17";
+        fields[6] = "16";
+        fields[7] = "18";
+        fields[8] = "15";
+        fields[10] = "57";
+        fields[11] = "60";
+        fields[16] = "0";
         fields[9] = clubName;
         fields[12] = preferredFoot;
         fields[13] = nationality;

@@ -256,6 +256,9 @@
   align-items: center;
   position: relative;
 }
+.app-header-slot:empty {
+  display: none;
+}
 .account-menu > p {
   position: absolute;
   right: 0;

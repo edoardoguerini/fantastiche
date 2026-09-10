@@ -12,4 +12,12 @@ public sealed class ListEntry
     public DateTime BirthDate { get; set; }
     public string Nationality { get; set; } = "";
     public string PreferredFoot { get; set; } = "";
+    public string? MantraRole { get; set; }
+    public int? CurrentQuotation { get; set; }
+    public int? InitialQuotation { get; set; }
+    public int? CurrentMantraQuotation { get; set; }
+    public int? InitialMantraQuotation { get; set; }
+    public int? Fvm { get; set; }
+    public int? MantraFvm { get; set; }
+    public bool? IsTransferred { get; set; }
 }

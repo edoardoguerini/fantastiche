@@ -91,6 +91,46 @@ public sealed partial class HttpFlowTests
     }
 
     [Fact]
+    public async Task AuctionRealtimePresenceCountsUsersAndUpdatesAfterDisconnect()
+    {
+        await using var factory = Factory();
+        using var organizer = Client(factory);
+        var scenario = await AuctionRealtimePrepareSession(organizer);
+        using var participant = Client(factory);
+        var memberCookie = await AuctionRealtimeLoginCookie(participant, scenario.MemberEmail, Password);
+        var adminCookie = await AuctionRealtimeLoginCookie(organizer, "admin@example.test", "Test-Admin-123!");
+        using var member = await AuctionRealtimeConnect(factory, memberCookie, "http://localhost:6061");
+        using var secondTab = await AuctionRealtimeConnect(factory, memberCookie, "http://localhost:6061");
+        using var admin = await AuctionRealtimeConnect(factory, adminCookie, "http://localhost:6061");
+        foreach (var socket in new[] { member, secondTab, admin })
+        {
+            await AuctionRealtimeSend(socket, new
+            {
+                type = 1,
+                invocationId = "watch",
+                target = "WatchSession",
+                arguments = new[] { scenario.SessionId.ToString() },
+            });
+            await AuctionRealtimeReceive(socket, message =>
+                message.GetProperty("type").GetInt32() == 3 &&
+                message.GetProperty("invocationId").GetString() == "watch");
+        }
+
+        var presence = await AuctionRealtimeReceive(member, message =>
+            message.GetProperty("type").GetInt32() == 1 &&
+            message.GetProperty("target").GetString() == "AuctionPresenceChanged" &&
+            message.GetProperty("arguments")[0].GetProperty("connectedUsers").GetInt32() == 2);
+        Assert.Equal(scenario.SessionId, presence.GetProperty("arguments")[0].GetProperty("sessionId").GetGuid());
+
+        await admin.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", CancellationToken.None);
+        var remaining = await AuctionRealtimeReceive(member, message =>
+            message.GetProperty("type").GetInt32() == 1 &&
+            message.GetProperty("target").GetString() == "AuctionPresenceChanged" &&
+            message.GetProperty("arguments")[0].GetProperty("connectedUsers").GetInt32() == 1);
+        Assert.Equal(scenario.SessionId, remaining.GetProperty("arguments")[0].GetProperty("sessionId").GetGuid());
+    }
+
+    [Fact]
     public async Task AuctionRealtimeObserverRevokesSubscriptionWhenMembershipIsNoLongerActive()
     {
         await using var factory = Factory();
