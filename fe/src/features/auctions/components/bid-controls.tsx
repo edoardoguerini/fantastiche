@@ -56,7 +56,7 @@ export function BidControls({
       : !team
         ? 'Stai seguendo l’asta come spettatore.'
         : ownLead
-          ? 'La tua squadra è in testa.'
+          ? null
           : !eligible
             ? 'Non hai posti disponibili per questo ruolo.'
             : seconds === 0
@@ -70,18 +70,21 @@ export function BidControls({
         <span>{auction.name}</span>
         <strong>{auction.currentAmount} cr</strong>
         <span className={seconds <= 5 ? 'bid-time-urgent' : ''}>
-          <Icon name="stopwatch" /> {seconds}s
+          <Icon name="stopwatch" variant="jelly" /> {seconds}s
         </span>
       </div>
-      <p className="bid-context">
-        <Icon name="coins" />
-        <span>{reason}</span>
-      </p>
+      {reason && (
+        <p className="bid-context">
+          <Icon name="money-bill" variant="jelly" />
+          <span>{reason}</span>
+        </p>
+      )}
       <div className="bid-quick">
         {auction.increments.map((increment) => {
           const total = offerTotal(auction.currentAmount, increment)
           return (
             <Button
+              variant="outline"
               key={increment}
               disabled={disabled || total > max}
               onClick={() => onBid(total)}

@@ -8,4 +8,5 @@ public sealed record ControlAuctionSessionCommand(
     Guid SessionId,
     Guid RequestId,
     string Action,
-    IReadOnlyList<Guid>? TeamOrder = null) : IRequest<AuctionCommandResult>;
+    IReadOnlyList<Guid>? TeamOrder = null,
+    Guid? TargetTeamId = null) : IRequest<AuctionCommandResult>;

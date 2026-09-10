@@ -28,6 +28,8 @@ public sealed class FantasticheDbContext(DbContextOptions<FantasticheDbContext> 
     public DbSet<AuctionSession> AuctionSessions => Set<AuctionSession>();
     public DbSet<CallOrderEntry> CallOrderEntries => Set<CallOrderEntry>();
     public DbSet<PlayerAuction> PlayerAuctions => Set<PlayerAuction>();
+    public DbSet<BombAuction> BombAuctions => Set<BombAuction>();
+    public DbSet<BombOffer> BombOffers => Set<BombOffer>();
     public DbSet<Bid> Bids => Set<Bid>();
     public DbSet<RosterEntry> RosterEntries => Set<RosterEntry>();
     public DbSet<BudgetMovement> BudgetMovements => Set<BudgetMovement>();

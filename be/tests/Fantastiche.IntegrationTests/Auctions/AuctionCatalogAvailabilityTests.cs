@@ -40,12 +40,12 @@ public sealed partial class AuctionEngineTests
         var completed = await Send<ControlAuctionSessionCommand, AuctionCommandResult>(new(data.Users[0], session.Id, Guid.NewGuid(), "Complete"));
         Assert.True(completed.Accepted);
         var next = await Create(data);
-        var nextCall = await Start(data, next.Id, player: 2);
+        var nextCall = await Start(data, next.Id, player: 1, user: 1);
         Assert.True(nextCall.Accepted);
         var historical = await Send<GetAuctionCatalogQuery, AuctionPage<AuctionCatalogPlayerView>>(new(data.Users[0], session.Id));
         Assert.Equal(2, historical.Total);
-        Assert.DoesNotContain(historical.Items, x => x.PlayerId == data.Players[0] || x.PlayerId == data.Players[2]);
+        Assert.DoesNotContain(historical.Items, x => x.PlayerId == data.Players[0] || x.PlayerId == data.Players[1]);
         var purchases = await Send<GetAuctionCatalogQuery, AuctionPage<AuctionCatalogPlayerView>>(new(data.Users[0], next.Id, AvailableOnly: false, Role: "P"));
-        Assert.Equal(data.Teams[0], Assert.Single(purchases.Items, x => !x.IsAvailable).TeamId);
+        Assert.Equal(data.Teams[0], Assert.Single(purchases.Items, x => x.PlayerId == data.Players[0]).TeamId);
     }
 }

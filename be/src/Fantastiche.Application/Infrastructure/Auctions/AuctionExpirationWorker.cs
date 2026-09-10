@@ -17,6 +17,8 @@ public sealed class AuctionExpirationWorker(
                 await using var scope = scopes.CreateAsyncScope();
                 await scope.ServiceProvider.GetRequiredService<AuctionEngine>()
                     .CloseExpiredAsync(stoppingToken);
+                await scope.ServiceProvider.GetRequiredService<AuctionEngine>()
+                    .AdvanceBombsAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

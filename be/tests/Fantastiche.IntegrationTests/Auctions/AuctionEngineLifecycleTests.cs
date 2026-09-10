@@ -31,7 +31,7 @@ public sealed partial class AuctionEngineTests
         Assert.Equal(bid, await Send<PlaceBidCommand, AuctionCommandResult>(bidCommand));
         var state = await State(data, session.Id);
         Assert.Equal(4, state.Version);
-        Assert.Equal(data.Teams[1], state.CurrentTeamId);
+        Assert.Equal(data.Teams[0], state.CurrentTeamId);
         Assert.Equal("Closed", state.CurrentAuction!.Status);
         Assert.Equal(3, state.Teams.Single(x => x.Id == data.Teams[1]).Budget);
         await using var sql = new SqlConnection(fixture.ConnectionString);

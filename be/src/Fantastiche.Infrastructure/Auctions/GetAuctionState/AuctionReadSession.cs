@@ -10,17 +10,19 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Fantastiche.Infrastructure.Auctions;
 
-internal sealed class AuctionReadSession : IAsyncDisposable
+internal sealed partial class AuctionReadSession : IAsyncDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly DbConnection connection;
     private readonly DbTransaction transaction;
+    private readonly RequestContext context;
 
-    private AuctionReadSession(DbConnection connection, DbTransaction transaction, AuctionSessionIdentity session)
+    private AuctionReadSession(DbConnection connection, DbTransaction transaction, AuctionSessionIdentity session, RequestContext context)
     {
         this.connection = connection;
         this.transaction = transaction;
         Session = session;
+        this.context = context;
     }
 
     internal AuctionSessionIdentity Session { get; }
@@ -45,7 +47,7 @@ internal sealed class AuctionReadSession : IAsyncDisposable
             await RequireAccessAsync(connection, transaction, context, session.LeagueId, session.LeagueSeasonId, ct);
             await AuctionSqlLock.AcquireAsync(connection, transaction, session.LeagueSeasonId, false, ct);
             await RequireAccessAsync(connection, transaction, context, session.LeagueId, session.LeagueSeasonId, ct);
-            return new AuctionReadSession(connection, transaction, session);
+            return new AuctionReadSession(connection, transaction, session, context);
         }
         catch
         {
@@ -76,7 +78,7 @@ internal sealed class AuctionReadSession : IAsyncDisposable
                 FROM AuctionSessions
                 WHERE LeagueId = @leagueId AND LeagueSeasonId = @leagueSeasonId AND Status < 2;
                 """, new { leagueId, leagueSeasonId }, transaction, cancellationToken: ct));
-            if (session is not null) return new AuctionReadSession(connection, transaction, session);
+            if (session is not null) return new AuctionReadSession(connection, transaction, session, context);
             await transaction.CommitAsync(ct);
             await transaction.DisposeAsync();
             await connection.CloseAsync();
@@ -176,6 +178,9 @@ internal sealed class AuctionReadSession : IAsyncDisposable
             auctionRow.InitialQuotation,
             auctionRow.Fvm);
 
+        var currentBomb = await ReadBombStateAsync(photos, logos, ct);
+        var progress = await AuctionTurnProgress.ReadAsync(connection, transaction, Session.Id, Session.LeagueId, Session.LeagueSeasonId, ct);
+        var position = progress.FindPosition(teamOrder.IndexOf(header.CurrentTeamId ?? Guid.Empty), false);
         return new AuctionSessionView(
             header.Id,
             header.LeagueId,
@@ -183,11 +188,13 @@ internal sealed class AuctionReadSession : IAsyncDisposable
             header.ListVersionId,
             SessionStatus(header.Status),
             header.Version,
-            header.CurrentTeamId,
+            header.Status == 2 ? null : currentAuction?.Status == "Open" ? header.CurrentTeamId : position is { } index ? teamOrder[index] : null,
             teamOrder,
             currentAuction,
             teams,
-            header.ServerTime);
+            header.ServerTime,
+            header.Status == 2 ? null : currentAuction?.Status == "Open" ? currentAuction.Role : progress.Role,
+            currentBomb);
     }
 
     internal DbConnection Connection => connection;

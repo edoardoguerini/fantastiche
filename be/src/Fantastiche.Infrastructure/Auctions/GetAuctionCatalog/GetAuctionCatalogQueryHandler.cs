@@ -47,6 +47,8 @@ public sealed class GetAuctionCatalogQueryHandler(FantasticheDbContext db, Playe
             COALESCE(entry.IsTransferred, 0) = 0 AND roster.PlayerId IS NULL AND NOT EXISTS (
                 SELECT 1 FROM PlayerAuctions auction WHERE auction.PlayerId = entry.PlayerId
                 AND auction.LeagueSeasonId = @LeagueSeasonId AND auction.LeagueId = @LeagueId AND auction.Status = 0)
+            AND NOT EXISTS (SELECT 1 FROM BombAuctions bomb WHERE bomb.PlayerId = entry.PlayerId
+                AND bomb.LeagueSeasonId = @LeagueSeasonId AND bomb.LeagueId = @LeagueId AND bomb.Status < 2)
             """;
         using var result = await read.Connection.QueryMultipleAsync(new CommandDefinition($"""
             SELECT COUNT(*) {source} AND (@AvailableOnly = 0 OR ({available}));

@@ -1,0 +1,409 @@
+.auction-standard-room > .auction-management-panel {
+  background: transparent;
+  padding: 0;
+  border: 0;
+  max-width: 1180px;
+  margin: 24px auto 0;
+}
+.management-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+.management-header h2 {
+  font-weight: 600;
+  font-size: 28px;
+  line-height: 1.2;
+  margin: 0 0 6px;
+}
+.management-header p,
+.management-order header p {
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.management-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  font-size: 12px;
+  padding: 9px 13px;
+  border-radius: 24px;
+  color: var(--auction-success);
+  background: color-mix(in srgb, var(--auction-success) 9%, transparent);
+}
+.management-status > span {
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  border-radius: 50%;
+}
+.management-status[data-status='Paused'] {
+  color: var(--primary);
+  background: var(--auction-accent-soft);
+}
+.management-status[data-status='Completed'] {
+  color: var(--muted-foreground);
+  background: var(--surface);
+}
+.management-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.management-main {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.management-card {
+  padding: 24px;
+  border-radius: 20px;
+  background: var(--surface);
+  min-width: 0;
+}
+.management-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  margin-bottom: 16px;
+}
+.management-caller {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.management-avatar {
+  width: 54px;
+  height: 54px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  color: var(--primary);
+  background: var(--auction-accent-soft);
+  font-size: 19px;
+  font-weight: 600;
+}
+.management-caller h3 {
+  font-weight: 600;
+  font-size: 24px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.management-caller p {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+}
+.management-turn-details {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+.management-turn-details > div,
+.management-summary > div {
+  background: var(--background);
+  border-radius: 12px;
+  padding: 12px;
+}
+.management-turn-details > div {
+  min-width: 85px;
+}
+.management-turn-details dt,
+.management-summary dt {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.management-turn-details dd {
+  margin-top: 3px;
+  font-size: 14px;
+  font-weight: 550;
+}
+.management-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 22px;
+}
+.management-actions button {
+  font-size: 12px;
+  padding-inline: 14px;
+}
+.management-actions .management-end {
+  color: var(--destructive);
+  margin-left: auto;
+}
+.management-jump {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.management-jump [data-slot='select-trigger'] {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+}
+.management-jump [data-slot='select-trigger']:disabled {
+  opacity: 0.5;
+}
+.management-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.management-summary dd {
+  font-size: 26px;
+  font-weight: 600;
+  margin-top: 5px;
+}
+.management-hint {
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  line-height: 1.6;
+}
+.management-order > header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.management-order h3 {
+  font-size: 18px;
+  font-weight: 550;
+}
+.management-order-tools {
+  display: flex;
+  gap: 6px;
+}
+.management-order-tools button {
+  min-height: 36px;
+  font-size: 11px;
+  padding: 8px 10px;
+}
+.management-team-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.management-team {
+  display: grid;
+  grid-template-columns: 32px 36px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  background: var(--background);
+  border-radius: 14px;
+  padding: 14px 12px;
+}
+.management-team[data-current='true'] {
+  background: var(--auction-accent-soft);
+}
+.management-team[data-dragging='true'] {
+  position: relative;
+  z-index: 2;
+  background: var(--secondary);
+  box-shadow:
+    0 16px 40px #0006,
+    0 0 0 1px var(--primary);
+  will-change: transform;
+}
+.management-team[data-current='true'][data-dragging='true'] {
+  background: var(--auction-accent-surface);
+}
+.management-team[data-dragging='true'] .management-grip {
+  cursor: grabbing;
+  color: var(--primary);
+}
+.management-grip {
+  font-size: 24px;
+  line-height: 1;
+  color: var(--muted-foreground);
+  cursor: grab;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  touch-action: none;
+  user-select: none;
+}
+.management-grip:hover:not(:disabled),
+.management-grip:focus-visible {
+  color: var(--primary);
+  background: var(--auction-accent-soft);
+}
+.management-grip:disabled {
+  cursor: default;
+  opacity: 0.3;
+}
+.management-team-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--secondary);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+}
+.management-team[data-current='true'] .management-team-avatar {
+  color: var(--primary);
+  background: var(--auction-accent-surface);
+}
+.management-team-info h4 {
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+.management-team-info small {
+  display: inline-block;
+  color: var(--auction-success);
+  background: color-mix(in srgb, var(--auction-success) 10%, transparent);
+  padding: 2px 5px;
+  border-radius: 5px;
+  font-size: 9px;
+  margin-left: 4px;
+}
+.management-team-info small.is-current {
+  color: var(--primary);
+  background: var(--auction-accent-surface);
+}
+.management-team-info p {
+  margin-top: 4px;
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+
+.management-team-actions {
+  grid-column: 3 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+}
+.management-team-actions button {
+  min-height: 32px;
+  padding: 6px 8px;
+  font-size: 10px;
+}
+.management-team-actions .management-go {
+  color: var(--primary);
+}
+.management-save {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.management-save p {
+  flex: 1;
+  color: var(--primary);
+  font-size: 12px;
+}
+.management-save button {
+  font-size: 12px;
+}
+.management-test-caller {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.management-test-caller input {
+  accent-color: var(--primary);
+}
+@media (max-width: 1100px) {
+  .management-grid {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+
+  .management-order > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+@media (max-width: 800px) {
+  .management-grid {
+    grid-template-columns: 1fr;
+  }
+  .management-sidebar {
+    grid-row: 1;
+  }
+  .management-summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .management-header {
+    align-items: flex-start;
+  }
+}
+@media (max-width: 480px) {
+  .management-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .management-header h2 {
+    font-size: 25px;
+  }
+  .management-card {
+    padding: 18px 14px;
+    border-radius: 16px;
+  }
+  .management-caller h3 {
+    font-size: 21px;
+  }
+  .management-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+  .management-team {
+    grid-template-columns: 32px 30px minmax(0, 1fr);
+    gap: 7px;
+  }
+  .management-team-avatar {
+    width: 30px;
+    height: 30px;
+  }
+  .management-team-actions {
+    grid-column: 1/-1;
+  }
+
+  .management-jump {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .management-actions .management-end {
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .management-team {
+    transition: none !important;
+  }
+}

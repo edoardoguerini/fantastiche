@@ -15,6 +15,23 @@ export const pendingCommandSchema = z.discriminatedUnion('kind', [
     }),
   }),
   z.object({
+    kind: z.literal('Bombs'),
+    body: z.object({ requestId, playerId: z.string().uuid() }),
+  }),
+  z.object({
+    kind: z.literal('BombBids'),
+    body: z.object({
+      requestId,
+      bombAuctionId: z.string().uuid(),
+      round: z.number().int().positive(),
+      amount: z.number().int().positive(),
+    }),
+  }),
+  z.object({
+    kind: z.literal('CancelBomb'),
+    body: z.object({ requestId, bombAuctionId: z.string().uuid() }),
+  }),
+  z.object({
     kind: z.literal('Bids'),
     body: z.object({
       requestId,
@@ -26,8 +43,16 @@ export const pendingCommandSchema = z.discriminatedUnion('kind', [
     kind: z.literal('Control'),
     body: z.object({
       requestId,
-      action: z.enum(['Pause', 'Resume', 'SkipTurn', 'Reorder', 'Complete']),
+      action: z.enum([
+        'Pause',
+        'Resume',
+        'SkipTurn',
+        'GoToTurn',
+        'Reorder',
+        'Complete',
+      ]),
       teamOrder: z.array(z.string().uuid()).nullable().optional(),
+      targetTeamId: z.string().uuid().optional(),
     }),
   }),
 ])

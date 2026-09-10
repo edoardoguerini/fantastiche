@@ -28,6 +28,15 @@ public sealed class AuctionsModule : IRegistrableModule
         CommandMetadata(group.MapPost("/{sessionId:guid}/Control", Control).WithName("ControlAuctionSession")
             .WithSummary("Gestisci la sessione")
             .WithDescription("Organizzatore o SuperAdmin: Pause, Resume, SkipTurn, Reorder o Complete. Modifiche tra giocatori; Reorder conserva le squadre partecipanti."));
+        CommandMetadata(group.MapPost("/{sessionId:guid}/Bombs", StartBomb).WithName("StartBomb")
+            .WithSummary("Sgancia la Bomba")
+            .WithDescription("Il chiamante apre un’attesa condivisa di 60 secondi, seguita automaticamente dalla raccolta segreta di 60 secondi per le squadre idonee."));
+        CommandMetadata(group.MapPost("/{sessionId:guid}/BombBids", SubmitBombOffer).WithName("SubmitBombOffer")
+            .WithSummary("Conferma offerta segreta")
+            .WithDescription("Una sola conferma per squadra e turno; server e ricevuta proteggono importo e scadenza."));
+        CommandMetadata(group.MapPost("/{sessionId:guid}/CancelBomb", CancelBomb).WithName("CancelBomb")
+            .WithSummary("Annulla la Bomba")
+            .WithDescription("Organizzatore o SuperAdmin annulla una Bomba attiva senza addebiti."));
         group.MapGet("/{sessionId:guid}/Commands/{requestId:guid}", Receipt).WithName("GetAuctionReceipt")
             .WithSummary("Recupera esito del comando")
             .WithDescription("Legge la propria ricevuta persistita, anche quando il comando era stato rifiutato. Non genera una nuova offerta.")
@@ -90,7 +99,31 @@ public sealed class AuctionsModule : IRegistrableModule
     {
         await validator.ValidateAndThrowAsync(request, ct);
         return CommandResponse(await publisher.SendAsync<ControlAuctionSessionCommand, AuctionCommandResult>(
-            new(context.CreateRequestContext(), sessionId, request.RequestId, request.Action, request.TeamOrder), ct));
+            new(context.CreateRequestContext(), sessionId, request.RequestId, request.Action, request.TeamOrder, request.TargetTeamId), ct));
+    }
+
+    private static async Task<IResult> StartBomb(Guid sessionId, StartBombRequest request, HttpContext context,
+        IValidator<StartBombRequest> validator, IRequestPublisher publisher, CancellationToken ct)
+    {
+        await validator.ValidateAndThrowAsync(request, ct);
+        return CommandResponse(await publisher.SendAsync<StartBombCommand, AuctionCommandResult>(
+            new(context.CreateRequestContext(), sessionId, request.RequestId, request.PlayerId), ct));
+    }
+
+    private static async Task<IResult> SubmitBombOffer(Guid sessionId, SubmitBombOfferRequest request, HttpContext context,
+        IValidator<SubmitBombOfferRequest> validator, IRequestPublisher publisher, CancellationToken ct)
+    {
+        await validator.ValidateAndThrowAsync(request, ct);
+        return CommandResponse(await publisher.SendAsync<SubmitBombOfferCommand, AuctionCommandResult>(
+            new(context.CreateRequestContext(), sessionId, request.RequestId, request.BombAuctionId, request.Round, request.Amount), ct));
+    }
+
+    private static async Task<IResult> CancelBomb(Guid sessionId, CancelBombRequest request, HttpContext context,
+        IValidator<CancelBombRequest> validator, IRequestPublisher publisher, CancellationToken ct)
+    {
+        await validator.ValidateAndThrowAsync(request, ct);
+        return CommandResponse(await publisher.SendAsync<CancelBombCommand, AuctionCommandResult>(
+            new(context.CreateRequestContext(), sessionId, request.RequestId, request.BombAuctionId), ct));
     }
 
     private static async Task<IResult> Receipt(Guid sessionId, Guid requestId, HttpContext context, IRequestPublisher publisher, CancellationToken ct)

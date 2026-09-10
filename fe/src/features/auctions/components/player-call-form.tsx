@@ -1,3 +1,4 @@
+import { Icon } from '@/components/common/icon'
 import { PlayerValuation } from './player-valuation'
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
@@ -21,10 +22,12 @@ export function PlayerCallForm({
   disabled,
   onCancel,
   onStart,
+  onBomb,
 }: {
   player: CatalogEntry
   disabled: boolean
   onCancel: () => void
+  onBomb?: () => Promise<void>
   onStart: (duration: number, increments: number[]) => Promise<void>
 }) {
   const form = useForm({
@@ -137,6 +140,16 @@ export function PlayerCallForm({
           <Button variant="ghost" onClick={onCancel} disabled={disabled}>
             Annulla
           </Button>
+          {onBomb && (
+            <Button
+              className="bomb-launch"
+              variant="outline"
+              disabled={disabled}
+              onClick={() => void onBomb()}
+            >
+              <Icon name="bomb" variant="jelly" /> Sgancia la bomba
+            </Button>
+          )}
           <form.Subscribe selector={(state) => state.isSubmitting}>
             {(busy) => (
               <Button type="submit" disabled={disabled || busy}>

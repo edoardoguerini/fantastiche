@@ -32,7 +32,8 @@
 .account-identity {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 1px;
+  line-height: 1.25;
   min-width: 0;
 }
 .account-identity strong {

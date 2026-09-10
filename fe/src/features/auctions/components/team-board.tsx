@@ -211,20 +211,31 @@ function TeamColumn({
             Ricarica la rosa
           </button>
         ) : roster.data.items.length ? (
-          <ul>
-            {roster.data.items.map((player) => (
-              <li key={player.playerId}>
-                <PlayerPhoto url={player.photoUrl} role={player.role} />
-                <div className="team-purchase-details">
-                  <span>{player.name}</span>
-                  <span className={`catalog-role role-${player.role}`}>
-                    {player.role}
-                  </span>
-                </div>
-                <strong>{player.price}</strong>
-              </li>
-            ))}
-          </ul>
+          roles.map((role) => {
+            const players = roster.data.items.filter(
+              (player) => player.role === role.id,
+            )
+            if (!players.length) return null
+            return (
+              <div className="team-purchase-group" key={role.id}>
+                <h4>{role.label}</h4>
+                <ul aria-label={role.label}>
+                  {players.map((player) => (
+                    <li key={player.playerId}>
+                      <PlayerPhoto url={player.photoUrl} role={player.role} />
+                      <div className="team-purchase-details">
+                        <span>{player.name}</span>
+                        <span className={`catalog-role role-${player.role}`}>
+                          {player.role}
+                        </span>
+                      </div>
+                      <strong>{player.price}</strong>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )
+          })
         ) : (
           <p className="team-purchases-empty">
             <Icon name="shirt" variant="jelly" />

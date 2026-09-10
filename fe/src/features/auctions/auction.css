@@ -146,7 +146,7 @@ body:has(.auction-room) {
   min-height: 15px;
   margin-bottom: 9px;
   font-size: 11px;
-  letter-spacing: 0.9px;
+  letter-spacing: normal;
 }
 .team-turn {
   color: var(--muted-foreground);
@@ -276,16 +276,6 @@ body:has(.auction-room) {
   line-height: 1.2;
   overflow-wrap: anywhere;
 }
-.auction-price-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-.auction-price-row > div > span {
-  color: var(--muted-foreground);
-  font-size: 13px;
-}
 .auction-price {
   font-size: 38px;
   line-height: 1.4;
@@ -299,20 +289,6 @@ body:has(.auction-room) {
   letter-spacing: 0;
   color: var(--muted-foreground);
   margin-left: 8px;
-}
-.auction-winner {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  max-width: 50%;
-  font-size: 14px;
-}
-.auction-winner--mine {
-  color: var(--auction-success);
-}
-.auction-price-row .auction-winner span {
-  color: inherit;
-  font-size: inherit;
 }
 .auction-time-track {
   height: 2px;
@@ -779,9 +755,6 @@ body:has(.auction-room) {
   }
   .auction-price {
     font-size: 32px;
-  }
-  .auction-winner {
-    font-size: 13px;
   }
   .auction-timer {
     font-size: 24px;

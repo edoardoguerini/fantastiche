@@ -11,6 +11,7 @@ import {
   type AuctionTeam,
   type CatalogEntry,
   type RosterRules,
+  type Role,
 } from '../types/auction.types'
 import { canBuyRole } from '../validations/auction-rules'
 import { PlayerPhoto } from './player-photo'
@@ -20,6 +21,7 @@ export function CatalogPanel({
   userId,
   sessionId,
   canCall,
+  currentRole,
   team,
   rules,
   onSelect,
@@ -28,6 +30,7 @@ export function CatalogPanel({
   userId: string
   sessionId: string
   canCall: boolean
+  currentRole: Role | null
   team?: AuctionTeam
   rules: RosterRules
   onSelect: (player: CatalogEntry) => void
@@ -35,7 +38,7 @@ export function CatalogPanel({
 }) {
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
-  const [role, setRole] = useState('')
+  const [role, setRole] = useState<string>(currentRole ?? '')
   const [page, setPage] = useState(1)
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -98,6 +101,7 @@ export function CatalogPanel({
               canCall &&
               team &&
               player.isAvailable &&
+              player.role === currentRole &&
               canBuyRole(team, rules, player.role)
             return (
               <div

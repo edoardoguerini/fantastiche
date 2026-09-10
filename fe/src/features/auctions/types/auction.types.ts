@@ -57,6 +57,41 @@ export const playerAuctionSchema = z.object({
   startedAt: z.string(),
   closedAt: z.string().nullable(),
 })
+export const bombAuctionSchema = z.object({
+  id: z.string(),
+  playerId: z.string(),
+  name: z.string(),
+  role: z.enum(['P', 'D', 'C', 'A']),
+  clubName: z.string(),
+  photoUrl: z.string().nullable(),
+  clubLogoUrl: z.string().nullable(),
+  callerTeamId: z.string(),
+  status: z.enum([
+    'Waiting',
+    'Collecting',
+    'Revealing',
+    'Completed',
+    'Cancelled',
+    'NoSale',
+  ]),
+  round: z.number().int().positive(),
+  minimumAmount: z.number().int().positive(),
+  deadline: z.string(),
+  revealStartedAt: z.string().nullable(),
+  nextRevealAt: z.string().nullable(),
+  participants: z.array(
+    z.object({ teamId: z.string(), hasSubmitted: z.boolean() }),
+  ),
+  revealedOffers: z.array(
+    z.object({ teamId: z.string(), amount: z.number().int().positive() }),
+  ),
+  ownAmount: z.number().int().positive().nullable(),
+  playerAuctionId: z.string().nullable(),
+  winningTeamId: z.string().nullable(),
+  winningAmount: z.number().int().positive().nullable(),
+})
+export type BombAuctionView = z.infer<typeof bombAuctionSchema>
+
 export const sessionSchema = z.object({
   id: z.string(),
   leagueId: z.string(),
@@ -65,8 +100,10 @@ export const sessionSchema = z.object({
   status: z.enum(['Active', 'Paused', 'Completed']),
   version: z.number(),
   currentTeamId: z.string().nullable(),
+  currentRole: z.enum(['P', 'D', 'C', 'A']).nullable(),
   teamOrder: z.array(z.string()),
   currentAuction: playerAuctionSchema.nullable(),
+  currentBomb: bombAuctionSchema.nullable().optional(),
   teams: z.array(teamSchema),
   serverTime: z.string(),
 })

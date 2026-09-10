@@ -102,3 +102,38 @@ it('reinvia solo su gesto esplicito, conservando UUID e totale originali', async
   expect(bodies).toEqual([command.body])
   expect(hook.result.current.pending).toBeNull()
 })
+
+it.each<PendingCommand>([
+  { kind: 'Bombs', body: { requestId: rid, playerId: aid } },
+  {
+    kind: 'BombBids',
+    body: { requestId: rid, bombAuctionId: aid, round: 2, amount: 35 },
+  },
+  { kind: 'CancelBomb', body: { requestId: rid, bombAuctionId: aid } },
+])(
+  'recupera e reinvia esplicitamente $kind conservando il payload originale',
+  async (bombCommand) => {
+    storePending(user.id, sid, bombCommand)
+    const bodies: unknown[] = []
+    const paths: string[] = []
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/Antiforgery')) return response({ token: 'csrf' })
+      if (url.includes('/Commands/')) return response(null, 404)
+      paths.push(url)
+      bodies.push(JSON.parse(String(init?.body)))
+      return response(receipt)
+    })
+    const hook = setup()
+    await waitFor(() =>
+      expect(hook.result.current.message).toContain('non ancora disponibile'),
+    )
+    expect(bodies).toEqual([])
+    expect(readPending(user.id, sid)).toEqual(bombCommand)
+    await act(async () => {
+      await hook.result.current.retry()
+    })
+    expect(bodies).toEqual([bombCommand.body])
+    expect(paths[0]).toContain(`/Sessions/${sid}/${bombCommand.kind}`)
+    expect(hook.result.current.pending).toBeNull()
+  },
+)

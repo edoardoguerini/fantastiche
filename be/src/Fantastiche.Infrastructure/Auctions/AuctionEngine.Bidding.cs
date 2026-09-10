@@ -23,12 +23,13 @@ public sealed partial class AuctionEngine
                 || increments.Any(x => x is < 1 or > 1_000_000) || increments.Distinct().Count() != increments.Length)
                 throw Error("auction.invalid_options", "Durata o incrementi non validi.", 400);
             if (s.Status != AuctionSessionStatus.Active) throw Error("auction.not_active", "La sessione non è attiva.");
+            await RequireNoBombAsync(c, tx, s, token);
             if (await ReadOpenAsync(c, tx, s, token) is not null) throw Error("auction.player_in_progress", "Attendi la chiusura del giocatore in corso.");
             var team = await ParticipantAsync(c, tx, s, request.Context, token);
-            var caller = await c.QuerySingleAsync<Guid>(Sql("""
-                SELECT TeamId FROM CallOrderEntries WHERE SessionId = @Id AND LeagueSeasonId = @LeagueSeasonId AND LeagueId = @LeagueId AND Position = @CurrentPosition
-                """, s, tx, token));
-            if (team != caller) throw Error("auction.not_caller", "Può chiamare soltanto la squadra di turno.", 403);
+            var progress = await AuctionTurnProgress.ReadAsync(c, tx, s.Id, s.LeagueId, s.LeagueSeasonId, token);
+            var position = progress.FindPosition(s.CurrentPosition, false)
+                ?? throw Error("auction.rosters_complete", "Le rose delle squadre partecipanti sono già complete.");
+            if (team != progress.Turns[position].TeamId) throw Error("auction.not_caller", "Può chiamare soltanto la squadra di turno.", 403);
             var role = await c.QuerySingleOrDefaultAsync<string>(Sql("SELECT Role FROM ListEntries WHERE ListVersionId = @ListVersionId AND PlayerId = @PlayerId",
                 new { s.ListVersionId, request.PlayerId }, tx, token)) ?? throw Error("resource.not_found", "Giocatore non presente nel listone della sessione.", 404);
             if (await c.ExecuteScalarAsync<bool>(Sql("SELECT COALESCE(IsTransferred, 0) FROM ListEntries WHERE ListVersionId = @ListVersionId AND PlayerId = @PlayerId",
@@ -37,7 +38,9 @@ public sealed partial class AuctionEngine
             if (await c.ExecuteScalarAsync<int>(Sql("SELECT COUNT(*) FROM RosterEntries WHERE LeagueSeasonId = @LeagueSeasonId AND LeagueId = @LeagueId AND PlayerId = @PlayerId",
                 new { s.LeagueSeasonId, s.LeagueId, request.PlayerId }, tx, token)) != 0)
                 throw Error("auction.player_unavailable", "Giocatore già acquistato nella stagione.");
+            if (role != progress.Role) throw Error("auction.wrong_role", "Puoi chiamare soltanto calciatori del ruolo in corso: " + progress.Role + ".");
             await ValidateCapacityAsync(c, tx, s, team, role, 1, token);
+            s.CurrentPosition = position;
             var number = await c.ExecuteScalarAsync<int>(Sql("SELECT COALESCE(MAX(Number), 0) + 1 FROM PlayerAuctions WHERE SessionId = @Id AND LeagueSeasonId = @LeagueSeasonId AND LeagueId = @LeagueId", s, tx, token));
             var auction = new PlayerAuction
             {
@@ -83,6 +86,7 @@ public sealed partial class AuctionEngine
         {
             if (request.Amount <= 0) throw Error("auction.invalid_amount", "L’offerta deve essere positiva.", 400);
             if (s.Status != AuctionSessionStatus.Active) throw Error("auction.not_active", "La sessione non è attiva.");
+            await RequireNoBombAsync(c, tx, s, token);
             var auction = await c.QuerySingleOrDefaultAsync<PlayerAuction>(Sql($"""
                 SELECT {PlayerColumns} FROM PlayerAuctions
                 WHERE Id = @PlayerAuctionId AND SessionId = @SessionId AND LeagueSeasonId = @LeagueSeasonId AND LeagueId = @LeagueId

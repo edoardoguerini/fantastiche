@@ -84,7 +84,7 @@ public sealed partial class AuctionEngineTests
         var engine = scope.ServiceProvider.GetRequiredService<AuctionEngine>();
         Assert.Equal(1, await engine.CloseExpiredAsync(default));
         Assert.Equal(0, await engine.CloseExpiredAsync(default));
-        var second = await Start(data, session.Id, player: 2, user: 1);
+        var second = await Start(data, session.Id, player: 1, user: 1);
         Assert.True(second.Accepted);
         Assert.Equal(0, await engine.CloseExpiredAsync(default));
     }

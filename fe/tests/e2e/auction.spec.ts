@@ -1,4 +1,5 @@
 import { test, expect, type Page, type WebSocketRoute } from '@playwright/test'
+import type { BombAuctionView } from '../../src/features/auctions/types/auction.types'
 
 const sid = '00000000-0000-4000-8000-000000000001'
 const aid = '00000000-0000-4000-8000-000000000002'
@@ -20,6 +21,8 @@ const user = {
   displayName: 'Demo',
   isSuperAdmin: false,
 }
+const teamId = (index: number) =>
+  `10000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`
 const url = '/leghe/league-1/asta'
 async function setupRoom(
   page: Page,
@@ -29,8 +32,18 @@ async function setupRoom(
     setup?: boolean
     catalogSize?: number
     teamCount?: number
+    currentRole?: 'P' | 'D' | 'C' | 'A'
+    rosterRoles?: ('P' | 'D' | 'C' | 'A')[]
   } = {},
 ) {
+  await page.addInitScript(() => {
+    const audioState = window as unknown as { auctionAudioPlays: number }
+    audioState.auctionAudioPlays = 0
+    HTMLMediaElement.prototype.play = function () {
+      audioState.auctionAudioPlays++
+      return Promise.resolve()
+    }
+  })
   let roomSessionId: string | null = options.setup ? null : sid
   const teams = [
     'Atletico Spritz',
@@ -44,7 +57,7 @@ async function setupRoom(
   ]
     .slice(0, options.teamCount ?? 4)
     .map((name, i) => ({
-      id: `team-${i}`,
+      id: teamId(i),
       name,
       budget: 500,
       goalkeepers: 0,
@@ -67,26 +80,28 @@ async function setupRoom(
     listVersionId: 'list-1',
     status: 'Active',
     version: 1,
-    currentTeamId: options.waiting ? 'team-0' : 'team-1',
+    currentRole: options.currentRole ?? 'A',
+    currentTeamId: options.waiting ? teamId(0) : teamId(1),
     teamOrder: teams.map((t) => t.id),
     teams,
+    currentBomb: null as BombAuctionView | null,
     currentAuction: options.waiting
       ? null
       : {
           id: aid,
           playerId,
           name: 'Alessandro Fabbri',
-          role: 'A',
+          role: options.currentRole ?? 'A',
           clubName: 'Demo Aurora',
-          callerTeamId: 'team-1',
-          winningTeamId: 'team-1',
+          callerTeamId: teamId(1),
+          winningTeamId: teamId(1),
           currentAmount: 20,
           durationSeconds: 30,
           increments: [1, 5, 10],
           deadline: new Date(Date.now() + 30000).toISOString(),
           status: 'Open',
           startedAt: new Date().toISOString(),
-          closedAt: null,
+          closedAt: null as string | null,
         },
     serverTime: new Date().toISOString(),
   }
@@ -188,7 +203,7 @@ async function setupRoom(
       return respond({
         leagueId: league.id,
         leagueSeasonId: league.leagueSeasonId,
-        myTeamId: 'team-0',
+        myTeamId: teamId(0),
         canManage: !!options.organizer,
         sessionId: roomSessionId,
         listVersionId: 'list-1',
@@ -212,14 +227,15 @@ async function setupRoom(
       if (!control.reject) {
         state.version++
         if (path.endsWith('/Players')) {
+          state.currentBomb = null
           state.currentAuction = {
             id: aid,
             playerId: String(body.playerId),
             name: 'Alessandro Fabbri',
             role: 'A',
             clubName: 'Demo Aurora',
-            callerTeamId: 'team-0',
-            winningTeamId: 'team-0',
+            callerTeamId: teamId(0),
+            winningTeamId: teamId(0),
             currentAmount: 1,
             durationSeconds: Number(body.durationSeconds),
             increments: body.increments as number[],
@@ -231,12 +247,57 @@ async function setupRoom(
             closedAt: null,
           }
         }
+        if (path.endsWith('/Bombs'))
+          state.currentBomb = {
+            id: aid,
+            playerId,
+            name: 'Alessandro Fabbri',
+            role: 'A',
+            clubName: 'Demo Aurora',
+            photoUrl: null,
+            clubLogoUrl: null,
+            callerTeamId: teamId(0),
+            status: 'Waiting',
+            round: 1,
+            minimumAmount: 1,
+            deadline: new Date(Date.now() + 60000).toISOString(),
+            revealStartedAt: null,
+            nextRevealAt: null,
+            participants: teams.map((team) => ({
+              teamId: team.id,
+              hasSubmitted: false,
+            })),
+            revealedOffers: [],
+            ownAmount: null,
+            playerAuctionId: null,
+            winningTeamId: null,
+            winningAmount: null,
+          }
+        if (path.endsWith('/BombBids') && state.currentBomb) {
+          state.currentBomb.ownAmount = Number(body.amount)
+          state.currentBomb.participants[0]!.hasSubmitted = true
+        }
+        if (path.endsWith('/CancelBomb') && state.currentBomb)
+          state.currentBomb.status = 'Cancelled'
         if (path.endsWith('/Bids') && state.currentAuction) {
           state.currentAuction.currentAmount = Number(body.amount)
-          state.currentAuction.winningTeamId = 'team-0'
+          state.currentAuction.winningTeamId = teamId(0)
         }
-        if (path.endsWith('/Control'))
-          state.status = body.action === 'Pause' ? 'Paused' : 'Active'
+        if (path.endsWith('/Control')) {
+          if (body.action === 'Pause') state.status = 'Paused'
+          if (body.action === 'Resume') state.status = 'Active'
+          if (body.action === 'Complete') state.status = 'Completed'
+          if (body.action === 'GoToTurn')
+            state.currentTeamId = String(body.targetTeamId)
+          if (body.action === 'Reorder')
+            state.teamOrder = body.teamOrder as string[]
+          if (body.action === 'SkipTurn')
+            state.currentTeamId =
+              state.teamOrder[
+                (state.teamOrder.indexOf(state.currentTeamId) + 1) %
+                  state.teamOrder.length
+              ]!
+        }
       }
       const receipt = {
         requestId: body.requestId,
@@ -260,7 +321,7 @@ async function setupRoom(
         items: Array.from({ length: options.catalogSize ?? 1 }, (_, index) => ({
           playerId: index === 0 ? playerId : `player-${index}`,
           name: index === 0 ? 'Alessandro Fabbri' : `Calciatore ${index + 1}`,
-          role: 'A',
+          role: options.currentRole ? (index % 2 === 0 ? 'P' : 'D') : 'A',
           clubName: 'Demo Aurora',
           currentQuotation: 17,
           initialQuotation: 16,
@@ -272,8 +333,21 @@ async function setupRoom(
         page: 1,
         pageSize: 30,
       })
-    if (path.endsWith('/Roster')) control.rosterReads++
-    if (path.endsWith('/Roster') || path.endsWith('/Bids'))
+    if (path.endsWith('/Roster')) {
+      control.rosterReads++
+      const items = (options.rosterRoles ?? []).map((role, index) => ({
+        playerId: `roster-player-${index}`,
+        teamId: teamId(0),
+        playerAuctionId: `auction-${index}`,
+        name: `Calciatore ${index + 1}`,
+        role,
+        clubName: 'Demo Aurora',
+        price: index + 1,
+        acquiredAt: new Date().toISOString(),
+      }))
+      return respond({ items, total: items.length, page: 1, pageSize: 100 })
+    }
+    if (path.endsWith('/Bids'))
       return respond({ items: [], total: 0, page: 1, pageSize: 100 })
     return route.fulfill({ status: 404 })
   })
@@ -290,6 +364,151 @@ async function setupRoom(
     ).toBeVisible()
   return { state, control, notify, presence, participants }
 }
+
+for (const width of [320, 1440]) {
+  test(`audio automatico riservato al gestore con toggle nella bottom bar a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    const { state, notify } = await setupRoom(page, { organizer: true })
+    const count = () =>
+      page.evaluate(
+        () =>
+          (window as unknown as { auctionAudioPlays: number })
+            .auctionAudioPlays,
+      )
+    await expect.poll(count).toBe(1)
+    const audio = page
+      .locator('.auction-bottom-bar')
+      .getByRole('button', { name: 'Disattiva audio asta' })
+    await expect(audio).toBeVisible()
+    const box = (await audio.boundingBox())!
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(width)
+    await audio.click()
+    state.currentAuction!.currentAmount++
+    state.version++
+    notify()
+    await expect(page.locator('.auction-price')).toContainText('21')
+    expect(await count()).toBe(1)
+    await page.getByRole('button', { name: 'Attiva audio asta' }).click()
+    await expect.poll(count).toBe(2)
+    await page.screenshot({
+      path: test.info().outputPath(`audio-${width}.png`),
+      fullPage: true,
+    })
+  })
+}
+
+test('il partecipante non riceve il controllo audio né suoni dei rilanci', async ({
+  page,
+}) => {
+  await setupRoom(page)
+  await expect(page.locator('.auction-audio-toggle')).toHaveCount(0)
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { auctionAudioPlays: number }).auctionAudioPlays,
+    ),
+  ).toBe(0)
+})
+
+for (const organizer of [false, true]) {
+  test(`celebrazione con fanfara per ${organizer ? 'gestore' : 'partecipante'} solo alla conferma`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: organizer ? 1440 : 390, height: 900 })
+    const { state, notify, control } = await setupRoom(page, { organizer })
+    const plays = () =>
+      page.evaluate(
+        () =>
+          (window as unknown as { auctionAudioPlays: number })
+            .auctionAudioPlays,
+      )
+    await expect.poll(plays).toBe(organizer ? 1 : 0)
+    Object.assign(state.currentAuction!, {
+      status: 'Closed',
+      closedAt: new Date().toISOString(),
+    })
+    state.version++
+    notify()
+    const celebration = page.getByRole('region', {
+      name: 'Aggiudicazione',
+      exact: true,
+    })
+    await expect(celebration).toContainText('Real Sbronzi')
+    await expect(celebration).toContainText('Alessandro Fabbri')
+    await expect.poll(plays).toBe(organizer ? 2 : 1)
+    await expect(page.locator('.auction-victory-confetti svg')).toHaveCount(1)
+    await expect(celebration).toHaveCSS('opacity', '1')
+    await page.screenshot({
+      path: test
+        .info()
+        .outputPath(`victory-${organizer ? 'desktop' : 'mobile'}.png`),
+    })
+    state.version++
+    notify()
+    await expect(celebration).toBeHidden({ timeout: 6000 })
+    expect(await plays()).toBe(organizer ? 2 : 1)
+    expect(control.commands).toHaveLength(0)
+    await page.reload()
+    await expect(
+      page.getByRole('tab', { name: 'Live', exact: true }),
+    ).toBeVisible()
+    await expect(celebration).toBeHidden()
+    expect(await plays()).toBe(0)
+  })
+}
+
+test('l’anteprima mantiene 20 secondi e non invia rilanci reali', async ({
+  page,
+}) => {
+  const { control, state, notify } = await setupRoom(page)
+  await page.goto(`${url}?preview=timer`)
+  await expect(page.getByRole('timer')).toHaveAttribute(
+    'aria-label',
+    '20 secondi rimasti',
+  )
+  await page.getByRole('button', { name: 'Offri 21 crediti, più 1' }).click()
+  await expect(
+    page.getByRole('region', { name: 'Squadra in testa' }),
+  ).toContainText('Atletico Spritz')
+  state.currentAuction!.status = 'Closed'
+  state.version++
+  notify()
+  await page.clock.install()
+  await page.clock.fastForward(60_000)
+  await expect(page.getByRole('timer')).toHaveAttribute(
+    'aria-label',
+    '20 secondi rimasti',
+  )
+  expect(control.commands).toHaveLength(0)
+  await page.getByRole('link', { name: 'Torna all’asta' }).click()
+  await expect(page).toHaveURL(new RegExp(`${url}$`))
+})
+
+test('la prova vittoria è locale e con movimento ridotto mostra un riepilogo statico', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const { control } = await setupRoom(page)
+  await page.goto(`${url}?preview=timer`)
+  await page.getByRole('button', { name: 'Prova vittoria' }).click()
+  const celebration = page.getByRole('region', {
+    name: 'Aggiudicazione',
+    exact: true,
+  })
+  await expect(celebration).toContainText('Real Sbronzi')
+  await expect(celebration).toHaveCSS('animation-name', 'none')
+  await expect(page.locator('.auction-victory-confetti svg')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Chiudi celebrazione' }).click()
+  await page.getByRole('button', { name: 'Ripristina anteprima' }).click()
+  await expect(page.getByRole('timer')).toHaveAttribute(
+    'aria-label',
+    '20 secondi rimasti',
+  )
+  expect(control.commands).toHaveLength(0)
+})
 
 test('il Live desktop affianca il listone e dispone le squadre sotto il giocatore', async ({
   page,
@@ -350,6 +569,177 @@ test('il listone arriva alla barra inferiore e mantiene la paginazione visibile'
     path: test.info().outputPath('listone-bottom-gap.png'),
   })
 })
+
+test('test chiamante: mantiene il proprio turno, si disattiva e supporta il riordino drag', async ({
+  page,
+}) => {
+  const { state, notify, control } = await setupRoom(page, {
+    organizer: true,
+    waiting: true,
+  })
+  await page.getByRole('tab', { name: 'Gestisci asta' }).click()
+  await page.getByLabel('Test · Mantieni il turno alla mia squadra').check()
+  state.currentTeamId = teamId(1)
+  state.version++
+  notify()
+  await expect.poll(() => state.currentTeamId).toBe(teamId(0))
+  expect(control.commands).toHaveLength(1)
+  await page.getByLabel('Test · Mantieni il turno alla mia squadra').uncheck()
+  state.currentTeamId = teamId(1)
+  state.version++
+  notify()
+  await expect(
+    page.getByRole('region', { name: 'Turno corrente', exact: true }),
+  ).toContainText('Real Sbronzi')
+  const rows = page.locator('.management-team')
+  await rows.nth(2).scrollIntoViewIfNeeded()
+  const handle = page.getByRole('button', { name: 'Trascina Atletico Spritz' })
+  const start = (await handle.boundingBox())!
+  const target = (await rows.nth(2).boundingBox())!
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(
+    start.x + start.width / 2,
+    target.y + target.height / 2,
+    { steps: 12 },
+  )
+  await expect(rows.first()).toHaveAttribute('data-dragging', 'true')
+  await expect
+    .poll(() =>
+      rows.nth(1).evaluate((element) => getComputedStyle(element).transform),
+    )
+    .not.toBe('none')
+  expect(control.commands).toHaveLength(1)
+  await page.screenshot({
+    path: test.info().outputPath('management-dragging.png'),
+  })
+  await page.mouse.up()
+  await expect(rows.nth(2)).toContainText('Atletico Spritz')
+  expect(control.commands).toHaveLength(1)
+  const cancel = page.getByRole('button', { name: 'Annulla modifiche' })
+  await cancel.scrollIntoViewIfNeeded()
+  const cancelBox = (await cancel.boundingBox())!
+  await page.mouse.move(
+    cancelBox.x + cancelBox.width / 2,
+    cancelBox.y + cancelBox.height / 2,
+    { steps: 12 },
+  )
+  await cancel.click()
+  await expect(rows.first()).toContainText('Atletico Spritz')
+  await handle.focus()
+  await page.keyboard.press('Space', { delay: 100 })
+  await expect(rows.first()).toHaveAttribute('data-dragging', 'true')
+  await page.keyboard.press('ArrowDown', { delay: 100 })
+  await expect
+    .poll(() =>
+      rows
+        .nth(1)
+        .evaluate(
+          (element) => new DOMMatrix(getComputedStyle(element).transform).m42,
+        ),
+    )
+    .toBeLessThan(-10)
+  await page.keyboard.press('Escape')
+  await expect(rows.first()).toHaveAttribute('data-dragging', 'false')
+  await expect(rows.first()).toContainText('Atletico Spritz')
+  await expect(handle).toBeFocused()
+  await expect(page.getByRole('button', { name: 'Salva ordine' })).toHaveCount(
+    0,
+  )
+  await page.keyboard.press('Space', { delay: 100 })
+  await expect(rows.first()).toHaveAttribute('data-dragging', 'true')
+  await page.keyboard.press('ArrowDown', { delay: 100 })
+  await expect
+    .poll(() =>
+      rows
+        .nth(1)
+        .evaluate(
+          (element) => new DOMMatrix(getComputedStyle(element).transform).m42,
+        ),
+    )
+    .toBeLessThan(-10)
+  await page.keyboard.press('Space')
+  await expect(rows.nth(1)).toContainText('Atletico Spritz')
+  expect(control.commands).toHaveLength(1)
+})
+
+test('gestione: trascinamento touch dalla maniglia senza salvare automaticamente', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 1000 })
+  const { control } = await setupRoom(page, { organizer: true, waiting: true })
+  await page.getByRole('tab', { name: 'Gestisci asta' }).click()
+  const rows = page.locator('.management-team')
+  await rows
+    .first()
+    .evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  const handle = (await page
+    .getByRole('button', { name: 'Trascina Atletico Spritz' })
+    .boundingBox())!
+  const target = (await rows.nth(1).boundingBox())!
+  const x = handle.x + handle.width / 2
+  const y = handle.y + handle.height / 2
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ x, y }],
+  })
+  for (let step = 1; step <= 12; step++) {
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [
+        { x, y: y + ((target.y + target.height / 2 - y) * step) / 12 },
+      ],
+    })
+  }
+  await expect(rows.first()).toHaveAttribute('data-dragging', 'true')
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchEnd',
+    touchPoints: [],
+  })
+  await expect(rows.nth(1)).toContainText('Atletico Spritz')
+  expect(control.commands).toHaveLength(0)
+  await expect(page.getByRole('button', { name: 'Salva ordine' })).toBeVisible()
+  await cdp.detach()
+})
+
+for (const width of [390, 1440]) {
+  test(`la squadra in testa è in evidenza e le offerte sono sotto a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    const { state, notify } = await setupRoom(page)
+    const leader = page.getByRole('region', {
+      name: 'Squadra in testa',
+      exact: true,
+    })
+    await expect(leader).toContainText('Real Sbronzi')
+    const contest = (await page.locator('.auction-contest').boundingBox())!
+    const offer = (await page.locator('.auction-current-offer').boundingBox())!
+    expect(offer.y).toBeGreaterThanOrEqual(contest.y + contest.height)
+    const quick = (await page.locator('.bid-quick').boundingBox())!
+    const custom = (await page.locator('.bid-custom').boundingBox())!
+    expect(custom.y).toBeGreaterThanOrEqual(quick.y + quick.height)
+    await page.screenshot({
+      path: test.info().outputPath(`leader-other-${width}.png`),
+      fullPage: true,
+    })
+    state.currentAuction!.winningTeamId = teamId(0)
+    state.currentAuction!.currentAmount = 26
+    state.version++
+    notify()
+    await expect(leader).toContainText('Atletico Spritz')
+    await expect(leader).toContainText('Sta vincendo:')
+    await expect(page.getByText('La tua squadra è in testa.')).toHaveCount(0)
+    await expect(
+      page.getByRole('button', { name: 'Offri 27 crediti, più 1' }),
+    ).toBeDisabled()
+    await page.screenshot({
+      path: test.info().outputPath(`leader-mine-${width}.png`),
+      fullPage: true,
+    })
+  })
+}
 
 test('il carosello squadre torna dalla prima all’ultima e viceversa', async ({
   page,
@@ -541,7 +931,7 @@ test('preparazione: l’organizzatore riordina le squadre e apre la sessione', a
     {
       leagueId: league.id,
       leagueSeasonId: league.leagueSeasonId,
-      teamOrder: ['team-1', 'team-0', 'team-2', 'team-3'],
+      teamOrder: [teamId(1), teamId(0), teamId(2), teamId(3)],
     },
   ])
 })
@@ -610,7 +1000,10 @@ test('i rilanci non rileggono le rose, una nuova aggiudicazione le aggiorna', as
   ).toHaveCount(4)
   const reads = control.rosterReads
   await page.getByRole('button', { name: 'Offri 21 crediti, più 1' }).click()
-  await expect(page.getByText('La tua squadra è in testa.')).toBeVisible()
+  await expect(page.getByText('La tua squadra è in testa.')).toHaveCount(0)
+  await expect(
+    page.getByRole('region', { name: 'Squadra in testa', exact: true }),
+  ).toContainText('Atletico Spritz')
   expect(control.rosterReads).toBe(reads)
   state.teams[0]!.forwards = 1
   state.version++
@@ -624,7 +1017,7 @@ test('il cambio turno mantiene un annuncio accessibile nella vista Live', async 
   const { state, notify } = await setupRoom(page, { waiting: true })
   const turn = page.getByRole('status', { name: 'Turno di chiamata' })
   await expect(turn).toHaveText('Tocca a te')
-  state.currentTeamId = 'team-1'
+  state.currentTeamId = teamId(1)
   state.version++
   notify()
   await expect(turn).toHaveText('Chiama: Real Sbronzi')
@@ -658,7 +1051,7 @@ test('una risposta persa si recupera dalla ricevuta senza duplicare il rilancio'
   await expect(
     page.getByRole('button', { name: 'Verifica esito' }),
   ).toHaveCount(0)
-  await expect(page.locator('.auction-winner')).toContainText('Sei in testa')
+  await expect(page.locator('.auction-leader')).toContainText('Sta vincendo:')
   expect(control.commands).toHaveLength(1)
   expect(control.receiptReads).toBeGreaterThan(0)
 })
@@ -692,6 +1085,10 @@ test('l’organizzatore mette in pausa e riprende tra due chiamate', async ({
   ).toBeVisible()
   await page.keyboard.press('Tab')
   await expect(
+    page.getByRole('button', { name: 'Disattiva audio asta' }),
+  ).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(
     page.getByRole('tabpanel', { name: 'Gestisci asta' }),
   ).toBeFocused()
   expect(
@@ -715,6 +1112,97 @@ test('l’organizzatore mette in pausa e riprende tra due chiamate', async ({
   ])
 })
 
+for (const width of [390, 1440]) {
+  test(`gestione: salto diretto, riepilogo e ordine salvato a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    const { state, notify, control } = await setupRoom(page, {
+      organizer: true,
+      waiting: true,
+      teamCount: 8,
+    })
+    await page.getByRole('tab', { name: 'Gestisci asta' }).click()
+    await expect(page.locator('.auction-management-panel')).toHaveCSS(
+      'max-width',
+      '1180px',
+    )
+    await expect(page.locator('.auction-management-panel')).toHaveCSS(
+      'scroll-margin-top',
+      '140px',
+    )
+    const current = page.getByRole('region', {
+      name: 'Turno corrente',
+      exact: true,
+    })
+    await expect(current).toContainText('Atletico Spritz')
+    const jump = page.getByRole('combobox', {
+      name: 'Vai al turno di',
+      exact: true,
+    })
+    await jump.click()
+    await expect(page.getByRole('listbox')).toBeVisible()
+    expect(control.commands).toHaveLength(0)
+    await page.keyboard.press('Escape')
+    await expect(jump).toBeFocused()
+    await jump.click()
+    await page.screenshot({
+      path: test.info().outputPath(`management-select-${width}.png`),
+    })
+    await page
+      .getByRole('option', { name: 'Real Sbronzi', exact: true })
+      .click()
+    await expect(current).toContainText('Real Sbronzi')
+    expect(control.commands[0]).toMatchObject({
+      action: 'GoToTurn',
+      targetTeamId: teamId(1),
+    })
+    const rows = page.locator('.management-team')
+    await page.getByRole('button', { name: 'Sposta su Real Sbronzi' }).click()
+    await expect(rows.first()).toContainText('Real Sbronzi')
+    expect(control.commands).toHaveLength(1)
+    await page.getByRole('button', { name: 'Salva ordine' }).click()
+    await expect(
+      page.getByRole('button', { name: 'Salva ordine' }),
+    ).toBeHidden()
+    expect(control.commands[1]).toMatchObject({ action: 'Reorder' })
+    expect(state.currentTeamId).toBe(teamId(1))
+    await page.screenshot({
+      path: test.info().outputPath(`management-${width}.png`),
+      fullPage: true,
+    })
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true)
+    state.currentAuction = {
+      id: aid,
+      playerId,
+      name: 'Alessandro Fabbri',
+      role: 'A',
+      clubName: 'Demo Aurora',
+      callerTeamId: teamId(1),
+      winningTeamId: teamId(1),
+      currentAmount: 1,
+      durationSeconds: 30,
+      increments: [1],
+      deadline: new Date(Date.now() + 30_000).toISOString(),
+      status: 'Open',
+      startedAt: new Date().toISOString(),
+      closedAt: null,
+    }
+    state.version++
+    notify()
+    await expect(
+      page.getByRole('button', { name: 'Salta turno', exact: true }),
+    ).toBeDisabled()
+    await expect(
+      page.getByRole('combobox', { name: 'Vai al turno di', exact: true }),
+    ).toBeDisabled()
+  })
+}
+
 test('il partecipante può chiamare solo nel proprio turno e non gestisce l’asta', async ({
   page,
 }) => {
@@ -727,7 +1215,7 @@ test('il partecipante può chiamare solo nel proprio turno e non gestisce l’as
   await expect(
     page.getByRole('button', { name: '15 secondi', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true')
-  state.currentTeamId = 'team-1'
+  state.currentTeamId = teamId(1)
   state.version++
   notify()
   await expect(
@@ -803,7 +1291,7 @@ test('il turno resta accessibile e il tabellone apre la rosa scelta', async ({
   await expect(
     page.getByRole('tab', { name: 'Rose', exact: true }),
   ).toHaveAttribute('aria-selected', 'true')
-  await expect(page.getByLabel('Rosa della squadra')).toHaveValue('team-1')
+  await expect(page.getByLabel('Rosa della squadra')).toHaveValue(teamId(1))
   await expect(turn).toHaveClass('sr-only')
   await page.getByRole('tab', { name: 'Storico' }).click()
   await expect(
@@ -949,4 +1437,397 @@ test('il budget personale resta fisso e segue lo snapshot nelle altre sezioni', 
   notify()
   await expect(progress).toHaveAttribute('value', '0')
   expect(control.commands).toHaveLength(0)
+})
+
+for (const width of [390, 1440]) {
+  test(`acquisti nel carosello raggruppati in ordine P D C A a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    await setupRoom(page, {
+      waiting: true,
+      rosterRoles: ['A', 'C', 'P', 'D', 'P'],
+    })
+    const purchases = page.getByLabel('Acquisti Atletico Spritz', {
+      exact: true,
+    })
+    await purchases.scrollIntoViewIfNeeded()
+    await expect(purchases.getByRole('heading')).toHaveText([
+      'Portieri',
+      'Difensori',
+      'Centrocampisti',
+      'Attaccanti',
+    ])
+    await expect(
+      purchases.locator('.team-purchase-details > span:first-child'),
+    ).toHaveText([
+      'Calciatore 3',
+      'Calciatore 5',
+      'Calciatore 4',
+      'Calciatore 2',
+      'Calciatore 1',
+    ])
+    expect((await purchases.boundingBox())!.height).toBeGreaterThanOrEqual(190)
+    await purchases.evaluate((element) => {
+      element.scrollTop = element.scrollHeight
+    })
+    await expect(
+      purchases.getByText('Calciatore 1', { exact: true }),
+    ).toBeInViewport()
+    await purchases.evaluate((element) => {
+      element.scrollTop = 0
+    })
+    await page.screenshot({
+      path: test.info().outputPath(`roster-groups-${width}.png`),
+    })
+  })
+}
+
+for (const width of [390, 1440]) {
+  test(`fase per ruolo: blocca altre chiamate e aggiorna il listone al passaggio a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    const { state, notify, control } = await setupRoom(page, {
+      organizer: true,
+      waiting: true,
+      currentRole: 'P',
+      catalogSize: 2,
+    })
+    await page.getByRole('tab', { name: 'Listone', exact: true }).click()
+    await expect(
+      page.getByRole('button', { name: 'P', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    await expect(
+      page.getByRole('button', { name: 'Seleziona Alessandro Fabbri' }),
+    ).toBeEnabled()
+    await expect(
+      page.getByRole('button', { name: 'Seleziona Calciatore 2' }),
+    ).toBeDisabled()
+    await page.getByRole('button', { name: 'Tutti', exact: true }).click()
+    await expect(
+      page.getByRole('button', { name: 'Seleziona Calciatore 2' }),
+    ).toBeDisabled()
+    await page
+      .getByRole('button', { name: 'Seleziona Alessandro Fabbri' })
+      .click()
+    await expect(
+      page.getByRole('button', { name: 'Chiama a 1 credito' }),
+    ).toBeEnabled()
+    state.teams.forEach((team) => {
+      team.goalkeepers = league.goalkeepers
+    })
+    state.currentRole = 'D'
+    state.version++
+    notify()
+    await expect(
+      page.getByRole('button', { name: 'Chiama a 1 credito' }),
+    ).toHaveCount(0)
+    await page.getByRole('tab', { name: 'Listone', exact: true }).click()
+    await expect(
+      page.getByRole('button', { name: 'D', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    await expect(
+      page.getByRole('button', { name: 'Seleziona Alessandro Fabbri' }),
+    ).toBeDisabled()
+    await expect(
+      page.getByRole('button', { name: 'Seleziona Calciatore 2' }),
+    ).toBeEnabled()
+    state.teams[1]!.defenders = league.defenders
+    state.version++
+    notify()
+    await page.getByRole('tab', { name: 'Gestisci asta' }).click()
+    await expect(
+      page.getByRole('button', { name: 'Vai al turno di Real Sbronzi' }),
+    ).toBeDisabled()
+    await expect(
+      page.getByRole('region', { name: 'Turno corrente', exact: true }),
+    ).toContainText('Dinamo Divano')
+    expect(control.commands).toHaveLength(0)
+    await page.screenshot({
+      path: test.info().outputPath(`role-phase-${width}.png`),
+    })
+  })
+}
+
+for (const width of [320, 1440]) {
+  test(`Bomba: offerta segreta, riconnessione, rivelazione e spareggio a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    const { state, control, notify } = await setupRoom(page, {
+      waiting: true,
+      organizer: true,
+    })
+    await page.getByRole('tab', { name: 'Listone', exact: true }).click()
+    await page
+      .getByRole('button', { name: 'Seleziona Alessandro Fabbri' })
+      .click()
+    await page.getByRole('button', { name: 'Sgancia la bomba' }).click()
+    const arena = page.getByRole('region', { name: 'Asta Bomba', exact: true })
+    await expect(arena).toBeVisible()
+    await expect(page.getByRole('tablist')).toBeHidden()
+    await expect(
+      page.getByRole('button', { name: 'Chiama a 1 credito' }),
+    ).toHaveCount(0)
+    const offer = page.getByLabel('La tua offerta segreta')
+    await expect(arena.getByText('La sfida sta per iniziare')).toBeVisible()
+    await expect(offer).toHaveCount(0)
+    await expect(arena.getByText('In attesa', { exact: true })).toHaveCount(4)
+    await expect(page.locator('.app-header')).toBeHidden()
+    await expect(page.locator('body')).toHaveCSS(
+      'background-color',
+      'rgb(26, 17, 37)',
+    )
+    await expect(arena).toHaveCSS('opacity', '1')
+    await expect(arena.locator('.bomb-lobby-quote')).toHaveCSS('opacity', '1')
+    await page.screenshot({
+      path: test.info().outputPath(`bomb-lobby-${width}.png`),
+      fullPage: true,
+    })
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true)
+    const firstQuote = await arena.locator('.bomb-lobby-quote').textContent()
+    state.currentBomb!.deadline = new Date(Date.now() + 51000).toISOString()
+    state.version++
+    notify()
+    await expect(arena.locator('.bomb-lobby-quote')).not.toHaveText(firstQuote!)
+    const previousQuote = await arena.locator('.bomb-lobby-quote').textContent()
+    state.currentBomb!.deadline = new Date(Date.now() + 42000).toISOString()
+    state.version++
+    notify()
+    await expect(arena.getByRole('progressbar')).toHaveAttribute(
+      'value',
+      /4[012]/,
+    )
+    await expect(arena.locator('.bomb-lobby-quote')).not.toHaveText(
+      previousQuote!,
+    )
+    await page.reload()
+    await expect(arena.getByText('La sfida sta per iniziare')).toBeVisible()
+    await expect(offer).toHaveCount(0)
+    expect(control.commands).toHaveLength(1)
+    state.currentBomb!.deadline = new Date(Date.now() - 1000).toISOString()
+    state.version++
+    notify()
+    await expect(arena.getByRole('progressbar')).toHaveAttribute('value', '0')
+    await expect(offer).toHaveCount(0)
+    await expect(
+      arena.getByText('Ci siamo. Attendiamo l’apertura delle offerte.'),
+    ).toBeVisible()
+    state.currentBomb!.status = 'Collecting'
+    state.currentBomb!.deadline = new Date(Date.now() + 60000).toISOString()
+    state.version++
+    notify()
+    await expect(offer).toHaveAttribute('max', '476')
+    await page.evaluate(() => window.dispatchEvent(new Event('offline')))
+    await expect(offer).toBeDisabled()
+    await page.evaluate(() => window.dispatchEvent(new Event('online')))
+    await expect(offer).toBeEnabled()
+    await offer.fill('35')
+    await expect(arena).toHaveCSS('opacity', '1')
+    await page.screenshot({
+      path: test.info().outputPath(`bomb-offer-${width}.png`),
+      fullPage: true,
+    })
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true)
+    control.uncertain = true
+    await page.getByRole('button', { name: 'Conferma offerta' }).click()
+    await expect(
+      page.getByRole('button', { name: 'Verifica esito' }),
+    ).toBeVisible()
+    await page.getByRole('button', { name: 'Verifica esito' }).click()
+    await expect(
+      arena.getByText('Offerta confermata', { exact: true }),
+    ).toBeVisible()
+    expect(control.commands).toHaveLength(2)
+    expect(control.commands[1]).toMatchObject({
+      bombAuctionId: aid,
+      round: 1,
+      amount: 35,
+    })
+    state.currentBomb!.status = 'Revealing'
+    state.currentBomb!.revealStartedAt = new Date().toISOString()
+    state.currentBomb!.nextRevealAt = new Date(Date.now() + 3000).toISOString()
+    state.version++
+    notify()
+    await expect(arena.getByText('Offerte chiuse. Ci siamo…')).toBeVisible()
+    await expect(offer).toHaveCount(0)
+    state.currentBomb!.revealedOffers = [{ teamId: teamId(1), amount: 12 }]
+    state.version++
+    notify()
+    await expect(arena.getByText('12 crediti')).toBeVisible()
+    await expect(arena.getByText('35 crediti')).toHaveCount(0)
+    await page.screenshot({
+      path: test.info().outputPath(`bomb-reveal-${width}.png`),
+      fullPage: true,
+    })
+    state.currentBomb!.status = 'Collecting'
+    state.currentBomb!.round = 2
+    state.currentBomb!.minimumAmount = 35
+    state.currentBomb!.ownAmount = null
+    state.currentBomb!.revealedOffers = []
+    state.currentBomb!.participants = [
+      { teamId: teamId(0), hasSubmitted: false },
+      { teamId: teamId(2), hasSubmitted: false },
+    ]
+    state.currentBomb!.deadline = new Date(Date.now() + 60000).toISOString()
+    state.version++
+    notify()
+    await expect(
+      arena.getByRole('heading', { name: 'Spareggio · Round 2' }),
+    ).toBeVisible()
+    await expect(offer).toHaveValue('')
+    await expect(offer).toHaveAttribute('min', '35')
+    await offer.fill('34')
+    await expect(
+      page.getByRole('button', { name: 'Conferma offerta' }),
+    ).toBeDisabled()
+    control.uncertain = false
+    await page.getByRole('button', { name: 'Annulla Bomba' }).click()
+    await expect(
+      arena.getByText('Bomba annullata', { exact: true }),
+    ).toBeVisible()
+    await page.getByRole('button', { name: 'Torna alla sala' }).click()
+    await expect(arena).toHaveCount(0)
+    await expect(page.getByRole('tablist')).toBeVisible()
+    await page.reload()
+    await expect(page.getByRole('tablist')).toBeVisible()
+    await expect(page.locator('.app-header')).toBeVisible()
+    await expect(arena).toHaveCount(0)
+    state.currentBomb = {
+      ...state.currentBomb!,
+      id: '00000000-0000-4000-8000-000000000099',
+      status: 'Waiting',
+      round: 1,
+    }
+    state.version++
+    notify()
+    await expect(arena).toBeVisible()
+    await expect(page.getByRole('tablist')).toBeHidden()
+    await expect(offer).toHaveCount(0)
+    await page.getByRole('button', { name: 'Annulla Bomba' }).click()
+    await expect(
+      arena.getByText('Bomba annullata', { exact: true }),
+    ).toBeVisible()
+  })
+}
+
+test('Bomba: uno spettatore entra dalla tab Rose, segue il vincitore e non ripete la fanfara al reload', async ({
+  page,
+}) => {
+  const { state, control, notify } = await setupRoom(page, { waiting: true })
+  await page.getByRole('tab', { name: 'Rose', exact: true }).click()
+  state.currentBomb = {
+    id: aid,
+    playerId,
+    name: 'Alessandro Fabbri',
+    role: 'A',
+    clubName: 'Demo Aurora',
+    photoUrl: null,
+    clubLogoUrl: null,
+    callerTeamId: teamId(1),
+    status: 'Collecting',
+    round: 2,
+    minimumAmount: 35,
+    deadline: new Date(Date.now() + 60000).toISOString(),
+    revealStartedAt: null,
+    nextRevealAt: null,
+    participants: [
+      { teamId: teamId(1), hasSubmitted: false },
+      { teamId: teamId(2), hasSubmitted: false },
+    ],
+    revealedOffers: [],
+    ownAmount: null,
+    playerAuctionId: null,
+    winningTeamId: null,
+    winningAmount: null,
+  }
+  state.version++
+  notify()
+  const arena = page.getByRole('region', { name: 'Asta Bomba', exact: true })
+  await expect(arena).toBeVisible()
+  await expect(
+    page.getByRole('tabpanel', { name: 'Rose', exact: true }),
+  ).toBeHidden()
+  await expect(page.getByLabel('La tua offerta segreta')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Annulla Bomba' })).toHaveCount(
+    0,
+  )
+  state.currentBomb.status = 'Revealing'
+  state.currentBomb.revealedOffers = [
+    { teamId: teamId(2), amount: 38 },
+    { teamId: teamId(1), amount: 45 },
+  ]
+  state.version++
+  notify()
+  await expect(arena.getByText('45 crediti')).toBeVisible()
+  await expect(
+    page.getByRole('region', { name: 'Aggiudicazione', exact: true }),
+  ).toHaveCount(0)
+  state.currentBomb.status = 'Completed'
+  state.currentBomb.winningTeamId = teamId(1)
+  state.currentBomb.winningAmount = 45
+  state.currentBomb.playerAuctionId = aid
+  state.currentAuction = {
+    id: aid,
+    playerId,
+    name: 'Alessandro Fabbri',
+    role: 'A',
+    clubName: 'Demo Aurora',
+    callerTeamId: teamId(1),
+    winningTeamId: teamId(1),
+    currentAmount: 45,
+    durationSeconds: 60,
+    increments: [],
+    deadline: new Date().toISOString(),
+    status: 'Closed',
+    startedAt: new Date().toISOString(),
+    closedAt: new Date().toISOString(),
+  }
+  state.teams[1]!.budget -= 45
+  state.teams[1]!.forwards++
+  state.version++
+  notify()
+  const celebration = page.getByRole('region', {
+    name: 'Aggiudicazione',
+    exact: true,
+  })
+  await expect(celebration).toContainText('Real Sbronzi')
+  await expect(page.locator('.auction-victory-confetti svg')).toHaveCount(1)
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { auctionAudioPlays: number })
+            .auctionAudioPlays,
+      ),
+    )
+    .toBe(1)
+  await page.getByRole('button', { name: 'Chiudi celebrazione' }).click()
+  await expect(arena.getByText('Aggiudicato!', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Torna alla sala' }).click()
+  await expect(
+    page.getByRole('tabpanel', { name: 'Rose', exact: true }),
+  ).toBeVisible()
+  expect(control.commands).toHaveLength(0)
+  await page.reload()
+  await expect(
+    page.getByRole('tab', { name: 'Live', exact: true }),
+  ).toBeVisible()
+  await expect(arena).toHaveCount(0)
+  await expect(celebration).toHaveCount(0)
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { auctionAudioPlays: number }).auctionAudioPlays,
+    ),
+  ).toBe(0)
 })

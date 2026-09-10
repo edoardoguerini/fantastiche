@@ -17,7 +17,7 @@ public sealed partial class AuctionEngineTests
 {
     private sealed record Scenario(Guid LeagueId, Guid SeasonId, Guid[] Teams, RequestContext[] Users, Guid[] Players);
 
-    private async Task<Scenario> Seed(int teamCount = 2, int budget = 10, int goalkeepers = 1, int defenders = 1)
+    private async Task<Scenario> Seed(int teamCount = 2, int budget = 10, int goalkeepers = 1, int defenders = 1, int midfielders = 0, int forwards = 0)
     {
         await using var scope = fixture.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<FantasticheDbContext>();
@@ -41,8 +41,8 @@ public sealed partial class AuctionEngineTests
             Budget = budget,
             Goalkeepers = goalkeepers,
             Defenders = defenders,
-            Midfielders = 0,
-            Forwards = 0
+            Midfielders = midfielders,
+            Forwards = forwards
         };
         var club = new Club { Name = "Club", NormalizedName = "CLUB" + Guid.NewGuid().ToString("N"), Source = "Synthetic" };
         db.AddRange(league, list, season, club);
@@ -61,7 +61,10 @@ public sealed partial class AuctionEngineTests
             users.Add(new RequestContext(user.Id, false, "engine-test"));
         }
         var players = new List<Guid>();
-        foreach (var role in new[] { "P", "P", "D", "D" })
+        var playerRoles = new List<string> { "P", "P", "D", "D" };
+        if (midfielders > 0) playerRoles.AddRange(["C", "C"]);
+        if (forwards > 0) playerRoles.AddRange(["A", "A"]);
+        foreach (var role in playerRoles)
         {
             var player = new Player { Source = "Synthetic", ExternalId = Guid.NewGuid().ToString("N") };
             db.AddRange(player, new ListEntry

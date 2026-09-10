@@ -22,7 +22,9 @@ public sealed record AuctionSessionView(
     IReadOnlyList<Guid> TeamOrder,
     AuctionPlayerView? CurrentAuction,
     IReadOnlyList<AuctionTeamView> Teams,
-    DateTimeOffset ServerTime);
+    DateTimeOffset ServerTime,
+    string? CurrentRole = null,
+    AuctionBombView? CurrentBomb = null);
 
 public sealed record AuctionPlayerView(
     Guid Id,
@@ -105,3 +107,14 @@ public sealed record AuctionRosterView(
     DateTimeOffset AcquiredAt,
     string? PhotoUrl = null,
     string? ClubLogoUrl = null);
+
+public sealed record AuctionBombParticipantView(Guid TeamId, bool HasSubmitted);
+public sealed record AuctionBombOfferView(Guid TeamId, int Amount);
+public sealed record AuctionBombView(
+    Guid Id, Guid PlayerId, string Name, string Role, string ClubName,
+    string? PhotoUrl, string? ClubLogoUrl, Guid CallerTeamId, string Status,
+    int Round, int MinimumAmount, DateTimeOffset Deadline,
+    DateTimeOffset? RevealStartedAt, DateTimeOffset? NextRevealAt,
+    IReadOnlyList<AuctionBombParticipantView> Participants,
+    IReadOnlyList<AuctionBombOfferView> RevealedOffers, int? OwnAmount,
+    Guid? PlayerAuctionId, Guid? WinningTeamId, int? WinningAmount);

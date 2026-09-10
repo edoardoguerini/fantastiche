@@ -38,7 +38,7 @@ public sealed class PlaceBidRequestValidator : AbstractValidator<PlaceBidRequest
     }
 }
 
-public sealed record ControlAuctionSessionRequest(Guid RequestId, string Action, IReadOnlyList<Guid>? TeamOrder = null);
+public sealed record ControlAuctionSessionRequest(Guid RequestId, string Action, IReadOnlyList<Guid>? TeamOrder = null, Guid? TargetTeamId = null);
 public sealed class ControlAuctionSessionRequestValidator : AbstractValidator<ControlAuctionSessionRequest>
 {
     public ControlAuctionSessionRequestValidator()
@@ -71,5 +71,35 @@ public sealed class AuctionPageRequestValidator : AbstractValidator<AuctionPageR
     {
         RuleFor(x => x.Page).InclusiveBetween(1, 10000);
         RuleFor(x => x.PageSize).InclusiveBetween(1, 100);
+    }
+}
+
+public sealed record StartBombRequest(Guid RequestId, Guid PlayerId);
+public sealed class StartBombRequestValidator : AbstractValidator<StartBombRequest>
+{
+    public StartBombRequestValidator()
+    {
+        RuleFor(x => x.RequestId).NotEmpty();
+        RuleFor(x => x.PlayerId).NotEmpty();
+    }
+}
+
+public sealed record SubmitBombOfferRequest(Guid RequestId, Guid BombAuctionId, int Round, int Amount);
+public sealed class SubmitBombOfferRequestValidator : AbstractValidator<SubmitBombOfferRequest>
+{
+    public SubmitBombOfferRequestValidator()
+    {
+        RuleFor(x => x.RequestId).NotEmpty();
+        RuleFor(x => x.BombAuctionId).NotEmpty();
+    }
+}
+
+public sealed record CancelBombRequest(Guid RequestId, Guid BombAuctionId);
+public sealed class CancelBombRequestValidator : AbstractValidator<CancelBombRequest>
+{
+    public CancelBombRequestValidator()
+    {
+        RuleFor(x => x.RequestId).NotEmpty();
+        RuleFor(x => x.BombAuctionId).NotEmpty();
     }
 }

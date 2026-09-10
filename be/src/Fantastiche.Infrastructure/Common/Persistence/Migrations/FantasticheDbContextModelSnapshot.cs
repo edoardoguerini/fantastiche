@@ -119,6 +119,153 @@ namespace Fantastiche.Infrastructure.Common.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Fantastiche.Infrastructure.Auctions.BombAuction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CallerTeamId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("ClosedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("Deadline")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("LeagueId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("LeagueSeasonId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ListVersionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("MinimumAmount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("NextRevealAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("PlayerAuctionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("RevealStartedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("RevealedCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(1)
+                        .HasColumnType("nchar(1)")
+                        .IsFixedLength();
+
+                    b.Property<int>("Round")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("WinningAmount")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("WinningTeamId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionId")
+                        .IsUnique()
+                        .HasFilter("[Status] < 2");
+
+                    b.HasIndex("Deadline", "Id")
+                        .HasFilter("[Status] < 1");
+
+                    b.HasIndex("ListVersionId", "PlayerId");
+
+                    b.HasIndex("NextRevealAt", "Id")
+                        .HasFilter("[Status] = 1");
+
+                    b.HasIndex("CallerTeamId", "LeagueSeasonId", "LeagueId");
+
+                    b.HasIndex("PlayerAuctionId", "LeagueSeasonId", "LeagueId");
+
+                    b.HasIndex("WinningTeamId", "LeagueSeasonId", "LeagueId");
+
+                    b.HasIndex("SessionId", "LeagueSeasonId", "LeagueId", "ListVersionId");
+
+                    b.ToTable("BombAuctions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_BombAuctions_Role", "[Role] IN (N'P', N'D', N'C', N'A')");
+
+                            t.HasCheckConstraint("CK_BombAuctions_Round", "[Round] > 0 AND [MinimumAmount] > 0 AND [RevealedCount] >= 0");
+
+                            t.HasCheckConstraint("CK_BombAuctions_Status", "[Status] IN (-1, 0, 1, 2, 3, 4)");
+
+                            t.HasCheckConstraint("CK_BombAuctions_Winner", "([Status] = 2 AND [PlayerAuctionId] IS NOT NULL AND [WinningTeamId] IS NOT NULL AND [WinningAmount] IS NOT NULL AND [WinningAmount] > 0) OR ([Status] <> 2 AND [PlayerAuctionId] IS NULL AND [WinningTeamId] IS NULL AND [WinningAmount] IS NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("Fantastiche.Infrastructure.Auctions.BombOffer", b =>
+                {
+                    b.Property<Guid>("BombAuctionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Round")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TeamId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("Amount")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("LeagueId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("LeagueSeasonId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("SubmittedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("BombAuctionId", "Round", "TeamId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("BombAuctionId", "LeagueSeasonId", "LeagueId");
+
+                    b.HasIndex("BombAuctionId", "Round", "Position")
+                        .IsUnique();
+
+                    b.HasIndex("TeamId", "LeagueSeasonId", "LeagueId");
+
+                    b.ToTable("BombOffers", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_BombOffers_Round", "[Round] > 0 AND [Position] >= 0");
+
+                            t.HasCheckConstraint("CK_BombOffers_Submission", "([Amount] IS NULL AND [UserId] IS NULL AND [SubmittedAt] IS NULL) OR ([Amount] IS NOT NULL AND [Amount] > 0 AND [UserId] IS NOT NULL AND [SubmittedAt] IS NOT NULL)");
+                        });
+                });
+
             modelBuilder.Entity("Fantastiche.Infrastructure.Auctions.BudgetMovement", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1137,6 +1284,63 @@ namespace Fantastiche.Infrastructure.Common.Persistence.Migrations
                     b.HasOne("Fantastiche.Infrastructure.Auctions.PlayerAuction", null)
                         .WithMany()
                         .HasForeignKey("PlayerAuctionId", "LeagueSeasonId", "LeagueId")
+                        .HasPrincipalKey("Id", "LeagueSeasonId", "LeagueId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Fantastiche.Infrastructure.Teams.Team", null)
+                        .WithMany()
+                        .HasForeignKey("TeamId", "LeagueSeasonId", "LeagueId")
+                        .HasPrincipalKey("Id", "LeagueSeasonId", "LeagueId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Fantastiche.Infrastructure.Auctions.BombAuction", b =>
+                {
+                    b.HasOne("Fantastiche.Infrastructure.Catalog.ListEntry", null)
+                        .WithMany()
+                        .HasForeignKey("ListVersionId", "PlayerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Fantastiche.Infrastructure.Teams.Team", null)
+                        .WithMany()
+                        .HasForeignKey("CallerTeamId", "LeagueSeasonId", "LeagueId")
+                        .HasPrincipalKey("Id", "LeagueSeasonId", "LeagueId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Fantastiche.Infrastructure.Auctions.PlayerAuction", null)
+                        .WithMany()
+                        .HasForeignKey("PlayerAuctionId", "LeagueSeasonId", "LeagueId")
+                        .HasPrincipalKey("Id", "LeagueSeasonId", "LeagueId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Fantastiche.Infrastructure.Teams.Team", null)
+                        .WithMany()
+                        .HasForeignKey("WinningTeamId", "LeagueSeasonId", "LeagueId")
+                        .HasPrincipalKey("Id", "LeagueSeasonId", "LeagueId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Fantastiche.Infrastructure.Auctions.AuctionSession", null)
+                        .WithMany()
+                        .HasForeignKey("SessionId", "LeagueSeasonId", "LeagueId", "ListVersionId")
+                        .HasPrincipalKey("Id", "LeagueSeasonId", "LeagueId", "ListVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Fantastiche.Infrastructure.Auctions.BombOffer", b =>
+                {
+                    b.HasOne("Fantastiche.Infrastructure.Common.Authentication.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Fantastiche.Infrastructure.Auctions.BombAuction", null)
+                        .WithMany()
+                        .HasForeignKey("BombAuctionId", "LeagueSeasonId", "LeagueId")
                         .HasPrincipalKey("Id", "LeagueSeasonId", "LeagueId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();

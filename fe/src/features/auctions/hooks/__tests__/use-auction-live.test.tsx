@@ -52,6 +52,7 @@ const snapshot = {
   listVersionId: 'list',
   status: 'Active' as const,
   version: 1,
+  currentRole: 'P' as const,
   currentTeamId: null,
   teamOrder: [],
   currentAuction: null,

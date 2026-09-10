@@ -97,7 +97,7 @@ public sealed partial class HttpFlowTests
                 await Task.Delay(100, timeout.Token);
             }
         }
-        Assert.Equal(setup.SecondTeamId, state.GetProperty("currentTeamId").GetGuid());
+        Assert.Equal(setup.FirstTeamId, state.GetProperty("currentTeamId").GetGuid());
         var winner = state.GetProperty("teams").EnumerateArray().Single(x => x.GetProperty("id").GetGuid() == setup.SecondTeamId);
         Assert.Equal(5, winner.GetProperty("budget").GetInt32());
         Assert.Equal(1, winner.GetProperty("goalkeepers").GetInt32());

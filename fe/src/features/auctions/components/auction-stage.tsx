@@ -1,7 +1,7 @@
 import { PlayerValuation } from './player-valuation'
 import { Icon } from '@/components/common/icon'
 import { Button } from '@/components/primitives/button'
-import type { TimedSession } from '../types/auction.types'
+import { roles, type TimedSession } from '../types/auction.types'
 import { PlayerPhoto } from './player-photo'
 import { ClubLabel } from './club-label'
 
@@ -43,54 +43,70 @@ export function AuctionStage({
                 ? 'Asta in pausa'
                 : 'Prossima chiamata'}
         </span>
-        {open && (
-          <span
-            className={`auction-timer ${seconds <= 5 ? 'auction-timer--urgent' : ''}`}
-            role="timer"
-            aria-label={`${seconds} secondi rimasti`}
-          >
-            <Icon name="stopwatch" />
-            {seconds}
-            <small>s</small>
+        {session.currentRole && session.status !== 'Completed' && (
+          <span className="auction-role-phase">
+            Fase: {roles.find((role) => role.id === session.currentRole)?.label}
           </span>
         )}
       </div>
       {open && auction ? (
         <>
-          <div className="auction-player-heading">
-            <PlayerPhoto url={auction.photoUrl} role={auction.role} large />
-            <div className="auction-player-details">
-              <p className="player-club-line">
-                <span className={`catalog-role role-${auction.role}`}>
-                  {auction.role}
-                </span>
-                <ClubLabel
-                  name={auction.clubName}
-                  logoUrl={auction.clubLogoUrl}
-                />
-              </p>
-              <h2>{auction.name}</h2>
-              <PlayerValuation player={auction} />
-              <div className="auction-price-row">
-                <div>
-                  <span>Offerta attuale</span>
-                  <p className="auction-price">
-                    {auction.currentAmount}
-                    <small>crediti</small>
-                  </p>
-                </div>
-                <div
-                  className={`auction-winner ${winner?.id === myTeamId ? 'auction-winner--mine' : ''}`}
-                >
-                  <Icon name="flag" />
-                  <span>
-                    {winner?.id === myTeamId
-                      ? 'Sei in testa'
-                      : (winner?.name ?? '—')}
+          <div className="auction-contest">
+            <div className="auction-player-heading">
+              <PlayerPhoto url={auction.photoUrl} role={auction.role} large />
+              <div className="auction-player-details">
+                <p className="player-club-line">
+                  <span className={`catalog-role role-${auction.role}`}>
+                    {auction.role}
                   </span>
-                </div>
+                  <ClubLabel
+                    name={auction.clubName}
+                    logoUrl={auction.clubLogoUrl}
+                  />
+                </p>
+                <h2>{auction.name}</h2>
+                <PlayerValuation player={auction} />
               </div>
             </div>
+            <section
+              className={`auction-leader ${winner?.id === myTeamId ? 'auction-leader--mine' : ''}`}
+              aria-label="Squadra in testa"
+              aria-live="polite"
+            >
+              <p className="auction-leader-label">Sta vincendo:</p>
+              <div className="auction-leader-identity">
+                <span className="auction-leader-avatar" aria-hidden="true">
+                  {winner?.name
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((word) => word[0])
+                    .join('')
+                    .toUpperCase() ?? '—'}
+                </span>
+                <h3>{winner?.name ?? '—'}</h3>
+              </div>
+            </section>
+          </div>
+          <div
+            className="auction-current-offer"
+            role="group"
+            aria-label="Offerta e tempo rimanente"
+          >
+            <p className="auction-price">
+              {auction.currentAmount}
+              <small>
+                {auction.currentAmount === 1 ? 'credito' : 'crediti'}
+              </small>
+            </p>
+            <span
+              className={`auction-timer ${seconds <= 5 ? 'auction-timer--urgent' : ''}`}
+              role="timer"
+              aria-label={`${seconds} secondi rimasti`}
+            >
+              {seconds}
+              <small>s</small>
+            </span>
           </div>
           <div className="auction-time-track">
             <div

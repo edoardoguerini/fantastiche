@@ -15,10 +15,11 @@
     var(--auction-footer-height) + 132px + env(safe-area-inset-bottom)
   );
 }
-.auction-session > [hidden] {
+.auction-session > [hidden],
+.auction-standard-room > [hidden] {
   display: none;
 }
-.auction-session > [role='tabpanel'],
+.auction-standard-room > [role='tabpanel'],
 .player-call-form {
   scroll-margin-top: 140px;
   scroll-margin-bottom: calc(var(--auction-footer-height) + 24px);
@@ -185,6 +186,61 @@
 .auction-bottom-tabs[data-manage='true'] {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   max-width: 960px;
+}
+.auction-bottom-navigation {
+  display: flex;
+  max-width: 1040px;
+  margin-inline: auto;
+  align-items: stretch;
+}
+.auction-bottom-navigation .auction-bottom-tabs {
+  flex: 1;
+  min-width: 0;
+}
+.auction-audio-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex: 0 0 76px;
+  min-height: var(--auction-nav-height);
+  padding: 4px;
+  font-size: 11px;
+  line-height: 1.25;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.auction-audio-toggle > i {
+  font-size: 20px;
+}
+.auction-audio-toggle[aria-pressed='true'] {
+  color: var(--primary);
+}
+.auction-audio-toggle:hover {
+  background: var(--auction-accent-soft);
+}
+.auction-audio-toggle:focus-visible {
+  outline-offset: -4px;
+}
+.auction-timer-preview {
+  padding-bottom: calc(var(--auction-nav-height) + 24px);
+}
+.auction-preview-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  min-height: var(--auction-nav-height);
+  padding-inline: var(--auction-gutter);
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+@media (max-width: 650px) {
+  .auction-audio-toggle {
+    flex-basis: 52px;
+    font-size: 10px;
+  }
 }
 .auction-bottom-tabs button {
   display: flex;

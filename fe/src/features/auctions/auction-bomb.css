@@ -1,0 +1,518 @@
+.bomb-launch {
+  color: #dcc7ff;
+  background: #38234d;
+  border-color: #bd8bf72b;
+}
+.bomb-launch:hover {
+  background: #493064;
+}
+body:has(.bomb-room) {
+  --background: #1a1125;
+  background: #1a1125;
+}
+.app-shell:has(.bomb-room) {
+  background: #1a1125;
+}
+.app-shell:has(.auction-room .bomb-room) .app-header {
+  display: none;
+}
+.app-shell .auction-room:has(.bomb-room) {
+  padding-block: 0;
+}
+.bomb-room {
+  --bomb-ink: #f4eaff;
+  --bomb-muted: #b9a9c9;
+  color: var(--bomb-ink);
+  padding: clamp(20px, 4vw, 56px);
+  max-width: 1240px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  overflow: hidden;
+  animation: bomb-arrive 420ms ease-out both;
+}
+.auction-session:has(.bomb-room) {
+  padding-bottom: 0;
+}
+.bomb-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.bomb-header h2 {
+  font-size: clamp(1.3rem, 3vw, 2rem);
+  font-weight: 650;
+  letter-spacing: -0.04em;
+}
+.bomb-header h2:focus-visible {
+  outline: 2px solid #c19cf7;
+  outline-offset: 5px;
+}
+.bomb-header p,
+.bomb-clock p {
+  color: var(--bomb-muted);
+  margin-top: 5px;
+}
+.bomb-header > button {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.bomb-mark {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  flex-shrink: 0;
+  background: #38254b;
+  border-radius: 20px;
+  color: #d0a7ff;
+  font-size: 2rem;
+  transform: rotate(-12deg);
+}
+.bomb-arena {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: clamp(32px, 6vw, 90px);
+  align-items: center;
+  margin: 40px 0;
+}
+.bomb-player {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  text-align: center;
+  padding: 24px;
+}
+.bomb-player::before {
+  content: '';
+  position: absolute;
+  inset: 8% -5% 20%;
+  background: radial-gradient(ellipse, #71429545, transparent 68%);
+  pointer-events: none;
+}
+.bomb-player .player-photo {
+  position: relative;
+  width: clamp(140px, 21vw, 235px);
+  height: clamp(160px, 23vw, 260px);
+}
+.bomb-player > .role-badge {
+  width: 120px;
+  height: 138px;
+  border-radius: 22px;
+  font-size: 3rem;
+  background: #38254b;
+}
+.bomb-player .catalog-role {
+  margin-top: 12px;
+}
+.bomb-player h3 {
+  font-size: clamp(1.8rem, 4vw, 2.9rem);
+  font-weight: 650;
+  letter-spacing: -0.055em;
+  margin: 12px 0 5px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.bomb-player .club-label {
+  color: var(--bomb-muted);
+}
+.bomb-clock {
+  display: flex;
+  gap: 22px;
+  align-items: center;
+}
+.bomb-clock > strong {
+  font-size: 3.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.07em;
+  line-height: 1;
+  min-width: 105px;
+}
+.bomb-clock small {
+  font-size: 1.2rem;
+  letter-spacing: 0;
+  padding-left: 5px;
+  color: var(--bomb-muted);
+}
+.bomb-clock h3 {
+  font-weight: 600;
+  font-size: 1.25rem;
+}
+.bomb-time-progress {
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  display: block;
+  margin: 20px 0 26px;
+  border: 0;
+  border-radius: 8px;
+  background: #352443;
+  overflow: hidden;
+}
+.bomb-time-progress::-webkit-progress-bar {
+  background: #352443;
+}
+.bomb-time-progress::-webkit-progress-value {
+  background: #c399f7;
+  transition: width 0.15s linear;
+}
+.bomb-time-progress::-moz-progress-bar {
+  background: #c399f7;
+}
+.bomb-offer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.bomb-offer-form label {
+  font-weight: 550;
+}
+.bomb-offer-input {
+  position: relative;
+}
+.bomb-offer-input input {
+  background: #251a31;
+  font-size: 2rem;
+  height: 74px;
+  padding: 12px 100px 12px 20px;
+  font-variant-numeric: tabular-nums;
+  border-color: #c39bea24;
+}
+.bomb-offer-input > span {
+  position: absolute;
+  right: 24px;
+  top: 27px;
+  color: var(--bomb-muted);
+  pointer-events: none;
+}
+.bomb-offer-form > p,
+.bomb-fineprint {
+  color: var(--bomb-muted);
+  font-size: 0.83rem;
+  line-height: 1.65;
+}
+.bomb-offer-form > button {
+  background: #cfacf8;
+  color: #271433;
+  min-height: 52px;
+  margin-top: 7px;
+}
+.bomb-offer-form > button:hover {
+  background: #e0c5ff;
+}
+.bomb-fineprint {
+  margin-top: 18px;
+}
+.bomb-confirmed {
+  padding: 26px;
+  background: #38234b;
+  border-radius: 18px;
+}
+.bomb-confirmed > i {
+  color: #d8b6ff;
+  font-size: 1.5rem;
+  margin-bottom: 16px;
+}
+.bomb-confirmed h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.bomb-confirmed strong {
+  display: block;
+  font-size: 2rem;
+  padding: 8px 0;
+}
+.bomb-confirmed p,
+.bomb-spectator {
+  color: var(--bomb-muted);
+  line-height: 1.7;
+}
+.bomb-participants {
+  padding-top: 24px;
+  border-top: 1px solid #cfaaff13;
+}
+.bomb-progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.bomb-progress-label h3 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.bomb-progress-label > span {
+  color: var(--bomb-muted);
+  font-size: 0.85rem;
+}
+.bomb-participants ul,
+.bomb-participants ol {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 28px;
+}
+.bomb-participants li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  min-height: 52px;
+  padding: 12px 16px;
+  background: #21172d;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+.bomb-participants li > span:last-child {
+  color: var(--bomb-muted);
+  font-size: 0.78rem;
+  flex-shrink: 0;
+}
+.bomb-participants li.is-ready > span:last-child {
+  color: #d3b2fa;
+}
+.bomb-offers li {
+  animation: bomb-reveal 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transform-origin: 50% 100%;
+}
+.bomb-offers li strong {
+  color: #e0bfff;
+  white-space: nowrap;
+}
+.bomb-offers li.is-winner {
+  background: #4b2e64;
+}
+.bomb-result,
+.bomb-reveal-heading {
+  padding: 24px 0;
+}
+.bomb-result h3,
+.bomb-reveal-heading h3 {
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+}
+.bomb-result p,
+.bomb-reveal-heading p {
+  color: var(--bomb-muted);
+  margin: 12px 0;
+  line-height: 1.6;
+}
+.bomb-result > strong {
+  display: block;
+  font-size: 4rem;
+  letter-spacing: -0.05em;
+  color: #d4adff;
+}
+.bomb-result small {
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+.bomb-result button {
+  margin-top: 24px;
+  display: block;
+}
+.bomb-countdown {
+  display: block;
+  font-size: 7rem;
+  line-height: 1.2;
+  color: #d4adff;
+  animation: bomb-count 800ms ease-out both;
+}
+.bomb-connection {
+  margin-top: 22px;
+  background: #45353b;
+  padding: 12px 16px;
+  border-radius: 10px;
+  color: #f0d7bd;
+}
+@keyframes bomb-arrive {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes bomb-reveal {
+  from {
+    opacity: 0;
+    transform: perspective(500px) rotateX(-22deg) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(500px) rotateX(0) translateY(0);
+  }
+}
+@keyframes bomb-count {
+  from {
+    opacity: 0.2;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@media (max-width: 680px) {
+  .bomb-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .bomb-mark {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    font-size: 1.5rem;
+  }
+  .bomb-header > div {
+    flex: 1;
+    min-width: 160px;
+  }
+  .bomb-header p {
+    font-size: 0.78rem;
+  }
+  .bomb-header > button {
+    margin-left: 50px;
+    min-height: 36px;
+    font-size: 0.78rem;
+  }
+  .bomb-arena {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin: 20px 0 28px;
+  }
+  .bomb-player {
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr);
+    column-gap: 16px;
+    text-align: left;
+    justify-items: start;
+    padding: 0 0 12px;
+  }
+  .bomb-player .player-photo,
+  .bomb-player > .role-badge {
+    grid-column: 1;
+    grid-row: 1 / 4;
+    width: 88px;
+    height: 108px;
+  }
+  .bomb-player > :not(.player-photo):not(.role-badge) {
+    grid-column: 2;
+  }
+  .bomb-player h3 {
+    font-size: 1.4rem;
+    margin-top: 6px;
+  }
+  .bomb-player .catalog-role {
+    margin-top: 0;
+  }
+  .bomb-clock {
+    gap: 14px;
+  }
+  .bomb-clock > strong {
+    font-size: 3rem;
+    min-width: 88px;
+  }
+  .bomb-clock h3 {
+    font-size: 1.06rem;
+  }
+  .bomb-clock p {
+    font-size: 0.82rem;
+  }
+  .bomb-progress-label {
+    align-items: start;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .bomb-participants ul,
+  .bomb-participants ol {
+    grid-template-columns: 1fr;
+  }
+  .bomb-offer-input input {
+    font-size: 1.7rem;
+    height: 64px;
+  }
+  .bomb-offer-input > span {
+    top: 21px;
+  }
+  .bomb-result,
+  .bomb-reveal-heading {
+    text-align: center;
+    padding: 8px 0;
+  }
+  .bomb-result button {
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bomb-room,
+  .bomb-offers li,
+  .bomb-countdown {
+    animation: none;
+  }
+  .bomb-time-progress::-webkit-progress-value {
+    transition: none;
+  }
+}
+
+.bomb-lobby-quote {
+  margin: 28px 0 8px;
+  min-height: 180px;
+  padding: 0;
+  animation: bomb-quote-arrive 700ms ease-out both;
+}
+.bomb-lobby-quote > p {
+  color: #e3cef9;
+  font-size: clamp(1.15rem, 2.3vw, 1.65rem);
+  font-weight: 450;
+  letter-spacing: -0.025em;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+.bomb-lobby-quote footer {
+  margin-top: 18px;
+  color: var(--bomb-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.bomb-lobby-quote a {
+  text-decoration: underline;
+  text-decoration-color: #b9a9c955;
+  text-underline-offset: 4px;
+}
+.bomb-lobby-quote a:hover {
+  color: var(--bomb-ink);
+}
+.bomb-lobby-quote a:focus-visible {
+  outline: 2px solid #c19cf7;
+  outline-offset: 5px;
+}
+@keyframes bomb-quote-arrive {
+  from {
+    opacity: 0.35;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 680px) {
+  .bomb-lobby-quote {
+    margin-top: 22px;
+    min-height: 165px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bomb-lobby-quote {
+    animation: none;
+  }
+}

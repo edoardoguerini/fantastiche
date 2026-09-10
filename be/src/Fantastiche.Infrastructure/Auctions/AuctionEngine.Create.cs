@@ -35,18 +35,6 @@ public sealed partial class AuctionEngine
                     WHERE tm.TeamId = t.Id AND tm.LeagueSeasonId = t.LeagueSeasonId AND tm.LeagueId = t.LeagueId AND lm.Status = 1)
                 """, new { request.LeagueSeasonId, request.LeagueId, Order = order }, tx, ct))).ToArray();
             if (teams.Length != order.Length) throw Error("auction.invalid_participants", "Tutte le squadre devono appartenere alla stagione e avere un membro attivo.");
-            var full = (await c.QueryAsync<Guid>(Sql("""
-                SELECT TeamId FROM RosterEntries WHERE LeagueSeasonId = @LeagueSeasonId AND LeagueId = @LeagueId AND TeamId IN @Order
-                GROUP BY TeamId HAVING COUNT(*) >= @Maximum
-                """, new
-            {
-                request.LeagueSeasonId,
-                request.LeagueId,
-                Order = order,
-                Maximum = season.Goalkeepers + season.Defenders + season.Midfielders + season.Forwards
-            }, tx, ct))).ToHashSet();
-            var position = Array.FindIndex(order, team => !full.Contains(team));
-            if (position < 0) throw Error("auction.rosters_complete", "Le rose delle squadre partecipanti sono già complete.");
             var now = await c.ExecuteScalarAsync<DateTimeOffset>(Sql(SqlNow, null, tx, ct));
             await c.ExecuteAsync(Sql("""
                 INSERT INTO AuctionSessions (Id, LeagueId, LeagueSeasonId, ListVersionId, Status, CurrentPosition, Version, CreatedAt, CreatedByUserId)
@@ -57,7 +45,7 @@ public sealed partial class AuctionEngine
                 request.LeagueId,
                 request.LeagueSeasonId,
                 season.ListVersionId,
-                CurrentPosition = position,
+                CurrentPosition = 0,
                 CreatedAt = now,
                 CreatedByUserId = request.Context.UserId
             }, tx, ct));
@@ -66,6 +54,11 @@ public sealed partial class AuctionEngine
                     INSERT INTO CallOrderEntries (SessionId, TeamId, LeagueSeasonId, LeagueId, Position)
                     VALUES (@SessionId, @TeamId, @LeagueSeasonId, @LeagueId, @Position)
                     """, new { SessionId = id, TeamId = order[i], request.LeagueSeasonId, request.LeagueId, Position = i }, tx, ct));
+            var progress = await AuctionTurnProgress.ReadAsync(c, tx, id, request.LeagueId, request.LeagueSeasonId, ct);
+            var position = progress.FindPosition(0, false)
+                ?? throw Error("auction.rosters_complete", "Le rose delle squadre partecipanti sono già complete.");
+            await c.ExecuteAsync(Sql("UPDATE AuctionSessions SET CurrentPosition = @position WHERE Id = @id AND LeagueId = @LeagueId AND LeagueSeasonId = @LeagueSeasonId",
+                new { id, position, request.LeagueId, request.LeagueSeasonId }, tx, ct));
             await tx.CommitAsync(ct);
         }
         return await publisher.QueryAsync<GetAuctionStateQuery, AuctionSessionView>(new(request.Context, id), ct);

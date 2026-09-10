@@ -1,6 +1,7 @@
 import { Button } from '@/components/primitives/button'
 import { Icon } from '@/components/common/icon'
 import type { TimedSession } from '../types/auction.types'
+import { AuctionAudioControl } from './auction-audio-control'
 
 const sections = [
   { id: 'live', label: 'Live', icon: 'bolt' },
@@ -13,6 +14,7 @@ const sections = [
 export type AuctionSection = (typeof sections)[number]['id']
 
 export function AuctionNavigation({
+  userId,
   active,
   onSelect,
   session,
@@ -22,6 +24,7 @@ export function AuctionNavigation({
   myTeamId,
   initialBudget,
 }: {
+  userId: string
   active: AuctionSection
   onSelect: (section: AuctionSection) => void
   session: TimedSession
@@ -57,7 +60,7 @@ export function AuctionNavigation({
                   'In attesa dell’esito…'
                 ) : (
                   <>
-                    <Icon name="stopwatch" /> {seconds} s
+                    <Icon name="stopwatch" variant="jelly" /> {seconds} s
                   </>
                 )
               ) : (
@@ -76,7 +79,7 @@ export function AuctionNavigation({
             aria-label="Torna ai rilanci"
           >
             <span className="auction-mini-action-label">Vai al Live</span>{' '}
-            <Icon name="arrow-up-right" />
+            <Icon name="arrow-up" variant="jelly" />
           </Button>
         </section>
       )}
@@ -99,49 +102,63 @@ export function AuctionNavigation({
           </div>
         </section>
       )}
-      <div
-        className="auction-bottom-tabs"
-        data-manage={canManage}
-        role="tablist"
-        aria-label="Sezioni della sala d’asta"
-      >
-        {visibleSections.map((section, index) => (
-          <button
-            key={section.id}
-            type="button"
-            role="tab"
-            id={`tab-${section.id}`}
-            aria-selected={active === section.id}
-            aria-controls={`panel-${section.id}`}
-            aria-label={section.label}
-            tabIndex={active === section.id ? 0 : -1}
-            onClick={() => onSelect(section.id)}
-            onKeyDown={(event) => {
-              const next =
-                event.key === 'ArrowRight'
-                  ? (index + 1) % visibleSections.length
-                  : event.key === 'ArrowLeft'
-                    ? (index + visibleSections.length - 1) %
-                      visibleSections.length
-                    : event.key === 'Home'
-                      ? 0
-                      : event.key === 'End'
-                        ? visibleSections.length - 1
-                        : null
-              if (next !== null) {
-                event.preventDefault()
-                const target = visibleSections[next]!
-                onSelect(target.id)
-                document
-                  .getElementById(`tab-${target.id}`)
-                  ?.focus({ preventScroll: true })
-              }
-            }}
-          >
-            <Icon name={section.icon} variant="jelly" />
-            <span>{section.label}</span>
-          </button>
-        ))}
+      <div className="auction-bottom-navigation">
+        <div
+          className="auction-bottom-tabs"
+          data-manage={canManage}
+          role="tablist"
+          aria-label="Sezioni della sala d’asta"
+        >
+          {visibleSections.map((section, index) => (
+            <button
+              key={section.id}
+              type="button"
+              role="tab"
+              id={`tab-${section.id}`}
+              aria-selected={active === section.id}
+              aria-controls={`panel-${section.id}`}
+              aria-label={section.label}
+              tabIndex={active === section.id ? 0 : -1}
+              onClick={() => onSelect(section.id)}
+              onKeyDown={(event) => {
+                const next =
+                  event.key === 'ArrowRight'
+                    ? (index + 1) % visibleSections.length
+                    : event.key === 'ArrowLeft'
+                      ? (index + visibleSections.length - 1) %
+                        visibleSections.length
+                      : event.key === 'Home'
+                        ? 0
+                        : event.key === 'End'
+                          ? visibleSections.length - 1
+                          : null
+                if (next !== null) {
+                  event.preventDefault()
+                  const target = visibleSections[next]!
+                  onSelect(target.id)
+                  document
+                    .getElementById(`tab-${target.id}`)
+                    ?.focus({ preventScroll: true })
+                }
+              }}
+            >
+              <Icon name={section.icon} variant="jelly" />
+              <span>{section.label}</span>
+            </button>
+          ))}
+        </div>
+        <AuctionAudioControl
+          userId={userId}
+          sessionId={session.id}
+          canManage={canManage}
+          active={
+            connected &&
+            session.status === 'Active' &&
+            auction?.status === 'Open' &&
+            seconds > 0
+          }
+          playbackKey={`${auction?.id}:${auction?.currentAmount}:${auction?.deadline}`}
+        />
       </div>
     </footer>
   )
@@ -178,7 +195,7 @@ export function AuctionTurn({
       role="status"
       aria-label="Turno di chiamata"
     >
-      <Icon name="hand-point-up" />
+      <Icon name="bolt" variant="jelly" />
       <span>{title}</span>
     </div>
   )

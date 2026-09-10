@@ -8,28 +8,51 @@ public sealed partial class AuctionEngine
     public Task<AuctionCommandResult> ControlAsync(ControlAuctionSessionCommand request, CancellationToken ct)
     {
         var order = request.TeamOrder?.ToArray();
-        return ExecuteCommandAsync(request.Context, request.SessionId, request.RequestId, "Control", new
+        // Conserva l’hash dei comandi già salvati prima dell’introduzione di GoToTurn.
+        object payload = request.Action == "GoToTurn" ? new
+        {
+            Command = "Control",
+            request.SessionId,
+            request.Action,
+            TeamOrder = order,
+            request.TargetTeamId
+        } : new
         {
             Command = "Control",
             request.SessionId,
             request.Action,
             TeamOrder = order
-        }, null, async (c, tx, s, _, token) =>
+        };
+        return ExecuteCommandAsync(request.Context, request.SessionId, request.RequestId, "Control", payload, null, async (c, tx, s, _, token) =>
         {
             await AuthorizeAsync(c, tx, request.Context, s.LeagueId, true, token);
-            if (request.Action is not ("Pause" or "Resume" or "SkipTurn" or "Reorder" or "Complete"))
+            if (request.Action is not ("Pause" or "Resume" or "SkipTurn" or "GoToTurn" or "Reorder" or "Complete"))
                 throw Error("auction.invalid_action", "Controllo non valido.", 400);
+            await RequireNoBombAsync(c, tx, s, token);
             if ((request.Action == "Pause" && s.Status == AuctionSessionStatus.Paused)
                 || (request.Action == "Resume" && s.Status == AuctionSessionStatus.Active)
                 || (request.Action == "Complete" && s.Status == AuctionSessionStatus.Completed)) return null;
             if (s.Status == AuctionSessionStatus.Completed) throw Error("auction.completed", "La sessione è conclusa.");
             if (await ReadOpenAsync(c, tx, s, token) is not null) throw Error("auction.player_in_progress", "Questo controllo è disponibile tra due giocatori.");
+            var currentProgress = await AuctionTurnProgress.ReadAsync(c, tx, s.Id, s.LeagueId, s.LeagueSeasonId, token);
+            var currentPosition = currentProgress.FindPosition(s.CurrentPosition, false);
+            if (currentPosition is not null) s.CurrentPosition = currentPosition.Value;
             switch (request.Action)
             {
                 case "Pause": s.Status = AuctionSessionStatus.Paused; break;
                 case "Resume": s.Status = AuctionSessionStatus.Active; break;
                 case "Complete": s.Status = AuctionSessionStatus.Completed; break;
                 case "SkipTurn": await AdvanceAsync(c, tx, s, token); break;
+                case "GoToTurn":
+                    var progress = currentProgress;
+                    var target = progress.Turns.SingleOrDefault(turn => turn.TeamId == request.TargetTeamId);
+                    if (target is null) throw Error("auction.invalid_target", "Scegli una squadra partecipante.", 400);
+                    if (target.Full) throw Error("auction.roster_full", "La squadra ha già completato la rosa.");
+                    if (progress.Role is null || !target.HasSpace(progress.Role))
+                        throw Error("auction.role_full", "La squadra ha completato il ruolo in corso e salta il turno.");
+                    if (s.CurrentPosition == target.Position) return null;
+                    s.CurrentPosition = target.Position;
+                    break;
                 case "Reorder":
                     var previous = (await c.QueryAsync<Guid>(Sql("""
                         SELECT TeamId FROM CallOrderEntries WHERE SessionId = @Id AND LeagueSeasonId = @LeagueSeasonId AND LeagueId = @LeagueId ORDER BY Position
@@ -52,29 +75,11 @@ public sealed partial class AuctionEngine
         }, ct);
     }
 
-    private sealed class TurnCapacity
-    {
-        public int Position { get; set; }
-        public int Total { get; set; }
-    }
-
     private static async Task AdvanceAsync(DbConnection c, DbTransaction tx, AuctionSession s, CancellationToken ct)
     {
-        var rules = await ReadRulesAsync(c, tx, s, ct);
-        var maximum = rules.Goalkeepers + rules.Defenders + rules.Midfielders + rules.Forwards;
-        var turns = (await c.QueryAsync<TurnCapacity>(Sql("""
-            SELECT co.Position, COUNT(r.PlayerId) AS Total FROM CallOrderEntries co
-            LEFT JOIN RosterEntries r ON r.TeamId = co.TeamId AND r.LeagueSeasonId = co.LeagueSeasonId AND r.LeagueId = co.LeagueId
-            WHERE co.SessionId = @Id AND co.LeagueSeasonId = @LeagueSeasonId AND co.LeagueId = @LeagueId
-            GROUP BY co.Position ORDER BY co.Position
-            """, s, tx, ct))).ToArray();
-        for (var offset = 1; offset <= turns.Length; offset++)
-        {
-            var position = (s.CurrentPosition + offset) % turns.Length;
-            if (turns[position].Total >= maximum) continue;
-            s.CurrentPosition = position;
-            return;
-        }
-        s.Status = AuctionSessionStatus.Completed;
+        var progress = await AuctionTurnProgress.ReadAsync(c, tx, s.Id, s.LeagueId, s.LeagueSeasonId, ct);
+        var next = progress.FindPosition(s.CurrentPosition, true);
+        if (next is null) s.Status = AuctionSessionStatus.Completed;
+        else s.CurrentPosition = next.Value;
     }
 }
