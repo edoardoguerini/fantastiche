@@ -1,3 +1,24 @@
+/* Palette della sala: superfici neutre, viola per azioni e selezioni. */
+body:has(.auction-room) {
+  --background: #0c0c0e;
+  --surface: #18181b;
+  --secondary: #242427;
+  --foreground: #f4f4f5;
+  --muted-foreground: #aaaab3;
+  --primary: #c4a1ff;
+  --primary-foreground: #181020;
+  --border: rgb(255 255 255 / 8%);
+  --input: var(--border);
+  --ring: #c4a1ff;
+  --destructive: #ff929e;
+  --auction-raised: #202023;
+  --auction-accent-soft: #c4a1ff14;
+  --auction-accent-surface: #30283e;
+  --auction-success: #8cdbac;
+  --forest-soft: #74618e;
+  --forest-accent: #494050;
+}
+
 .app-shell:has(.auction-room) {
   --auction-gutter: 24px;
   display: flex;
@@ -113,10 +134,10 @@
   border-right: 0;
 }
 .team-column:hover {
-  background: #a8bcb505;
+  background: #ffffff05;
 }
 .team-column--mine {
-  background: #224b402a;
+  background: var(--auction-accent-soft);
 }
 .team-column-top {
   display: flex;
@@ -134,7 +155,7 @@
   color: var(--primary);
 }
 .team-mine {
-  color: #9cbea5;
+  color: var(--primary);
 }
 .team-column h2 {
   font: 500 14px var(--font-heading);
@@ -191,9 +212,7 @@
 }
 .auction-stage {
   padding: 26px 28px 22px;
-  background:
-    radial-gradient(ellipse at 75% 0%, #224b404d, transparent 70%),
-    var(--surface);
+  background: var(--surface);
   border-radius: 12px;
   min-height: 280px;
 }
@@ -236,7 +255,7 @@
   height: 37px;
   border-radius: 6px;
   flex-shrink: 0;
-  background: #a8bcb50b;
+  background: #ffffff0b;
   font-size: 15px;
   font-weight: 600;
 }
@@ -289,7 +308,7 @@
   font-size: 14px;
 }
 .auction-winner--mine {
-  color: #a8cfad;
+  color: var(--auction-success);
 }
 .auction-price-row .auction-winner span {
   color: inherit;
@@ -298,7 +317,7 @@
 .auction-time-track {
   height: 2px;
   margin-top: 17px;
-  background: #a8bcb50c;
+  background: #ffffff0c;
 }
 .auction-time-track > div {
   height: 100%;
@@ -776,9 +795,9 @@
     z-index: 30;
     padding: 12px max(16px, env(safe-area-inset-right)) 12px
       max(16px, env(safe-area-inset-left));
-    background: #061815;
+    background: var(--surface);
     border-top: 1px solid var(--border);
-    box-shadow: 0 -12px 28px #02101099;
+    box-shadow: 0 -12px 28px #00000099;
     max-height: 45dvh;
     overflow-y: auto;
   }

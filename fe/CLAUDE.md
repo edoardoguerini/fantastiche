@@ -6,6 +6,8 @@ Applica anche [CLAUDE.md root](../CLAUDE.md). Implementati login centrato solo d
 
 Palette attuale: Forest Green fornita dall’utente (#406D61, #224B40, #133129, #081F1C, #021010), con testi e CTA crema dal logo. Login senza box, radiale centrato piccolo e campi con etichette visibili. Il radiale contiene la foto di erba fornita dall’utente, compressa in WebP 640×480 (`src/assets/pitch-grass.webp`), statica e sfumata tramite maschera CSS; non deve interferire con il form. Colore attenuato via CSS per restare coerente con la palette.
 
+La sala d’asta usa una palette dedicata nero/antracite con testi neutri e accenti viola/lilla per azioni e selezioni. I colori dei ruoli e degli stati conservano il significato; il tema è circoscritto alla sala.
+
 Linee e bordi sempre minimali: token condiviso `--border`/`--input` verde desaturato al 10% di opacità, hover discreto. Separare le sezioni soprattutto con gli spazi, evitare contorni marcati. Conservare indicatori di focus e di errore riconoscibili.
 
 Tipografia: Sora per i titoli e il nome del marchio, Geist per testi, form e controlli. Font variabili self-hosted tramite Fontsource; nessuna richiesta a Google Fonts.

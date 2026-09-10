@@ -48,11 +48,11 @@
   gap: 20px;
   padding: 16px 20px;
   margin-bottom: 20px;
-  background: #081f1c;
+  background: var(--surface);
   border-radius: 10px;
 }
 .auction-turn-strip--mine {
-  background: #224b40;
+  background: var(--auction-accent-surface);
 }
 .auction-turn-message {
   display: flex;
@@ -76,14 +76,14 @@
   margin-top: 3px;
 }
 .auction-turn-strip--mine p {
-  color: #d4e0d8;
+  color: var(--muted-foreground);
 }
 .auction-turn-strip > button {
   flex-shrink: 0;
   font-size: 14px;
 }
 .team-column--current {
-  background: #224b4060;
+  background: var(--auction-accent-surface);
   box-shadow: inset 0 3px var(--primary);
 }
 .auction-section > h2 {
@@ -173,7 +173,7 @@
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
-  background: #081f1c;
+  background: var(--surface);
   border-top: 1px solid var(--border);
 }
 .auction-bottom-tabs {
@@ -204,7 +204,7 @@
 }
 .auction-bottom-tabs button[aria-selected='true'] {
   color: var(--primary);
-  background: #224b4055;
+  background: var(--auction-accent-soft);
 }
 .auction-bottom-tabs button[aria-selected='true']::before {
   content: '';
@@ -225,7 +225,7 @@
   gap: 28px;
   min-height: 80px;
   padding: 12px 24px;
-  background: #133129;
+  background: var(--auction-raised);
   border-bottom: 1px solid var(--border);
 }
 .auction-mini-player,
@@ -360,8 +360,8 @@
 }
 .auction-budget-strip {
   height: var(--auction-budget-height);
-  background: #14372d;
-  border-bottom: 1px solid #cce0c51a;
+  background: var(--auction-raised);
+  border-bottom: 1px solid var(--border);
   padding-inline: max(16px, var(--auction-gutter));
 }
 .auction-budget-content {
@@ -382,7 +382,7 @@
 }
 .auction-budget-team span,
 .auction-budget-amount span {
-  color: #b9cdc2;
+  color: var(--muted-foreground);
   font-size: 12px;
 }
 .auction-budget-team strong {
@@ -403,19 +403,19 @@
   overflow: hidden;
   border: 0;
   border-radius: 10px;
-  background: #071e18;
-  color: #a7deb6;
+  background: var(--background);
+  color: var(--primary);
 }
 .auction-budget-content progress::-webkit-progress-bar {
-  background: #071e18;
+  background: var(--background);
   border-radius: 10px;
 }
 .auction-budget-content progress::-webkit-progress-value {
-  background: #a7deb6;
+  background: var(--primary);
   border-radius: 10px;
 }
 .auction-budget-content progress::-moz-progress-bar {
-  background: #a7deb6;
+  background: var(--primary);
   border-radius: 10px;
 }
 @media (max-width: 650px) {
