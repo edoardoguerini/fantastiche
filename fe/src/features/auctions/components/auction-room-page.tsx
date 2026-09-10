@@ -4,7 +4,6 @@ import { authQueryOptions } from '@/features/auth'
 import { leagueQueryOptions, type League } from '@/features/leagues'
 import { ErrorState, LoadingState } from '@/components/common/page-state'
 import { Button } from '@/components/primitives/button'
-import { Icon } from '@/components/common/icon'
 import { AppHeaderContent } from '@/components/layout/app-shell'
 import {
   roomQueryOptions,
@@ -14,12 +13,14 @@ import {
 import { useAuctionLive } from '../hooks/use-auction-live'
 import { useAuctionCommand } from '../hooks/use-auction-command'
 import { useAuctionClock } from '../hooks/use-auction-clock'
+import { useCatalogHeight } from '../hooks/use-catalog-height'
 import type {
   AuctionRoom,
   TimedSession,
   CatalogEntry,
 } from '../types/auction.types'
 import { TeamBoard } from './team-board'
+import { AuctionPresence } from './auction-presence'
 import {
   AuctionNavigation,
   AuctionTurn,
@@ -105,27 +106,13 @@ function LiveRoom({
   return (
     <>
       <AppHeaderContent>
-        <div
-          className={`auction-live-badge ${connected ? 'auction-live-badge--online' : ''}`}
-          role="status"
-          aria-label="Connessione alla sala"
-        >
-          <strong>{connected ? 'LIVE' : 'Riconnessione'}</strong>
-          {connected && (
-            <>
-              <span className="auction-presence-label">
-                Utenti connessi: {live.connectedUsers ?? '—'}
-              </span>
-              <span className="auction-presence-icon">
-                <Icon name="users" variant="regular" />
-                <span className="auction-presence-count" aria-hidden="true">
-                  {live.connectedUsers ?? '—'}
-                </span>
-              </span>
-              <span className="sr-only">Connesso alla sala</span>
-            </>
-          )}
-        </div>
+        <AuctionPresence
+          connected={connected}
+          connectedUsers={live.connectedUsers}
+          users={live.presenceUsers}
+          participants={room.participants}
+          userId={userId}
+        />
       </AppHeaderContent>
       <SessionView
         userId={userId}
@@ -156,6 +143,7 @@ function SessionView({
   const client = useQueryClient()
   const seconds = useAuctionClock(session)
   const [tab, setTab] = useState<AuctionSection>('live')
+  const catalogSurface = useCatalogHeight(tab === 'live')
   const [selection, setSelection] = useState<{
     player: CatalogEntry
     version: number
@@ -360,40 +348,42 @@ function SessionView({
             onSelect={selectTeam}
           />
         </section>
-        <section
-          className="auction-section auction-catalog-surface"
-          id="panel-catalog"
-          role={tab === 'catalog' ? 'tabpanel' : 'region'}
-          aria-labelledby="tab-catalog"
-          tabIndex={0}
-          hidden={tab !== 'catalog' && tab !== 'live'}
-        >
-          <h2>Listone</h2>
-          <p className="auction-section-description">
-            Cerca un calciatore e filtra per ruolo.
-            {canCall ? ' È il tuo turno: scegli chi chiamare.' : ''}
-          </p>
-          <CatalogPanel
-            userId={userId}
-            sessionId={session.id}
-            canCall={canCall}
-            team={team}
-            rules={league}
-            selectedPlayerId={selected?.playerId}
-            onSelect={(player) => {
-              if (!canCall) return
-              setSelection({ player, version: session.version })
-              selectSection('live')
-              requestAnimationFrame(() => {
-                const timer = document.getElementById('call-duration')
-                timer
-                  ?.closest('form')
-                  ?.scrollIntoView({ block: 'start', behavior: 'instant' })
-                timer?.focus({ preventScroll: true })
-              })
-            }}
-          />
-        </section>
+        <div className="auction-catalog-slot" ref={catalogSurface}>
+          <section
+            className="auction-section auction-catalog-surface"
+            id="panel-catalog"
+            role={tab === 'catalog' ? 'tabpanel' : 'region'}
+            aria-labelledby="tab-catalog"
+            tabIndex={0}
+            hidden={tab !== 'catalog' && tab !== 'live'}
+          >
+            <h2>Listone</h2>
+            <p className="auction-section-description">
+              Cerca un calciatore e filtra per ruolo.
+              {canCall ? ' È il tuo turno: scegli chi chiamare.' : ''}
+            </p>
+            <CatalogPanel
+              userId={userId}
+              sessionId={session.id}
+              canCall={canCall}
+              team={team}
+              rules={league}
+              selectedPlayerId={selected?.playerId}
+              onSelect={(player) => {
+                if (!canCall) return
+                setSelection({ player, version: session.version })
+                selectSection('live')
+                requestAnimationFrame(() => {
+                  const timer = document.getElementById('call-duration')
+                  timer
+                    ?.closest('form')
+                    ?.scrollIntoView({ block: 'start', behavior: 'instant' })
+                  timer?.focus({ preventScroll: true })
+                })
+              }}
+            />
+          </section>
+        </div>
       </div>
       <section
         className="auction-section"

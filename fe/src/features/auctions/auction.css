@@ -406,6 +406,9 @@ body:has(.auction-room) {
   flex: 1;
   min-width: 0;
 }
+.auction-catalog .catalog-row .player-photo {
+  width: 56px;
+}
 .catalog-row h3 {
   margin: 0;
   font: 500 16px var(--font-sans);

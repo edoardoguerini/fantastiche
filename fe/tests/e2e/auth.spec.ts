@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test'
 const user = {
   id: 'user-1',
   email: 'member@example.test',
-  displayName: 'Giulia',
+  displayName: 'Giulia Riva',
   isSuperAdmin: false,
 }
 const league = {
@@ -92,7 +92,8 @@ test('accesso, elenco, dettaglio e logout cancellano i contenuti privati', async
     page.getByRole('heading', { name: 'Configurazione della rosa' }),
   ).toBeVisible()
   await expect(page.getByText('500')).toBeVisible()
-  await page.getByRole('button', { name: 'Esci', exact: true }).click()
+  await page.getByRole('button', { name: 'Apri menu profilo' }).click()
+  await page.getByRole('menuitem', { name: 'Esci', exact: true }).click()
   await expect(page).toHaveURL(/\/login$/)
   await page.goBack()
   await expect(page).toHaveURL(/\/login$/)
@@ -221,3 +222,70 @@ for (const viewport of [
     })
   })
 }
+
+for (const width of [320, 1440]) {
+  test(`profilo con nome ed email e dropdown accessibile a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await setupApi(page, true)
+    await page.goto('/leghe')
+    const trigger = page.getByRole('button', { name: 'Apri menu profilo' })
+    const menu = page.getByRole('menu', { name: 'Menu profilo' })
+    await expect(trigger).toBeVisible()
+    await expect(menu).toHaveCount(0)
+    await expect(page.getByRole('menuitem', { name: 'Esci' })).toHaveCount(0)
+    if (width > 600) {
+      await expect(
+        trigger.getByText('Giulia Riva', { exact: true }),
+      ).toBeVisible()
+      await expect(trigger.getByText(user.email, { exact: true })).toBeVisible()
+    }
+    await trigger.focus()
+    await page.keyboard.press('ArrowDown')
+    await expect(menu).toBeVisible()
+    await expect(menu.getByText('Giulia Riva', { exact: true })).toBeVisible()
+    await expect(menu.getByText(user.email, { exact: true })).toBeVisible()
+    await expect(menu.getByRole('menuitem', { name: 'Esci' })).toBeFocused()
+    const box = (await menu.boundingBox())!
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(width)
+    await page.screenshot({
+      path: test.info().outputPath(`profile-${width}.png`),
+    })
+    await page.keyboard.press('Escape')
+    await expect(menu).toHaveCount(0)
+    await expect(trigger).toBeFocused()
+    await trigger.click()
+    await page.mouse.click(10, 400)
+    await expect(menu).toHaveCount(0)
+  })
+}
+
+test('un logout fallito resta nel menu profilo e consente di riprovare', async ({
+  page,
+}) => {
+  await setupApi(page, true)
+  let failed = true
+  await page.route('http://localhost:6060/api/Auth/Logout', async (route) => {
+    if (!failed) return route.fallback()
+    return route.fulfill({
+      status: 500,
+      json: {
+        isSuccess: false,
+        data: null,
+        errors: [{ code: 'server.error', message: 'Uscita non riuscita.' }],
+      },
+    })
+  })
+  await page.goto('/leghe')
+  await page.getByRole('button', { name: 'Apri menu profilo' }).click()
+  await page.getByRole('menuitem', { name: 'Esci' }).click()
+  await expect(
+    page.getByRole('menu', { name: 'Menu profilo' }).getByRole('alert'),
+  ).toBeVisible()
+  await expect(page).toHaveURL(/leghe/)
+  failed = false
+  await page.getByRole('menuitem', { name: 'Esci' }).click()
+  await expect(page).toHaveURL(/login/)
+})

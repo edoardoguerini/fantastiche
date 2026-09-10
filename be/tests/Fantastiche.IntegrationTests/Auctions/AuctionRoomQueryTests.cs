@@ -23,6 +23,10 @@ public sealed partial class AuctionQueryTests
         Assert.Equal(s.CurrentListVersionId, participant.ListVersionId);
         Assert.Equal(497, Assert.Single(participant.Teams, x => x.Id == s.FirstTeamId).Budget);
         Assert.Equal(1, Assert.Single(participant.Teams, x => x.Id == s.FirstTeamId).Goalkeepers);
+        var profile = Assert.Single(participant.Participants, user => user.UserId == s.FirstUser.UserId);
+        Assert.Equal(participant.Teams.Single(team => team.Id == s.FirstTeamId).Name, profile.TeamName);
+        Assert.False(string.IsNullOrWhiteSpace(profile.DisplayName));
+        Assert.DoesNotContain(participant.Participants, user => user.UserId == s.PendingUser.UserId);
         var admin = await Room(fixture.Admin);
         Assert.Null(admin.MyTeamId);
         Assert.True(admin.CanManage);
@@ -37,12 +41,14 @@ public sealed partial class AuctionQueryTests
         });
         var organizerPlayer = await Room(s.FirstUser);
         Assert.True(organizerPlayer.CanManage);
+        Assert.True(organizerPlayer.Participants.Single(user => user.UserId == s.FirstUser.UserId).IsOrganizer);
         Assert.Equal(s.FirstTeamId, organizerPlayer.MyTeamId);
         Assert.Equal(s.ActiveSessionId, organizerPlayer.SessionId);
         var empty = await AqQuery<GetAuctionRoomQuery, AuctionRoomView>(new(s.FirstUser, s.LeagueId, s.EmptySeasonId));
         Assert.Null(empty.MyTeamId);
         Assert.Null(empty.SessionId);
         Assert.Empty(empty.Teams);
+        Assert.Contains(empty.Participants, user => user.UserId == s.FirstUser.UserId && user.IsOrganizer && user.TeamName == null);
         Assert.Equal(s.CurrentListVersionId, empty.ListVersionId);
 
         Task<AuctionRoomView> Room(RequestContext user) => AqQuery<GetAuctionRoomQuery, AuctionRoomView>(new(user, s.LeagueId, s.SeasonId));
@@ -73,6 +79,7 @@ public sealed partial class AuctionQueryTests
             .ExecuteUpdateAsync(x => x.SetProperty(m => m.Status, MembershipStatus.Pending)));
         var active = await AqQuery<GetAuctionRoomQuery, AuctionRoomView>(new(s.FirstUser, s.LeagueId, s.SeasonId));
         Assert.Equal(s.FirstTeamId, Assert.Single(active.Teams).Id);
+        Assert.DoesNotContain(active.Participants, user => user.UserId == s.SecondUser.UserId || user.UserId == outsider.UserId);
         var wrongSeason = await Assert.ThrowsAsync<DomainException>(() => AqQuery<GetAuctionRoomQuery, AuctionRoomView>(new(s.FirstUser, Guid.NewGuid(), s.SeasonId)));
         Assert.Equal(404, wrongSeason.StatusCode);
     }

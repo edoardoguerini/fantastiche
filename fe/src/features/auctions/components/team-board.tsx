@@ -1,3 +1,5 @@
+import { useEffect, useId, useState } from 'react'
+import useEmblaCarousel from 'embla-carousel-react'
 import { useQuery } from '@tanstack/react-query'
 import { Icon } from '@/components/common/icon'
 import {
@@ -8,6 +10,12 @@ import {
 import { rosterQueryOptions } from '../actions/auction.queries'
 import { emptySlots, maxOffer } from '../validations/auction-rules'
 import { PlayerPhoto } from './player-photo'
+
+const carouselOptions = {
+  loop: true,
+  align: () => 44,
+  breakpoints: { '(prefers-reduced-motion: reduce)': { duration: 0 } },
+}
 
 export function TeamBoard({
   userId,
@@ -26,30 +34,120 @@ export function TeamBoard({
   rules: RosterRules
   onSelect: (teamId: string) => void
 }) {
+  const [boardRef, carousel] = useEmblaCarousel(carouselOptions)
+  const boardId = useId()
+  const [edges, setEdges] = useState({ start: true, end: true })
+
+  useEffect(() => {
+    if (!carousel) return
+    const updateEdges = () => {
+      const start = !carousel.canScrollPrev()
+      const end = !carousel.canScrollNext()
+      setEdges((previous) =>
+        previous.start === start && previous.end === end
+          ? previous
+          : { start, end },
+      )
+    }
+    carousel.on('select', updateEdges).on('reInit', updateEdges)
+    updateEdges()
+
+    // Il gesto orizzontale del trackpad muove le card; quello verticale resta alla pagina.
+    let wheelDistance = 0
+    let lastWheelTime = 0
+    let lastStepTime = 0
+    const onWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || Math.abs(event.deltaX) <= Math.abs(event.deltaY))
+        return
+      if (!carousel.canScrollPrev() && !carousel.canScrollNext()) return
+      event.preventDefault()
+      const now = performance.now()
+      if (now - lastWheelTime > 180) wheelDistance = 0
+      lastWheelTime = now
+      wheelDistance += event.deltaX
+      if (Math.abs(wheelDistance) < 30 || now - lastStepTime < 220) return
+      if (wheelDistance > 0) carousel.scrollNext()
+      else carousel.scrollPrev()
+      wheelDistance = 0
+      lastStepTime = now
+    }
+    const viewport = carousel.rootNode()
+    viewport.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      carousel.off('select', updateEdges).off('reInit', updateEdges)
+      viewport.removeEventListener('wheel', onWheel)
+    }
+  }, [carousel])
+
+  function scrollTeams(direction: -1 | 1) {
+    if (direction < 0) carousel?.scrollPrev()
+    else carousel?.scrollNext()
+  }
+
   return (
-    <section className="auction-teams" aria-label="Tabellone delle squadre">
+    <section
+      className="auction-teams"
+      aria-label="Tabellone delle squadre"
+      aria-roledescription="carosello"
+    >
       <div className="auction-teams-heading">
         <h2>Le squadre</h2>
-        <span>{teams.length} partecipanti</span>
+        <div className="auction-teams-navigation">
+          <span>{teams.length} partecipanti</span>
+          <div className="auction-carousel-controls">
+            <button
+              type="button"
+              aria-label="Squadre precedenti"
+              aria-controls={boardId}
+              disabled={edges.start}
+              onClick={() => scrollTeams(-1)}
+            >
+              <Icon name="chevron-left" />
+            </button>
+            <button
+              type="button"
+              aria-label="Squadre successive"
+              aria-controls={boardId}
+              disabled={edges.end}
+              onClick={() => scrollTeams(1)}
+            >
+              <Icon name="chevron-right" />
+            </button>
+          </div>
+        </div>
       </div>
       <div
+        ref={boardRef}
+        id={boardId}
         className="auction-board"
         tabIndex={0}
         aria-label="Scorri le squadre"
+        onKeyDown={(event) => {
+          if (event.target !== event.currentTarget) return
+          if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+            event.preventDefault()
+            scrollTeams(event.key === 'ArrowLeft' ? -1 : 1)
+          } else if (event.key === 'Home' || event.key === 'End') {
+            event.preventDefault()
+            carousel?.scrollTo(event.key === 'Home' ? 0 : teams.length - 1)
+          }
+        }}
       >
-        {teams.map((team, index) => (
-          <TeamColumn
-            key={team.id}
-            userId={userId}
-            sessionId={sessionId}
-            team={team}
-            index={index}
-            mine={team.id === myTeamId}
-            current={team.id === currentTeamId}
-            rules={rules}
-            onSelect={onSelect}
-          />
-        ))}
+        <div className="auction-board-track">
+          {teams.map((team, index) => (
+            <TeamColumn
+              key={team.id}
+              userId={userId}
+              sessionId={sessionId}
+              team={team}
+              index={index}
+              mine={team.id === myTeamId}
+              current={team.id === currentTeamId}
+              rules={rules}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
       </div>
     </section>
   )

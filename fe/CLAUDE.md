@@ -10,7 +10,7 @@ La sala d’asta usa una palette dedicata nero/antracite con testi neutri e acce
 
 Linee e bordi sempre minimali: token condiviso `--border`/`--input` verde desaturato al 10% di opacità, hover discreto. Separare le sezioni soprattutto con gli spazi, evitare contorni marcati. Conservare indicatori di focus e di errore riconoscibili.
 
-Tipografia: Sora per i titoli e il nome del marchio, Geist per testi, form e controlli. Font variabili self-hosted tramite Fontsource; nessuna richiesta a Google Fonts.
+Tipografia: Sora per tutta l’interfaccia, inclusi titoli, marchio, testi, form e controlli. Font variabile self-hosted tramite Fontsource; nessuna richiesta a Google Fonts.
 
 TanStack Start, React, TypeScript strict, Vite, TanStack Query, Tailwind e shadcn/ui. Manteniamo da ACKS pnpm, TanStack Form + Zod per i form e TanStack Table quando serve una tabella avanzata. Versioni compatibili fissate in package.json e pnpm-lock.yaml; non aggiornare automaticamente alle versioni del riferimento.
 

@@ -121,6 +121,22 @@ public sealed partial class HttpFlowTests
             message.GetProperty("target").GetString() == "AuctionPresenceChanged" &&
             message.GetProperty("arguments")[0].GetProperty("connectedUsers").GetInt32() == 2);
         Assert.Equal(scenario.SessionId, presence.GetProperty("arguments")[0].GetProperty("sessionId").GetGuid());
+        var users = presence.GetProperty("arguments")[0].GetProperty("users").EnumerateArray().ToArray();
+        Assert.Equal(2, users.Length);
+        var memberProfile = Assert.Single(users, user => user.GetProperty("userId").GetGuid() == scenario.MemberId);
+        Assert.False(string.IsNullOrWhiteSpace(memberProfile.GetProperty("displayName").GetString()));
+        Assert.False(string.IsNullOrWhiteSpace(memberProfile.GetProperty("teamName").GetString()));
+        Assert.All(users, user => Assert.False(user.TryGetProperty("email", out _)));
+
+        // Il profilo cambia a parità di conteggio: la lista deve essere notificata comunque.
+        await AuctionRealtimeExecute("UPDATE AspNetUsers SET DisplayName = N'Nome aggiornato' WHERE Id = @MemberId", scenario);
+        await AuctionRealtimeReceive(member, message =>
+            message.GetProperty("type").GetInt32() == 1 &&
+            message.GetProperty("target").GetString() == "AuctionPresenceChanged" &&
+            message.GetProperty("arguments")[0].GetProperty("connectedUsers").GetInt32() == 2 &&
+            message.GetProperty("arguments")[0].GetProperty("users").EnumerateArray()
+                .Any(user => user.GetProperty("displayName").GetString() == "Nome aggiornato"));
+
 
         await admin.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", CancellationToken.None);
         var remaining = await AuctionRealtimeReceive(member, message =>
@@ -128,6 +144,8 @@ public sealed partial class HttpFlowTests
             message.GetProperty("target").GetString() == "AuctionPresenceChanged" &&
             message.GetProperty("arguments")[0].GetProperty("connectedUsers").GetInt32() == 1);
         Assert.Equal(scenario.SessionId, remaining.GetProperty("arguments")[0].GetProperty("sessionId").GetGuid());
+        Assert.Equal(scenario.MemberId, Assert.Single(remaining.GetProperty("arguments")[0].GetProperty("users").EnumerateArray()).GetProperty("userId").GetGuid());
+
     }
 
     [Fact]

@@ -9,7 +9,6 @@ import {
 } from '@tanstack/react-router'
 import { ErrorState } from '@/components/common/page-state'
 import '@fontsource-variable/sora/wght.css'
-import '@fontsource-variable/geist/wght.css'
 import '@/assets/fontawesome/css/all.css'
 import '@/styles/globals.css'
 

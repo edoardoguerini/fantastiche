@@ -138,12 +138,16 @@ export function AuctionStage({
                       ? 'Scegli il prossimo calciatore. La chiamata parte da 1 credito.'
                       : 'In attesa della scelta del prossimo calciatore.'}
             </p>
-            {caller?.id === myTeamId && session.status === 'Active' && (
-              <Button disabled={!canCall} onClick={onChoose}>
-                Scegli dal listone
-              </Button>
-            )}
           </div>
+          {caller?.id === myTeamId && session.status === 'Active' && (
+            <Button
+              className="auction-waiting-action"
+              disabled={!canCall}
+              onClick={onChoose}
+            >
+              Scegli dal listone
+            </Button>
+          )}
           {auction && (
             <div className="auction-last-purchase" data-role={auction.role}>
               <PlayerPhoto url={auction.photoUrl} role={auction.role} />

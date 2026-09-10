@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils/cn'
 import '@/assets/fontawesome/css/jelly.css'
 
 type IconName =
+  | 'xmark'
   | 'coins'
   | 'stopwatch'
   | 'flag'
@@ -15,6 +16,8 @@ type IconName =
   | 'sliders'
   | 'chevron-up'
   | 'chevron-down'
+  | 'chevron-left'
+  | 'chevron-right'
   | 'hand-point-up'
   | 'plus'
   | 'arrow-left'
@@ -27,6 +30,7 @@ type IconName =
   | 'clock'
   | 'bolt'
   | 'users'
+  | 'user-group'
 
 export function Icon({
   name,

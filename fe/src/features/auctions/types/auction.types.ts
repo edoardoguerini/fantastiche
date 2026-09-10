@@ -1,5 +1,18 @@
 import { z } from 'zod'
 
+export const auctionParticipantSchema = z.object({
+  userId: z.string(),
+  displayName: z.string(),
+  teamName: z.string().nullable(),
+  isOrganizer: z.boolean(),
+})
+export type AuctionParticipant = z.infer<typeof auctionParticipantSchema>
+export const auctionPresenceSchema = z.object({
+  sessionId: z.string(),
+  connectedUsers: z.number().int().nonnegative(),
+  users: z.array(auctionParticipantSchema).optional(),
+})
+
 export const teamSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -17,6 +30,7 @@ export const roomSchema = z.object({
   sessionId: z.string().nullable(),
   listVersionId: z.string().nullable(),
   teams: z.array(teamSchema),
+  participants: z.array(auctionParticipantSchema).default([]),
 })
 export const playerAuctionSchema = z.object({
   currentQuotation: z.number().int().nonnegative().nullable().optional(),

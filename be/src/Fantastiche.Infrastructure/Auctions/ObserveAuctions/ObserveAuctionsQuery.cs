@@ -15,7 +15,11 @@ public sealed record AuctionObservation(
     string ConnectionId,
     Guid SessionId,
     long Version,
-    bool HasAccess);
+    bool HasAccess,
+    Guid UserId,
+    string DisplayName,
+    string? TeamName,
+    bool IsOrganizer);
 
 public sealed class ObserveAuctionsQuery(FantasticheDbContext db)
 {
@@ -74,9 +78,20 @@ public sealed class ObserveAuctionsQuery(FantasticheDbContext db)
                                   AND role.[NormalizedName] = N'SUPERADMIN'
                             )
                         ) THEN 1 ELSE 0
-                    END AS bit) AS [HasAccess]
+                    END AS bit) AS [HasAccess],
+                    requested.[UserId],
+                    COALESCE(account.[DisplayName], N'') AS [DisplayName],
+                    team.[Name] AS [TeamName],
+                    CAST(COALESCE(member.[IsOrganizer], 0) AS bit) AS [IsOrganizer]
                 FROM Requested requested
-                LEFT JOIN [AuctionSessions] session ON session.[Id] = requested.[SessionId];
+                LEFT JOIN [AuctionSessions] session ON session.[Id] = requested.[SessionId]
+                LEFT JOIN [AspNetUsers] account ON account.[Id] = requested.[UserId]
+                LEFT JOIN [LeagueMembers] member ON member.[UserId] = requested.[UserId]
+                    AND member.[LeagueId] = session.[LeagueId] AND member.[Status] = 1
+                LEFT JOIN [TeamMembers] tm ON tm.[UserId] = member.[UserId]
+                    AND tm.[LeagueId] = session.[LeagueId] AND tm.[LeagueSeasonId] = session.[LeagueSeasonId]
+                LEFT JOIN [Teams] team ON team.[Id] = tm.[TeamId]
+                    AND team.[LeagueId] = session.[LeagueId] AND team.[LeagueSeasonId] = session.[LeagueSeasonId];
                 """, new { ParamsJson = parametersJson }, cancellationToken: cancellationToken));
             return rows.AsList();
         }

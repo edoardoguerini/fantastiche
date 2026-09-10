@@ -2,29 +2,19 @@ import { PlayerValuation } from './player-valuation'
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { Button } from '@/components/primitives/button'
-import { Input } from '@/components/primitives/input'
 import type { CatalogEntry } from '../types/auction.types'
 import { PlayerPhoto } from './player-photo'
 import { ClubLabel } from './club-label'
 
+const durations = [5, 10, 15, 20, 25, 30]
+const incrementOptions = [1, 2, 5, 10, 20, 50]
 const schema = z.object({
   duration: z
     .number()
-    .refine(
-      (value) => [5, 10, 15, 20, 25, 30].includes(value),
-      'Scegli una durata valida.',
-    ),
-  increments: z.string().refine((value) => {
-    const items = value.split(',').map(Number)
-    return (
-      items.length >= 1 &&
-      items.length <= 10 &&
-      items.every(
-        (item) => Number.isSafeInteger(item) && item > 0 && item <= 1_000_000,
-      ) &&
-      new Set(items).size === items.length
-    )
-  }, 'Inserisci da 1 a 10 incrementi interi positivi diversi, separati da virgole.'),
+    .refine((value) => durations.includes(value), 'Scegli una durata valida.'),
+  increments: z
+    .array(z.number().refine((value) => incrementOptions.includes(value)))
+    .min(1, 'Seleziona almeno un incremento.'),
 })
 export function PlayerCallForm({
   player,
@@ -38,11 +28,10 @@ export function PlayerCallForm({
   onStart: (duration: number, increments: number[]) => Promise<void>
 }) {
   const form = useForm({
-    defaultValues: { duration: 15, increments: '1, 5, 10' },
+    defaultValues: { duration: 15, increments: [1, 5, 10] },
     validators: { onSubmit: schema },
     onSubmit: async ({ value }) => {
-      if (!disabled)
-        await onStart(value.duration, value.increments.split(',').map(Number))
+      if (!disabled) await onStart(value.duration, value.increments)
     },
   })
   return (
@@ -58,7 +47,6 @@ export function PlayerCallForm({
     >
       <div className="auction-stage-top">
         <span className="auction-eyebrow">La tua selezione</span>
-        <span className="auction-preview-badge">Anteprima privata</span>
       </div>
       <div className="player-call-heading">
         <PlayerPhoto url={player.photoUrl} role={player.role} large />
@@ -78,48 +66,70 @@ export function PlayerCallForm({
         <div className="call-settings">
           <form.Field name="duration">
             {(field) => (
-              <div className="form-field">
-                <label htmlFor="call-duration">Timer</label>
-                <select
-                  id="call-duration"
-                  value={field.state.value}
-                  onChange={(event) =>
-                    field.handleChange(Number(event.target.value))
-                  }
-                  disabled={disabled}
-                >
-                  {[5, 10, 15, 20, 25, 30].map((seconds) => (
-                    <option key={seconds} value={seconds}>
-                      {seconds} secondi
-                    </option>
+              <fieldset className="call-option-field" disabled={disabled}>
+                <legend>Timer</legend>
+                <div className="call-options">
+                  {durations.map((seconds) => (
+                    <Button
+                      key={seconds}
+                      variant="outline"
+                      className="call-option"
+                      id={
+                        field.state.value === seconds
+                          ? 'call-duration'
+                          : undefined
+                      }
+                      aria-label={`${seconds} secondi`}
+                      aria-pressed={field.state.value === seconds}
+                      onClick={() => field.handleChange(seconds)}
+                    >
+                      {seconds} s
+                    </Button>
                   ))}
-                </select>
-              </div>
+                </div>
+              </fieldset>
             )}
           </form.Field>
           <form.Field name="increments">
             {(field) => (
-              <div className="form-field">
-                <label htmlFor="call-increments">Incrementi dei rilanci</label>
-                <Input
-                  id="call-increments"
-                  value={field.state.value}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                  onBlur={field.handleBlur}
-                  disabled={disabled}
-                  aria-invalid={field.state.meta.errors.length > 0}
-                  aria-describedby={
-                    field.state.meta.errors.length
-                      ? 'increments-error'
-                      : undefined
-                  }
-                />
+              <fieldset className="call-option-field" disabled={disabled}>
+                <legend>Incrementi dei rilanci</legend>
+                <div className="call-options">
+                  {incrementOptions.map((increment) => {
+                    const selected = field.state.value.includes(increment)
+                    const lastSelected =
+                      selected && field.state.value.length === 1
+                    return (
+                      <Button
+                        key={increment}
+                        variant="outline"
+                        className="call-option"
+                        aria-pressed={selected}
+                        aria-disabled={lastSelected || undefined}
+                        onClick={() => {
+                          if (lastSelected) return
+                          field.handleChange(
+                            selected
+                              ? field.state.value.filter(
+                                  (value) => value !== increment,
+                                )
+                              : [...field.state.value, increment].sort(
+                                  (a, b) => a - b,
+                                ),
+                          )
+                        }}
+                      >
+                        +{increment}
+                      </Button>
+                    )
+                  })}
+                </div>
                 {field.state.meta.errors[0] && (
-                  <p className="field-error" id="increments-error" role="alert">
+                  <p className="field-error" role="alert">
                     {field.state.meta.errors[0].message}
                   </p>
                 )}
-              </div>
+              </fieldset>
             )}
           </form.Field>
         </div>

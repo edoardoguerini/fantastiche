@@ -53,11 +53,22 @@ public sealed class GetAuctionRoomQueryHandler(FantasticheDbContext db) : IReque
                               WHERE tm.TeamId = team.Id AND tm.LeagueId = team.LeagueId AND tm.LeagueSeasonId = team.LeagueSeasonId)
                 GROUP BY team.Id, team.Name, team.Budget
                 ORDER BY team.Name, team.Id;
+
+                SELECT member.UserId, account.DisplayName, team.Name AS TeamName, member.IsOrganizer
+                FROM LeagueMembers member
+                INNER JOIN AspNetUsers account ON account.Id = member.UserId
+                LEFT JOIN TeamMembers tm ON tm.UserId = member.UserId AND tm.LeagueId = member.LeagueId
+                    AND tm.LeagueSeasonId = @LeagueSeasonId
+                LEFT JOIN Teams team ON team.Id = tm.TeamId AND team.LeagueId = @LeagueId
+                    AND team.LeagueSeasonId = @LeagueSeasonId
+                WHERE member.LeagueId = @LeagueId AND member.Status = 1
+                ORDER BY account.DisplayName, member.UserId;
                 """, new { request.LeagueId, request.LeagueSeasonId, request.Context.UserId }, transaction, cancellationToken: ct));
             var header = await result.ReadSingleAsync<RoomHeader>();
             var teams = (await result.ReadAsync<AuctionTeamView>()).AsList();
+            var participants = (await result.ReadAsync<AuctionParticipantView>()).AsList();
             await transaction.CommitAsync(ct);
-            return new(header.LeagueId, header.LeagueSeasonId, header.MyTeamId, header.CanManage, header.SessionId, header.ListVersionId, teams);
+            return new(header.LeagueId, header.LeagueSeasonId, header.MyTeamId, header.CanManage, header.SessionId, header.ListVersionId, teams, participants);
         }
         finally
         {

@@ -1,0 +1,86 @@
+.account-menu {
+  position: relative;
+  min-width: 0;
+}
+.account-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 320px;
+  padding: 6px;
+  border-radius: 14px;
+  text-align: left;
+  color: var(--foreground);
+  cursor: pointer;
+}
+.account-trigger:hover,
+.account-trigger[aria-expanded='true'] {
+  background: var(--secondary);
+}
+.account-avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--primary) 15%, var(--surface));
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.account-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.account-identity strong {
+  font-size: 13px;
+  font-weight: 550;
+}
+.account-identity > span {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.account-trigger .account-identity > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-chevron {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  margin: 0 4px 0 8px;
+}
+.account-dropdown {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(280px, calc(100vw - 40px));
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 16px 48px #0005;
+}
+.account-dropdown-identity {
+  padding: 8px 10px 14px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.account-dropdown .account-logout {
+  width: 100%;
+  justify-content: flex-start;
+}
+.account-dropdown .field-error {
+  padding: 8px 10px;
+}
+@media (max-width: 600px) {
+  .account-trigger .account-identity,
+  .account-chevron {
+    display: none;
+  }
+}

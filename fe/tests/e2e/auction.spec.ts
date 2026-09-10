@@ -28,6 +28,7 @@ async function setupRoom(
     waiting?: boolean
     setup?: boolean
     catalogSize?: number
+    teamCount?: number
   } = {},
 ) {
   let roomSessionId: string | null = options.setup ? null : sid
@@ -36,14 +37,28 @@ async function setupRoom(
     'Real Sbronzi',
     'Dinamo Divano',
     'Sporting Aperitivo',
-  ].map((name, i) => ({
-    id: `team-${i}`,
-    name,
-    budget: 500,
-    goalkeepers: 0,
-    defenders: 0,
-    midfielders: 0,
-    forwards: 0,
+    'Bayern Leverdure',
+    'Borussia Porcelli',
+    'AC Picchia',
+    'FC Mai una Gioia',
+  ]
+    .slice(0, options.teamCount ?? 4)
+    .map((name, i) => ({
+      id: `team-${i}`,
+      name,
+      budget: 500,
+      goalkeepers: 0,
+      defenders: 0,
+      midfielders: 0,
+      forwards: 0,
+    }))
+  const participants = teams.map((team, index) => ({
+    userId: `user-${index + 1}`,
+    displayName:
+      ['Demo', 'Luca Ferri', 'Giulia Rossi', 'Marco Bianchi'][index] ??
+      `Utente ${index + 1}`,
+    teamName: team.name,
+    isOrganizer: index === 0,
   }))
   const state = {
     id: sid,
@@ -86,12 +101,15 @@ async function setupRoom(
   const receipts = new Map<string, unknown>()
   let socket: WebSocketRoute | undefined
   const snapshot = () => ({ ...state, serverTime: new Date().toISOString() })
-  const presence = (connectedUsers: number) =>
+  const presence = (
+    connectedUsers: number,
+    users = participants.slice(0, connectedUsers),
+  ) =>
     socket?.send(
       JSON.stringify({
         type: 1,
         target: 'AuctionPresenceChanged',
-        arguments: [{ sessionId: sid, connectedUsers }],
+        arguments: [{ sessionId: sid, connectedUsers, users }],
       }) + '\x1e',
     )
   const notify = () =>
@@ -175,6 +193,7 @@ async function setupRoom(
         sessionId: roomSessionId,
         listVersionId: 'list-1',
         teams,
+        participants,
       })
     if (path.endsWith(`/Sessions/${sid}`)) return respond(snapshot())
     if (path.includes('/Commands/')) {
@@ -269,7 +288,7 @@ async function setupRoom(
     await expect(
       page.getByText('Connesso alla sala', { exact: true }),
     ).toBeVisible()
-  return { state, control, notify, presence }
+  return { state, control, notify, presence, participants }
 }
 
 test('il Live desktop affianca il listone e dispone le squadre sotto il giocatore', async ({
@@ -287,6 +306,136 @@ test('il Live desktop affianca il listone e dispone le squadre sotto il giocator
     .boundingBox())!
   expect(catalog.x).toBeGreaterThan(player.x + player.width)
   expect(board.y).toBeGreaterThan(player.y + player.height)
+})
+
+test('il listone arriva alla barra inferiore e mantiene la paginazione visibile', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await setupRoom(page, { catalogSize: 60 })
+  const surface = page.locator('.auction-catalog-surface')
+  const footer = page.locator('.auction-bottom-bar')
+  async function expectAligned() {
+    await expect
+      .poll(async () => {
+        const panel = (await surface.boundingBox())!
+        const bar = (await footer.boundingBox())!
+        return Math.abs(panel.y + panel.height + 16 - bar.y)
+      })
+      .toBeLessThanOrEqual(2)
+    const pagination = (await page
+      .getByRole('navigation', { name: 'Pagine del listone' })
+      .boundingBox())!
+    const bar = (await footer.boundingBox())!
+    expect(pagination.y + pagination.height).toBeLessThanOrEqual(bar.y)
+  }
+  await expectAligned()
+  await page.locator('.catalog-list').evaluate((list) => {
+    list.scrollTop = list.scrollHeight
+  })
+  await expectAligned()
+  await page.setViewportSize({ width: 1440, height: 700 })
+  await expectAligned()
+  await page.evaluate(() => window.scrollTo(0, 100))
+  await expectAligned()
+  await page.evaluate(() =>
+    window.scrollTo(0, document.documentElement.scrollHeight),
+  )
+  await expectAligned()
+  expect((await surface.boundingBox())!.y).toBeGreaterThanOrEqual(16)
+  await expect(
+    page.getByRole('heading', { name: 'Listone', exact: true }),
+  ).toBeInViewport()
+  await page.screenshot({
+    path: test.info().outputPath('listone-bottom-gap.png'),
+  })
+})
+
+test('il carosello squadre torna dalla prima all’ultima e viceversa', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 900 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await setupRoom(page, { waiting: true })
+  const board = page.getByLabel('Scorri le squadre', { exact: true })
+  const previous = page.getByRole('button', { name: 'Squadre precedenti' })
+  const next = page.getByRole('button', { name: 'Squadre successive' })
+  const first = page.getByRole('button', { name: 'Apri rosa Atletico Spritz' })
+  const last = page.getByRole('button', {
+    name: 'Apri rosa Sporting Aperitivo',
+  })
+  const position = async (card: typeof first) =>
+    Math.round((await card.boundingBox())!.x - (await board.boundingBox())!.x)
+  await expect(previous).toBeEnabled()
+  await expect(next).toBeEnabled()
+  const firstPosition = await position(first)
+  await previous.click()
+  await expect.poll(() => position(last)).toBe(firstPosition)
+  await next.click()
+  await expect.poll(() => position(first)).toBe(firstPosition)
+  await board.focus()
+  await page.keyboard.press('End')
+  await expect.poll(() => position(last)).toBe(firstPosition)
+  await page.keyboard.press('Home')
+  await expect.poll(() => position(first)).toBe(firstPosition)
+  await expect(page.locator('.team-purchases')).toHaveCount(4)
+  await page.screenshot({ path: test.info().outputPath('carousel-mobile.png') })
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await expect(previous).toBeDisabled()
+  await expect(next).toBeDisabled()
+})
+
+test('il carosello taglia le card al bordo del box e supporta il drag', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await setupRoom(page, { waiting: true, teamCount: 8 })
+  const board = page.getByLabel('Scorri le squadre', { exact: true })
+  await board.scrollIntoViewIfNeeded()
+  const section = page.getByRole('region', { name: 'Tabellone delle squadre' })
+  const first = page.locator('.team-column').first()
+  const last = page.locator('.team-column').last()
+  await expect(
+    page.getByRole('button', { name: 'Squadre precedenti' }),
+  ).toBeEnabled()
+  const viewport = (await board.boundingBox())!
+  const box = (await section.boundingBox())!
+  expect(Math.abs(viewport.x - box.x)).toBeLessThanOrEqual(1)
+  expect(Math.abs(viewport.width - box.width)).toBeLessThanOrEqual(2)
+  const previousCard = (await last.boundingBox())!
+  expect(previousCard.x).toBeLessThan(viewport.x)
+  expect(previousCard.x + previousCard.width).toBeGreaterThan(viewport.x + 12)
+  const initialX = (await first.boundingBox())!.x
+  const y = viewport.y + 50
+  await page.mouse.move(initialX + 120, y)
+  await page.mouse.down()
+  await page.mouse.move(initialX - 80, y, { steps: 12 })
+  await page.mouse.up()
+  await expect
+    .poll(async () => Math.abs((await first.boundingBox())!.x - initialX))
+    .toBeGreaterThan(100)
+  await expect(
+    page.getByRole('tab', { name: 'Live', exact: true }),
+  ).toHaveAttribute('aria-selected', 'true')
+  await board.focus()
+  await page.keyboard.press('Home')
+  await expect
+    .poll(async () => Math.round((await first.boundingBox())!.x))
+    .toBe(Math.round(initialX))
+  await page.mouse.move(initialX + 120, y)
+  await page.mouse.wheel(150, 0)
+  await expect
+    .poll(async () => Math.abs((await first.boundingBox())!.x - initialX))
+    .toBeGreaterThan(100)
+  await board.focus()
+  await page.keyboard.press('Home')
+  await expect
+    .poll(async () => Math.round((await first.boundingBox())!.x))
+    .toBe(Math.round(initialX))
+  await page.getByRole('heading', { name: 'Le squadre', exact: true }).click()
+  await page.screenshot({
+    path: test.info().outputPath('carousel-desktop.png'),
+  })
 })
 
 test('selezione privata in anteprima: annulla senza offerte e chiama solo dopo conferma', async ({
@@ -311,7 +460,16 @@ test('selezione privata in anteprima: annulla senza offerte e chiama solo dopo c
   await page
     .getByRole('button', { name: 'Seleziona Alessandro Fabbri', exact: true })
     .click()
-  await page.getByLabel('Timer', { exact: true }).selectOption('20')
+  await page
+    .getByRole('group', { name: 'Timer', exact: true })
+    .getByRole('button', { name: '20 secondi', exact: true })
+    .click()
+  const increments = page.getByRole('group', {
+    name: 'Incrementi dei rilanci',
+    exact: true,
+  })
+  await increments.getByRole('button', { name: '+2', exact: true }).click()
+  await increments.getByRole('button', { name: '+10', exact: true }).click()
   await page
     .getByRole('button', { name: 'Chiama a 1 credito', exact: true })
     .click()
@@ -324,7 +482,41 @@ test('selezione privata in anteprima: annulla senza offerte e chiama solo dopo c
   expect(control.commands[0]).toMatchObject({
     playerId,
     durationSeconds: 20,
-    increments: [1, 5, 10],
+    increments: [1, 2, 5],
+  })
+})
+
+test('le opzioni della chiamata restano compatte su mobile e richiedono almeno un incremento', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 900 })
+  const { control } = await setupRoom(page, { waiting: true })
+  await page.getByRole('tab', { name: 'Listone', exact: true }).click()
+  await page
+    .getByRole('button', { name: 'Seleziona Alessandro Fabbri', exact: true })
+    .click()
+  const preview = page.getByRole('form', { name: 'Anteprima chiamata' })
+  const increments = preview.getByRole('group', {
+    name: 'Incrementi dei rilanci',
+    exact: true,
+  })
+  await increments.getByRole('button', { name: '+5', exact: true }).click()
+  await increments.getByRole('button', { name: '+10', exact: true }).click()
+  await expect(
+    increments.getByRole('button', { name: '+1', exact: true }),
+  ).toBeDisabled()
+  await expect(
+    increments.getByRole('button', { name: '+1', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  expect(control.commands).toHaveLength(0)
+  for (const option of await preview.locator('.call-option').all()) {
+    const box = (await option.boundingBox())!
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(320)
+  }
+  await page.screenshot({
+    path: test.info().outputPath('call-options-mobile.png'),
+    fullPage: true,
   })
 })
 
@@ -532,7 +724,9 @@ test('il partecipante può chiamare solo nel proprio turno e non gestisce l’as
   await page
     .getByRole('button', { name: 'Seleziona Alessandro Fabbri' })
     .click()
-  await expect(page.getByLabel('Timer', { exact: true })).toHaveValue('15')
+  await expect(
+    page.getByRole('button', { name: '15 secondi', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true')
   state.currentTeamId = 'team-1'
   state.version++
   notify()
@@ -586,8 +780,12 @@ test('scegliendo dal fondo del listone il form di chiamata diventa raggiungibile
   await page
     .getByRole('button', { name: 'Seleziona Calciatore 30', exact: true })
     .click()
-  await expect(page.getByLabel('Timer', { exact: true })).toBeFocused()
-  await expect(page.getByLabel('Timer', { exact: true })).toBeInViewport()
+  await expect(
+    page.getByRole('button', { name: '15 secondi', exact: true }),
+  ).toBeFocused()
+  await expect(
+    page.getByRole('button', { name: '15 secondi', exact: true }),
+  ).toBeInViewport()
   await expect(
     page.getByRole('button', { name: 'Chiama a 1 credito', exact: true }),
   ).toBeInViewport()
@@ -671,6 +869,59 @@ test('intestazione asta: logo centrato e presenze reali a destra', async ({
   await expect(badge).toContainText('Riconnessione')
   await expect(badge).not.toContainText('Utenti connessi: 1')
 })
+
+for (const width of [390, 1440]) {
+  test(`il badge LIVE mostra utenti connessi e assenti in tempo reale a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 })
+    const { presence, participants } = await setupRoom(page)
+    const trigger = page.getByRole('button', {
+      name: 'Mostra utenti della sala',
+    })
+    await trigger.click()
+    const panel = page.getByRole('dialog', { name: 'Utenti della sala' })
+    await expect(panel).toBeVisible()
+    await expect(panel.getByText('Caricamento presenze…')).toBeVisible()
+    presence(2)
+    const online = panel.getByRole('region', { name: 'Connessi', exact: true })
+    const offline = panel.getByRole('region', {
+      name: 'Non connessi',
+      exact: true,
+    })
+    await expect(online.getByText('Luca Ferri', { exact: true })).toBeVisible()
+    await expect(
+      online.getByText('Real Sbronzi', { exact: true }),
+    ).toBeVisible()
+    await expect(
+      offline.getByText('Giulia Rossi', { exact: true }),
+    ).toBeVisible()
+    presence(2, [participants[0]!, participants[2]!])
+    await expect(
+      online.getByText('Giulia Rossi', { exact: true }),
+    ).toBeVisible()
+    await expect(offline.getByText('Luca Ferri', { exact: true })).toBeVisible()
+    await expect(online.getByText('Luca Ferri', { exact: true })).toHaveCount(0)
+    const box = (await panel.boundingBox())!
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(width)
+    await page.screenshot({
+      path: test.info().outputPath(`presence-${width}.png`),
+    })
+    await page.keyboard.press('Escape')
+    await expect(panel).not.toBeVisible()
+    await trigger.click()
+    await page.evaluate(() => window.dispatchEvent(new Event('offline')))
+    await expect(
+      panel.getByText(
+        'Riconnessione in corso. Le presenze verranno aggiornate al ripristino.',
+      ),
+    ).toBeVisible()
+    await expect(online).toHaveCount(0)
+    await page.getByRole('heading', { name: 'Le squadre', exact: true }).click()
+    await expect(panel).not.toBeVisible()
+  })
+}
 
 test('il budget personale resta fisso e segue lo snapshot nelle altre sezioni', async ({
   page,

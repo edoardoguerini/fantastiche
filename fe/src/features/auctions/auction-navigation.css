@@ -84,7 +84,6 @@
 }
 .team-column--current {
   background: var(--auction-accent-surface);
-  box-shadow: inset 0 3px var(--primary);
 }
 .auction-section > h2 {
   font-size: 26px;

@@ -59,6 +59,8 @@ public sealed record AuctionTeamView(
 
 public sealed record AuctionPage<T>(IReadOnlyList<T> Items, int Page, int PageSize, int Total);
 
+public sealed record AuctionParticipantView(Guid UserId, string DisplayName, string? TeamName, bool IsOrganizer);
+
 public sealed record AuctionRoomView(
     Guid LeagueId,
     Guid LeagueSeasonId,
@@ -66,7 +68,8 @@ public sealed record AuctionRoomView(
     bool CanManage,
     Guid? SessionId,
     Guid? ListVersionId,
-    IReadOnlyList<AuctionTeamView> Teams);
+    IReadOnlyList<AuctionTeamView> Teams,
+    IReadOnlyList<AuctionParticipantView> Participants);
 
 public sealed record AuctionCatalogPlayerView(
     Guid PlayerId,

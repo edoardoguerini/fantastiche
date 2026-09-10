@@ -8,7 +8,12 @@ import {
 import { authQueryOptions } from '@/features/auth'
 import { apiBaseUrl } from '@/lib/api/client'
 import { auctionKeys } from '../actions/auction.queries'
-import { sessionSchema, type TimedSession } from '../types/auction.types'
+import {
+  auctionPresenceSchema,
+  sessionSchema,
+  type AuctionParticipant,
+  type TimedSession,
+} from '../types/auction.types'
 import { keepLatestSession } from '../validations/auction-rules'
 
 type LiveStatus = 'connecting' | 'online' | 'reconnecting'
@@ -16,6 +21,9 @@ export function useAuctionLive(userId: string, sessionId: string) {
   const client = useQueryClient()
   const [status, setStatus] = useState<LiveStatus>('connecting')
   const [connectedUsers, setConnectedUsers] = useState<number | null>(null)
+  const [presenceUsers, setPresenceUsers] = useState<
+    AuctionParticipant[] | null
+  >(null)
   useEffect(() => {
     let disposed = false
     let retryTimer: ReturnType<typeof setTimeout> | undefined
@@ -120,28 +128,41 @@ export function useAuctionLive(userId: string, sessionId: string) {
           })
       },
     )
-    connection.on(
-      'AuctionPresenceChanged',
-      (event: { sessionId: string; connectedUsers: number }) => {
+    connection.on('AuctionPresenceChanged', (payload: unknown) => {
+      const parsed = auctionPresenceSchema.safeParse(payload)
+      if (!parsed.success) return
+      const event = parsed.data
+      if (
+        isCurrent() &&
+        event.sessionId === sessionId &&
+        connection.state === HubConnectionState.Connected &&
+        Number.isSafeInteger(event.connectedUsers) &&
+        event.connectedUsers >= 0
+      ) {
+        const users = event.users
         if (
-          isCurrent() &&
-          event.sessionId === sessionId &&
-          connection.state === HubConnectionState.Connected &&
-          Number.isSafeInteger(event.connectedUsers) &&
-          event.connectedUsers >= 0
+          users &&
+          (users.length !== event.connectedUsers ||
+            new Set(users.map((user) => user.userId)).size !== users.length)
         )
-          setConnectedUsers(event.connectedUsers)
-      },
-    )
+          return
+        setConnectedUsers(event.connectedUsers)
+        setPresenceUsers(users ?? null)
+      }
+    })
     connection.onreconnecting(() => {
       generation++
       setConnectedUsers(null)
+      setPresenceUsers(null)
       if (isCurrent()) setStatus('reconnecting')
     })
     connection.onreconnected(() => void sync())
     connection.onclose(() => {
       generation++
-      if (isCurrent()) setConnectedUsers(null)
+      if (isCurrent()) {
+        setConnectedUsers(null)
+        setPresenceUsers(null)
+      }
       if (isCurrent()) {
         setStatus('reconnecting')
         retryTimer = setTimeout(() => void start(), 3000)
@@ -176,5 +197,9 @@ export function useAuctionLive(userId: string, sessionId: string) {
       void connection.stop()
     }
   }, [client, userId, sessionId])
-  return { status, connectedUsers: status === 'online' ? connectedUsers : null }
+  return {
+    status,
+    connectedUsers: status === 'online' ? connectedUsers : null,
+    presenceUsers: status === 'online' ? presenceUsers : null,
+  }
 }

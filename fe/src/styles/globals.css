@@ -11,7 +11,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-destructive: var(--destructive);
-  --font-sans: 'Geist Variable', 'Segoe UI', sans-serif;
+  --font-sans: 'Sora Variable', 'Segoe UI', sans-serif;
   --font-heading: 'Sora Variable', 'Segoe UI', sans-serif;
 }
 
@@ -250,32 +250,8 @@
   font-weight: 650;
   letter-spacing: -0.5px;
 }
-.account-menu {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  position: relative;
-}
 .app-header-slot:empty {
   display: none;
-}
-.account-menu > p {
-  position: absolute;
-  right: 0;
-  top: 56px;
-  background: #422923;
-  padding: 12px;
-  width: 270px;
-  z-index: 1;
-  border-radius: 8px;
-}
-.account-name {
-  color: var(--muted-foreground);
-  font-size: 14px;
-  max-width: 240px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .content-container {
   max-width: 1100px;
@@ -597,9 +573,6 @@ body > .page-state {
   .app-brand {
     font-size: 19px;
     gap: 8px;
-  }
-  .account-name {
-    display: none;
   }
   .content-container {
     padding: 36px 20px 48px;
