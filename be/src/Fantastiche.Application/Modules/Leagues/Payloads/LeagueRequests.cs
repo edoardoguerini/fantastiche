@@ -1,6 +1,16 @@
 using FluentValidation;
 namespace Fantastiche.Application.Modules.Leagues;
 
+public sealed record LeagueListRequest(int Page = 1, int PageSize = 20);
+public sealed class LeagueListRequestValidator : AbstractValidator<LeagueListRequest>
+{
+    public LeagueListRequestValidator()
+    {
+        RuleFor(x => x.Page).GreaterThanOrEqualTo(1);
+        RuleFor(x => x.PageSize).InclusiveBetween(1, 100);
+    }
+}
+
 public sealed record CreateLeagueRequest(string Name, string SeasonName, string OrganizerEmail, string OrganizerName,
  int Budget = 500, int Goalkeepers = 3, int Defenders = 8, int Midfielders = 8, int Forwards = 6);
 public sealed class CreateLeagueRequestValidator : AbstractValidator<CreateLeagueRequest>

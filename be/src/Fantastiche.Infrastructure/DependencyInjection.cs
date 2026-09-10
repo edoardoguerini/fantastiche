@@ -44,6 +44,10 @@ public static class DependencyInjection
         services.AddScoped<EmailPayloadProtector>();
         services.AddScoped<LeagueWorkflow>();
         services.AddScoped<CatalogWorkflow>();
+        services.AddScoped<PlayerMediaImporter>();
+        services.AddScoped<PlayerPhotoStorage>();
+        services.AddScoped<ClubMediaImporter>();
+        services.AddScoped<ClubLogoStorage>();
         services.AddScoped<AuctionEngine>();
         services.AddScoped<EmailDispatcher>();
         services.AddScoped<IRequestPublisher, RequestPublisher>();

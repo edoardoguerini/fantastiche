@@ -51,6 +51,20 @@ public sealed class ControlAuctionSessionRequestValidator : AbstractValidator<Co
 }
 
 public sealed record AuctionPageRequest(int Page, int PageSize);
+
+public sealed record AuctionCatalogRequest(string? Search, string? Role, int Page, int PageSize);
+public sealed class AuctionCatalogRequestValidator : AbstractValidator<AuctionCatalogRequest>
+{
+    public AuctionCatalogRequestValidator()
+    {
+        RuleFor(x => x.Search).MaximumLength(200);
+        RuleFor(x => x.Role).Must(role => role is null or "" or "P" or "D" or "C" or "A")
+            .WithMessage("Ruolo Classic non valido.");
+        RuleFor(x => x.Page).InclusiveBetween(1, 10000);
+        RuleFor(x => x.PageSize).InclusiveBetween(1, 100);
+    }
+}
+
 public sealed class AuctionPageRequestValidator : AbstractValidator<AuctionPageRequest>
 {
     public AuctionPageRequestValidator()

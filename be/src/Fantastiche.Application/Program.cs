@@ -6,6 +6,7 @@ using Fantastiche.Application.Infrastructure.Http;
 using Fantastiche.Application.Infrastructure.Middleware;
 using Fantastiche.Application.Infrastructure.Modules;
 using Fantastiche.Infrastructure;
+using Fantastiche.Infrastructure.Catalog;
 using Fantastiche.Infrastructure.Common.Authentication;
 using Fantastiche.Infrastructure.Common.Persistence;
 using FluentValidation;
@@ -118,6 +119,48 @@ builder.Services.AddRateLimiter(options =>
 });
 
 var app = builder.Build();
+
+var mediaImportIndex = Array.IndexOf(args, "--import-player-media");
+if (mediaImportIndex >= 0)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("PlayerMediaImport");
+    try
+    {
+        if (mediaImportIndex + 1 >= args.Length || args[mediaImportIndex + 1].StartsWith("--", StringComparison.Ordinal))
+            throw new InvalidOperationException("Specifica il percorso del manifest dopo --import-player-media.");
+        var result = await scope.ServiceProvider.GetRequiredService<PlayerMediaImporter>().ImportAsync(args[mediaImportIndex + 1]);
+        logger.LogInformation("Immagini: {Inserted} inserite, {Updated} aggiornate, {Unchanged} invariate, {Skipped} scartate.",
+            result.Inserted, result.Updated, result.Unchanged, result.Skipped);
+    }
+    catch (Exception exception)
+    {
+        logger.LogError("Importazione metadati immagini non riuscita: {Message}", exception.Message);
+        Environment.ExitCode = 1;
+    }
+    return;
+}
+
+var clubMediaImportIndex = Array.IndexOf(args, "--import-club-media");
+if (clubMediaImportIndex >= 0)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("ClubMediaImport");
+    try
+    {
+        if (clubMediaImportIndex + 1 >= args.Length || args[clubMediaImportIndex + 1].StartsWith("--", StringComparison.Ordinal))
+            throw new InvalidOperationException("Specifica il percorso del manifest dopo --import-club-media.");
+        var result = await scope.ServiceProvider.GetRequiredService<ClubMediaImporter>().ImportAsync(args[clubMediaImportIndex + 1]);
+        logger.LogInformation("Loghi club: {Inserted} inserite, {Updated} aggiornate, {Unchanged} invariate, {Skipped} scartate.",
+            result.Inserted, result.Updated, result.Unchanged, result.Skipped);
+    }
+    catch (Exception exception)
+    {
+        logger.LogError("Importazione metadati loghi club non riuscita: {Message}", exception.Message);
+        Environment.ExitCode = 1;
+    }
+    return;
+}
 
 if (args.Contains("--migrate", StringComparer.Ordinal))
 {

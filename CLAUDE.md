@@ -6,9 +6,9 @@ Punto d’ingresso per Claude Code e documento condiviso anche con Codex/GPT tra
 
 Fantastiche gestisce aste Classic: account individuali, leghe, chiamata a turno, timer per giocatore da 5 a 30 secondi, rilanci concorrenti, assegnazione e budget. L’app è una PWA per telefono, tablet e desktop, pensata anche come futuro prodotto commerciale. Abbonamenti, pagamenti e progettazione commerciale sono fuori dalla prima versione.
 
-Il backend contiene solution .NET 10, Identity, moduli HTTP, schema/migrazioni, inviti e coda email con Scheduler, catalogo Classic versionato, motore d’asta con ricevute e SignalR, Docker e comandi just. Verificare lo stato effettivo nel documento di passaggio; frontend e deploy restano da realizzare.
+Il backend contiene solution .NET 10, Identity, moduli HTTP, schema/migrazioni, inviti e coda email con Scheduler, catalogo Classic versionato, motore d’asta con ricevute e SignalR, Docker e comandi just. Verificare lo stato effettivo nel documento di passaggio; login frontend, creazione/consultazione leghe e sala d’asta realtime sono implementati, insieme ad attivazione degli inviti, gestione partecipanti e catalogo da UI. Storage locale Azurite con card dei giocatori e stemmi dei club è operativo; PWA e deploy restano da realizzare.
 
-Priorità corrente: proseguire con il backend. Leggere il [documento di passaggio](docs/workflow/backend-handoff.md) per stato, primo blocco e decisioni aperte. La UI di Claude Design non è stata approvata e verrà rivista più avanti.
+Priorità corrente: frontend. L’utente ha approvato solo dark mode, palette dal logo, login centrato e form di creazione lega per SuperAdmin, ora implementato. Linee e bordi minimali, Font Awesome self-hosted come ACKSD. Primo incremento in [specifica frontend](docs/superpowers/specs/2026-09-09-frontend-bootstrap-design.md); avvio e verifiche nel [setup frontend](fe/docs/getting-started/development-setup.md). La sala d’asta è descritta nella [guida frontend](fe/docs/architecture/auction-room.md). Lo stato backend è nel [documento di passaggio](docs/workflow/backend-handoff.md).
 
 ## Mappa
 
@@ -33,7 +33,7 @@ Priorità corrente: proseguire con il backend. Leggere il [documento di passaggi
 - Ogni dato privato è riconducibile a lega e stagione. Nessun accesso a una lega senza permesso, anche con Dapper.
 - Il catalogo è condiviso; disponibilità, ruoli e quotazioni dipendono dal listone/versione adottato.
 - CSV Fantacalcio come prima fonte candidata; immagini verso Blob Storage. Bicep e trasferimento dati sono attività successive.
-- TanStack Start con Vite, SPA iniziale proposta e API separate; non importare automaticamente il BFF/SSR di ACKS.
+- TanStack Start con Vite, SPA iniziale implementata e API separate; non importare automaticamente il BFF/SSR di ACKS.
 - Timer e accettazione offerte sono autorità del server; niente rilanci offline o aggiornamenti PWA che interrompano l’asta.
 
 Specifiche: [asta](docs/superpowers/specs/2026-09-09-asta-design.md), [catalogo e database](docs/superpowers/specs/2026-09-09-catalogo-e-database-proposta.md).
@@ -42,9 +42,10 @@ Specifiche: [asta](docs/superpowers/specs/2026-09-09-asta-design.md), [catalogo 
 
 - Documentazione, commenti, commit e PR in italiano; codice, tabelle e campi in inglese.
 - Conventional commits, scope `be`, `fe`, `infra` o omesso. Niente firme AI o `Co-Authored-By` dell’assistente.
-- Segreti, credenziali, dump, CSV importati e immagini scaricate non vanno nel repository.
+- Segreti, credenziali, dump, CSV importati e immagini scaricate non vanno nel repository. Eccezione autorizzata: il logo fornito dall’utente, convertito in `fe/public/brand/fantastiche-logo.png`, è un asset del prodotto. Anche la texture di erba fornita dall’utente, compressa in `fe/src/assets/pitch-grass.webp`, è autorizzata come sfondo del login.
 - Prima di una modifica leggere la guida dello stack e i file pertinenti. Aggiornare i docs quando cambia una convenzione.
 - Non copiare configurazioni, identificativi Azure, dati, asset premium o dipendenze di ACKS senza necessità e verifica.
+- Lo storage locale usa Azurite dedicato sulla porta 10010 con volume persistente; card e stemmi stanno in container separati, metadati su SQL. Importatori e istruzioni in [storage locale](be/docs/getting-started/local-storage.md). Nessun download del catalogo o backup locale va in Git.
 - Le autorizzazioni già date dall’utente valgono per il lavoro concordato: non introdurre conferme ripetitive per modifiche locali reversibili.
 - Workflow e verifiche in [development-process](docs/workflow/development-process.md); regole Git in [git-workflow](docs/workflow/git-workflow.md).
 - I comandi `just` backend sono implementati secondo il riferimento ACKSD: [setup](be/docs/getting-started/development-setup.md).

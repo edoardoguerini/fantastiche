@@ -7,4 +7,4 @@
 - Codice con segreti o API Node non entra nel bundle browser.
 - Eventuali moduli server Start futuri devono essere separati esplicitamente.
 
-Si riprende da ACKS la convenzione components/primitives, non il vecchio nome components/ui. Le regole diventeranno controlli ESLint nel bootstrap; oggi sono solo documentate.
+Si riprende da ACKS la convenzione components/primitives, non il vecchio nome components/ui. Le regole sono controllate da ESLint con eslint-plugin-boundaries e resolver TypeScript. Gli import interni alla stessa feature sono ammessi; gli altri passano da index.ts.

@@ -38,7 +38,9 @@ public sealed record AuctionPlayerView(
     DateTimeOffset Deadline,
     string Status,
     DateTimeOffset StartedAt,
-    DateTimeOffset? ClosedAt);
+    DateTimeOffset? ClosedAt,
+    string? PhotoUrl = null,
+    string? ClubLogoUrl = null);
 
 public sealed record AuctionTeamView(
     Guid Id,
@@ -50,6 +52,25 @@ public sealed record AuctionTeamView(
     int Forwards);
 
 public sealed record AuctionPage<T>(IReadOnlyList<T> Items, int Page, int PageSize, int Total);
+
+public sealed record AuctionRoomView(
+    Guid LeagueId,
+    Guid LeagueSeasonId,
+    Guid? MyTeamId,
+    bool CanManage,
+    Guid? SessionId,
+    Guid? ListVersionId,
+    IReadOnlyList<AuctionTeamView> Teams);
+
+public sealed record AuctionCatalogPlayerView(
+    Guid PlayerId,
+    string Name,
+    string Role,
+    string ClubName,
+    bool IsAvailable,
+    Guid? TeamId,
+    string? PhotoUrl = null,
+    string? ClubLogoUrl = null);
 
 public sealed record AuctionBidView(
     Guid Id,
@@ -68,4 +89,6 @@ public sealed record AuctionRosterView(
     string Role,
     string ClubName,
     int Price,
-    DateTimeOffset AcquiredAt);
+    DateTimeOffset AcquiredAt,
+    string? PhotoUrl = null,
+    string? ClubLogoUrl = null);

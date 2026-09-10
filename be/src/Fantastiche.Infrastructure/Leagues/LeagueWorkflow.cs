@@ -194,7 +194,11 @@ public sealed class LeagueWorkflow(FantasticheDbContext db, UserManager<Applicat
     {
         if (context.UserId is null) throw new DomainException("auth.required", "Accesso richiesto.", 401);
         // Il SuperAdmin gestisce anche il reinvio dell’invito iniziale, prima dell’adesione dell’organizzatore.
-        if (context.IsSuperAdmin) return;
+        if (context.IsSuperAdmin)
+        {
+            var user = await users.FindByIdAsync(context.UserId.Value.ToString());
+            if (user is not null && await users.IsInRoleAsync(user, "SuperAdmin")) return;
+        }
         if (!await db.LeagueMembers.AsNoTracking().AnyAsync(x => x.LeagueId == leagueId && x.UserId == context.UserId
           && x.Status == MembershipStatus.Active && (!organizer || x.IsOrganizer), ct)) throw Forbidden();
     }

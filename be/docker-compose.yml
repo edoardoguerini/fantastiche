@@ -17,8 +17,24 @@ services:
       retries: 24
       start_period: 30s
     restart: unless-stopped
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    command: azurite-blob --blobHost 0.0.0.0 --disableProductStyleUrl --skipApiVersionCheck --location /data
+    environment:
+      AZURITE_ACCOUNTS: 'fantastiche:${AZURITE_ACCOUNT_KEY:?Eseguire just be env}'
+    ports: ["127.0.0.1:${AZURITE_BLOB_PORT:-10010}:10000"]
+    volumes: [azurite-data:/data]
+    networks: [app]
+    healthcheck:
+      test: [CMD, node, -e, "require('http').get('http://127.0.0.1:10000/fantastiche', r => process.exit(r.statusCode === 400 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
 volumes:
   mssql-data:
+  azurite-data:
 networks:
   app:
     driver: bridge

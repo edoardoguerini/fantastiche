@@ -1,0 +1,29 @@
+set shell := ["bash", "-uc"]
+
+# Installa le versioni fissate nel lockfile
+install:
+    pnpm install --frozen-lockfile
+
+# Avvia il frontend sulla porta 6061
+dev:
+    pnpm dev
+
+build:
+    pnpm build
+
+preview:
+    pnpm preview
+
+test:
+    pnpm test
+
+test-e2e:
+    pnpm test:e2e
+
+lint:
+    pnpm typecheck
+    pnpm lint
+    pnpm format:check
+
+fmt:
+    pnpm format

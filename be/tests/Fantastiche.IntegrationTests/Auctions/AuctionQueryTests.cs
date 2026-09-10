@@ -14,7 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Fantastiche.IntegrationTests.Auctions;
 
-public sealed class AuctionQueryTests(SqlFixture fixture) : IClassFixture<SqlFixture>
+public sealed partial class AuctionQueryTests(SqlFixture fixture) : IClassFixture<SqlFixture>
 {
     private static readonly JsonSerializerOptions AqJson = new(JsonSerializerDefaults.Web);
 

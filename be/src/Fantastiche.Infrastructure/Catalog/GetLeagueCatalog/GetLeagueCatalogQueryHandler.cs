@@ -19,7 +19,7 @@ public sealed class GetLeagueCatalogQueryHandler(FantasticheDbContext db)
             """, new { seasonId = request.LeagueSeasonId, leagueId = request.LeagueId }, cancellationToken: ct));
         if (season is null) throw CatalogQueryRules.NotFound();
 
-        if (!request.Context.IsSuperAdmin)
+        if (!await CatalogAuthorization.IsSuperAdminAsync(db, request.Context, ct))
         {
             var member = await connection.ExecuteScalarAsync<int>(new CommandDefinition("""
                 SELECT COUNT(*)

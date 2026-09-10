@@ -6,6 +6,8 @@ x-app-environment: &app-environment
   Email__LocalDirectory: /app/.local/mail
   Email__Provider: Local
   Email__EnableExternalDelivery: "false"
+  Storage__PlayerPhotos__PublicBaseUrl: 'http://localhost:${AZURITE_BLOB_PORT:-10010}/fantastiche/player-photos'
+  Storage__ClubLogos__PublicBaseUrl: 'http://localhost:${AZURITE_BLOB_PORT:-10010}/fantastiche/club-logos'
 services:
   migrate:
     build:

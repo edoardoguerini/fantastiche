@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Configurazione locale senza stampare credenziali; tooling .NET sull’host."""
 import os
+import base64
 from pathlib import Path
 import secrets
 import subprocess
@@ -17,6 +18,11 @@ for line in path.read_text().splitlines():
         key, sep, value = line.partition('=')
         if sep:
             values[key.strip()] = value.strip()
+if not values.get('AZURITE_ACCOUNT_KEY'):
+    values['AZURITE_ACCOUNT_KEY'] = base64.b64encode(secrets.token_bytes(64)).decode()
+    with path.open('a') as output:
+        output.write('\nAZURITE_ACCOUNT_KEY=' + values['AZURITE_ACCOUNT_KEY'] + '\n')
+    path.chmod(0o600)
 env = {**os.environ, **values}
 env.setdefault('ASPNETCORE_ENVIRONMENT', 'Development')
 env.setdefault('DOTNET_ENVIRONMENT', 'Development')
@@ -24,6 +30,8 @@ env.setdefault('DOTNET_CLI_HOME', str(root / '.local/dotnet'))
 env.setdefault('DataProtection__KeyPath', str(root / '.local/keys'))
 env.setdefault('Email__LocalDirectory', str(root / '.local/mail'))
 env.setdefault('Email__Provider', 'Local')
+env.setdefault('Storage__PlayerPhotos__PublicBaseUrl', f'http://localhost:{env.get("AZURITE_BLOB_PORT", "10010")}/fantastiche/player-photos')
+env.setdefault('Storage__ClubLogos__PublicBaseUrl', f'http://localhost:{env.get("AZURITE_BLOB_PORT", "10010")}/fantastiche/club-logos')
 password = env['MSSQL_SA_PASSWORD']
 # Le virgolette seguono le regole ADO.NET per i valori con punto e virgola.
 escaped = password.replace('"', '""')

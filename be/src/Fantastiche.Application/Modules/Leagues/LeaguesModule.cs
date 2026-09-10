@@ -10,6 +10,9 @@ public sealed class LeaguesModule : IRegistrableModule
     public void RegisterEndpoints(IEndpointRouteBuilder api)
     {
         var group = api.MapGroup("/Leagues").WithTags("Leagues").RequireAuthorization();
+        group.MapGet("", GetAll).WithName("GetLeagues")
+         .WithSummary("Le mie leghe").WithDescription("Elenco paginato delle stagioni delle leghe attive per l’utente. Il SuperAdmin vede tutte le leghe.")
+         .Produces<ApiResponse<LeaguePage<LeagueDetails>>>();
         group.MapPost("/", Create).RequireAuthorization("SuperAdmin").WithName("CreateLeague")
          .WithSummary("Crea lega").WithDescription("Crea lega e stagione e invita l’organizzatore. Solo SuperAdmin.");
         group.MapGet("/{leagueId:guid}", Get).WithName("GetLeague")
@@ -20,6 +23,14 @@ public sealed class LeaguesModule : IRegistrableModule
          .WithSummary("Revoca invito").WithDescription("Invalida un invito ancora non accettato. Organizzatore o SuperAdmin.");
         group.MapPost("/{leagueId:guid}/Invitations/{invitationId:guid}/Resend", Resend).WithName("ResendInvitation")
          .WithSummary("Reinvia invito").WithDescription("Genera un nuovo invito e revoca il precedente. Organizzatore o SuperAdmin.");
+    }
+    private static async Task<IResult> GetAll(int? page, int? pageSize, HttpContext context,
+        IValidator<LeagueListRequest> validator, IRequestPublisher publisher, CancellationToken ct)
+    {
+        var request = new LeagueListRequest(page ?? 1, pageSize ?? 20);
+        await validator.ValidateAndThrowAsync(request, ct);
+        return ApiResults.Ok(await publisher.QueryAsync<GetLeaguesQuery, LeaguePage<LeagueDetails>>(
+            new(context.CreateRequestContext(), request.Page, request.PageSize), ct));
     }
     private static async Task<IResult> Create(CreateLeagueRequest r, HttpContext context, IValidator<CreateLeagueRequest> validator, IRequestPublisher publisher, CancellationToken ct)
     {

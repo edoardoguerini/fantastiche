@@ -9,4 +9,4 @@
 7. Aggiornare documentazione e contratti, riportare risultati verificati e limiti.
 8. Seguire il [workflow Git](git-workflow.md) per l’integrazione.
 
-Il primo incremento backend dispone di build, test unitari/integrazione SQL Server, verifica migrazioni e Docker tramite just. Usare la guida setup e riportare l’esito reale; le verifiche backend non coprono frontend o asta ancora da implementare.
+Il primo incremento backend dispone di build, test unitari/integrazione SQL Server, verifica migrazioni e Docker tramite just. Usare la guida setup e riportare l’esito reale; le verifiche backend non sostituiscono i test frontend. Il motore d’asta backend e la UI realtime sono coperti; la PWA resta un incremento successivo. Il frontend dispone di `just fe test`, `just fe lint`, `just fe build`, `just fe test-e2e`.
