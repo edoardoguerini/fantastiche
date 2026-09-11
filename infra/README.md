@@ -84,7 +84,7 @@ FE e API su origin diverse romperebbero il cookie `SameSite=Lax`: `azurecontaine
 
 I percorsi `/health/live` e `/health/ready` dell'API non passano dal proxy: sono raggiungibili solo dal probe di liveness del Container App (`/health/live`) e dai log. Diagnostica: `az containerapp logs show -n fantastiche-api-prod -g rg-fantastiche-prod --tail 100`.
 
-Limite noto: il rate limiter del login partiziona per IP client, ma dietro nginx e l'ingress l'API vede solo l'IP del proxy (`ReverseProxy__KnownProxies` accetta IP puntuali, non reti). Conseguenza concreta: 5 login falliti da chiunque bloccano il login di **tutti** per un minuto. Follow-up: supporto a `KnownNetworks` nel backend.
+Il rate limiter del login partiziona per IP client, quindi l'API deve conoscere l'IP reale dietro i proxy. Poiché l'ingress dell'API è interno, `apps-be.bicep` imposta `ReverseProxy__TrustAllProxies=true` (accetta gli header `X-Forwarded-*` da qualsiasi hop) e `ReverseProxy__ForwardLimit=3`, cioè il numero di hop della catena: ingress del FE, nginx, ingress dell'API. Con il limite fissato, un client che aggiunge da sé un `X-Forwarded-For` finto viene ignorato. Senza queste due variabili l'API vedrebbe solo l'IP del proxy e 5 login falliti da chiunque bloccherebbero tutti per un minuto. Al primo deploy verificare nel log che la catena abbia davvero tre hop; se l'ingress dell'API non aggiungesse il proprio hop, abbassare il limite a 2. In locale i default restano invariati (solo loopback, un hop).
 
 ## DataProtection
 

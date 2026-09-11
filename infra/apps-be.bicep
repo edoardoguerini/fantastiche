@@ -76,6 +76,11 @@ var apiEnv = concat(sharedEnv, [
   { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }
   { name: 'Cors__AllowedOrigins__0', value: frontendBaseUrl }
   { name: 'Invitations__PublicBaseUrl', value: frontendBaseUrl }
+  // L ingress dell API e interno: solo nginx e gli ingress di Container Apps la raggiungono,
+  // quindi gli header X-Forwarded-* sono affidabili. ForwardLimit 3 = ingress FE, nginx,
+  // ingress API: si risale fino all IP reale del client (rate limiter del login per IP).
+  { name: 'ReverseProxy__TrustAllProxies', value: 'true' }
+  { name: 'ReverseProxy__ForwardLimit', value: '3' }
 ])
 
 module api 'modules/container-app.bicep' = {

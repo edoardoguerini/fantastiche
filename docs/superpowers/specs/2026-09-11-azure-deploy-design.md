@@ -71,7 +71,7 @@ FE e API su origin diverse romperebbero il cookie `Fantastiche.Auth` con `SameSi
 - `Cors__AllowedOrigins__0` e `Invitations__PublicBaseUrl` valgono l'URL pubblico del FE: il primo serve alla verifica dell'Origin sul WebSocket, il secondo ai link negli inviti.
 - Lo Scheduler non ha ingress.
 
-Limite noto, follow-up: `ReverseProxy__KnownProxies` accetta solo IP puntuali, mentre nginx e l'ingress hanno IP dinamici. L'API ignorerà quindi gli header forwarded e il rate limiter partizionerà per l'IP del proxy. Non blocca un progetto interno; si risolverà aggiungendo il supporto a `KnownNetworks` nel backend.
+Header forwarded: `ReverseProxy__KnownProxies` accetta solo IP puntuali, mentre nginx e l'ingress hanno IP dinamici. Poiché l'ingress dell'API è interno, il backend espone `ReverseProxy__TrustAllProxies` (svuota `KnownProxies` e `KnownIPNetworks`) e `ReverseProxy__ForwardLimit` (hop da risalire, 3 in produzione: ingress FE, nginx, ingress API), impostati da `apps-be.bicep` sull'API. Così il rate limiter del login vede l'IP reale del client e un `X-Forwarded-For` aggiunto dal client resta fuori dal limite. In locale i default (loopback, un hop) non cambiano.
 
 ## 3. Modifiche al codice applicativo
 
@@ -208,4 +208,4 @@ Il foundation non passa dalla CI, come ACKSD: modifiche a `main.bicep` vanno app
 
 ## 9. Fuori scope
 
-Staging, custom domain, Private Endpoint, SQL passwordless, identità per app, migrazione separata dall'avvio API, protezione dell'importatore Python per Azure, PWA. `KnownNetworks` per il rate limiter è il primo follow-up.
+Staging, custom domain, Private Endpoint, SQL passwordless, identità per app, migrazione separata dall'avvio API, protezione dell'importatore Python per Azure, PWA. Ruolo CI ristretto a `Microsoft.App/*` al posto di Contributor è il primo follow-up.

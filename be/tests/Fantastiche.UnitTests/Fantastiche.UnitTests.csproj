@@ -4,6 +4,9 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Fantastiche.Application\Fantastiche.Application.csproj" />
     <ProjectReference Include="..\..\src\Fantastiche.Core\Fantastiche.Core.csproj" />
     <ProjectReference Include="..\..\src\Fantastiche.Infrastructure\Fantastiche.Infrastructure.csproj" />

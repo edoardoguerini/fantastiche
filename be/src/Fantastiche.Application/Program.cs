@@ -15,7 +15,6 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System.Net;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,31 +34,7 @@ builder.Services.AddHealthChecks()
     .AddDbContextCheck<FantasticheDbContext>("database", tags: ["ready"]);
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.ForwardLimit = 1;
-
-    var configuredProxies = builder.Configuration
-        .GetSection("ReverseProxy:KnownProxies")
-        .Get<string[]>() ?? [];
-    if (configuredProxies.Length == 0)
-    {
-        // I default loopback restano attivi: non accettiamo header da proxy arbitrari.
-        return;
-    }
-
-    options.KnownProxies.Clear();
-    foreach (var configuredProxy in configuredProxies)
-    {
-        if (!IPAddress.TryParse(configuredProxy, out var address))
-        {
-            throw new InvalidOperationException(
-                $"ReverseProxy:KnownProxies contiene un indirizzo non valido: {configuredProxy}.");
-        }
-
-        options.KnownProxies.Add(address);
-    }
-});
+    ReverseProxySettings.Apply(options, builder.Configuration));
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
