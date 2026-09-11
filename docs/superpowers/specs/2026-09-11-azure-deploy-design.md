@@ -151,8 +151,8 @@ infra/
   apps-fe.bicep                 FE, scope RG
   modules/
     registry.bicep  identity.bicep  ci-identity.bicep  log-analytics.bicep
-    container-app-env.bicep  keyvault.bicep  sql.bicep  acr-pull.bicep
-    storage.bicep  container-app.bicep  container-app-job.bicep
+    container-app-env.bicep  keyvault.bicep  sql.bicep  acr-role.bicep
+    rg-contributor.bicep  storage.bicep  container-app.bicep  container-app-job.bicep
 .github/workflows/
   build-deploy.yml
 GitVersion.yml
