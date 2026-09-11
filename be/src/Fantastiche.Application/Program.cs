@@ -33,6 +33,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<FantasticheDbContext>("database", tags: ["ready"]);
 
+ReverseProxySettings.Validate(builder.Configuration);
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
     ReverseProxySettings.Apply(options, builder.Configuration));
 

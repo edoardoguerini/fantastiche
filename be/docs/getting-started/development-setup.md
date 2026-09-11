@@ -69,7 +69,7 @@ Il documento [stato e verifiche](../../../docs/workflow/backend-handoff.md) regi
 
 ## Proxy e hot reload
 
-Dietro un reverse proxy impostare `ReverseProxy__KnownProxies__0` (e indici successivi) agli IP effettivi dei proxy fidati. Il backend accetta un solo salto X-Forwarded-For/Proto e applica il rate limiter dopo il forwarding. In assenza di configurazione valgono solo i proxy loopback del framework; non abilitare fiducia indiscriminata agli header inviati dal client.
+Dietro un reverse proxy con IP noti impostare `ReverseProxy__KnownProxies__0` (e indici successivi) agli IP effettivi dei proxy fidati: la lista sostituisce i default loopback. `ReverseProxy__ForwardLimit` (default 1) è il numero di voci di X-Forwarded-For/Proto risalite da destra. Quando i proxy hanno IP dinamici e l'API non è raggiungibile direttamente da Internet, come su Azure Container Apps con ingress interno, `ReverseProxy__TrustAllProxies=true` accetta gli header da qualsiasi hop; è incompatibile con `KnownProxies` e presuppone che il proxy a monte riscriva X-Forwarded-For con le sole voci fidate (vedi [infra](../../../infra/README.md)). Il rate limiter si applica dopo il forwarding. In assenza di configurazione valgono solo i proxy loopback del framework; la configurazione viene validata all'avvio.
 
 Configurare le origini del sito in `Cors__AllowedOrigins__0` e indici successivi, con schema/host/porta e senza wildcard. I default Development sono `http://localhost:6060` e `http://localhost:6061`; fuori Development occorre configurare le origini effettive. La stessa lista protegge CORS con cookie e l’Origin delle connessioni WebSocket.
 

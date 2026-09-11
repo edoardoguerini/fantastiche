@@ -71,7 +71,7 @@ FE e API su origin diverse romperebbero il cookie `Fantastiche.Auth` con `SameSi
 - `Cors__AllowedOrigins__0` e `Invitations__PublicBaseUrl` valgono l'URL pubblico del FE: il primo serve alla verifica dell'Origin sul WebSocket, il secondo ai link negli inviti.
 - Lo Scheduler non ha ingress.
 
-Header forwarded: `ReverseProxy__KnownProxies` accetta solo IP puntuali, mentre nginx e l'ingress hanno IP dinamici. Poiché l'ingress dell'API è interno, il backend espone `ReverseProxy__TrustAllProxies` (svuota `KnownProxies` e `KnownIPNetworks`) e `ReverseProxy__ForwardLimit` (hop da risalire, 3 in produzione: ingress FE, nginx, ingress API), impostati da `apps-be.bicep` sull'API. Così il rate limiter del login vede l'IP reale del client e un `X-Forwarded-For` aggiunto dal client resta fuori dal limite. In locale i default (loopback, un hop) non cambiano.
+Header forwarded: `ReverseProxy__KnownProxies` accetta solo IP puntuali, mentre nginx e l'ingress hanno IP dinamici. nginx normalizza `X-Forwarded-For` con il modulo `realip`: prende l'ultima voce (aggiunta dall'ingress fidato) come IP client e riscrive l'header verso l'API con quella sola voce, scartando ciò che il client ha inviato. Il backend espone `ReverseProxy__TrustAllProxies` (svuota `KnownProxies` e `KnownIPNetworks`, lecito perché l'ingress dell'API è interno) e `ReverseProxy__ForwardLimit` (voci da risalire da destra; 2 in produzione, così si arriva al client con o senza la voce aggiunta dall'ingress dell'API), impostati da `apps-be.bicep` sull'API. Così il rate limiter del login vede l'IP reale del client. In locale i default (loopback, un hop) non cambiano.
 
 ## 3. Modifiche al codice applicativo
 
