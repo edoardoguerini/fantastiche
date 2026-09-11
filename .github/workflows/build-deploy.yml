@@ -12,6 +12,7 @@ on:
       - 'fe/**'
       - 'infra/**'
       - '.github/workflows/**'
+      - '.github/scripts/**'
       - 'GitVersion.yml'
   workflow_dispatch:
 
@@ -178,7 +179,7 @@ jobs:
 
   deploy-fe:
     name: deploy frontend
-    needs: [version, deploy-be]
+    needs: [version, build-fe, deploy-be]
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:

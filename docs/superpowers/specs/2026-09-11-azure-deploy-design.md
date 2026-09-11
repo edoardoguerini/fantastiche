@@ -181,7 +181,7 @@ Configurazione GitHub: variabili di repository `AZURE_CLIENT_ID`, `AZURE_TENANT_
 
 Gli ambienti sono descritti come `env` nel workflow con i valori di `prod`; un secondo ambiente richiederebbe un job matrix o un reusable workflow, scelta rimandata.
 
-Una PR non deploya: il workflow gira solo su push a `master`. Un `workflow_dispatch` da un altro branch buildi e deploya quel branch: da usare solo consapevolmente.
+Una PR non deploya: il workflow gira solo su push a `master`. Un `workflow_dispatch` da un altro branch non deploya né tagga (guardia `github.ref`) e in pratica non builda nemmeno: la federated credential accetta solo `refs/heads/master`, quindi `azure/login` fallisce.
 
 ## 7. Procedura operativa
 

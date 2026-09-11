@@ -97,6 +97,16 @@ module api 'modules/container-app.bicep' = {
     // max 1: SignalR in memoria e nessuna migrazione concorrente.
     maxReplicas: 1
     secrets: [ connSecret, mailgunSecret ]
+    // Solo liveness: /health/ready interroga il DB e al primo deploy lo schema non esiste ancora.
+    probes: [
+      {
+        type: 'Liveness'
+        httpGet: { path: '/health/live', port: 8080 }
+        initialDelaySeconds: 15
+        periodSeconds: 30
+        failureThreshold: 3
+      }
+    ]
     envVars: apiEnv
   }
 }

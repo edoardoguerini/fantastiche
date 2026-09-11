@@ -18,6 +18,8 @@ param maxReplicas int = 1
 param envVars array = []
 @description('Secrets: array di { name, keyVaultUrl, identity }.')
 param secrets array = []
+@description('Probe del container (array di oggetti probes di Container Apps). Vuoto = solo il probe TCP di default.')
+param probes array = []
 
 resource app 'Microsoft.App/containerApps@2024-03-01' = {
   name: name
@@ -57,6 +59,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             memory: '0.5Gi'
           }
           env: envVars
+          probes: probes
         }
       ]
       scale: {

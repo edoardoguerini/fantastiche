@@ -66,7 +66,7 @@ if [ -z "${value}" ]; then
   exit 1
 fi
 
-if az keyvault secret set --vault-name "${VAULT}" --name "${name}" --value "${value}" -o none 2>/dev/null; then
+if az keyvault secret set --vault-name "${VAULT}" --name "${name}" --value "${value}" -o none; then
   echo "  ✓ '${name}' impostato in ${VAULT}"
 else
   echo "  ✗ errore su ${VAULT} (esiste? permessi? subscription giusta?)"

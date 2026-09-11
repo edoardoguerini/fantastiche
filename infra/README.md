@@ -37,6 +37,8 @@ Il foundation crea role assignment: va applicato da un utente Owner o User Acces
    - `ConnectionStrings--Fantastiche`: `Server=tcp:sql-fantastiche-prod.database.windows.net,1433;Database=fantastiche;User Id=fantasticheadmin;Password=<password>;Encrypt=True;TrustServerCertificate=False;`
    - `Mailgun--ApiKey`
    - `Bootstrap--Password` (almeno 12 caratteri, maiuscole/minuscole/numeri/simboli)
+
+   Al primo giro il vault è vuoto: scegliere `2) nuovo segreto` per ciascuno dei tre segreti. Se `az keyvault secret set` risponde 403 subito dopo il foundation, il ruolo Secrets Officer non è ancora propagato: attendere un paio di minuti e riprovare.
 6. Nel workflow `build-deploy.yml` sostituire `CHANGE_ME` in `MAILGUN_DOMAIN`, `MAILGUN_FROM`, `BOOTSTRAP_EMAIL` (non sono segreti) e committare.
 7. Push su `master` (o `workflow_dispatch`): la pipeline builda le tre immagini; se il job `fantastiche-migrate-prod` esiste già lo avvia con la nuova immagine API e attende l'esito prima di applicare `apps-be.bicep`, altrimenti applica prima `apps-be.bicep` (che lo crea) e lo avvia subito dopo; poi applica `apps-fe.bicep` e crea il tag `vX.Y.Z`.
 8. Bootstrap SuperAdmin (una volta): il job gira di default con `--migrate` (avviato dalla pipeline); `--bootstrap-superadmin` è un'esecuzione distinta dello stesso job, con argomenti diversi, e non parte mai da sola.
@@ -79,6 +81,8 @@ Se il job `fantastiche-migrate-prod` esiste già, la pipeline lo avvia **prima**
 ## Rete e cookie
 
 FE e API su origin diverse romperebbero il cookie `SameSite=Lax`: `azurecontainerapps.io` è un suffisso pubblico. Perciò l'API ha ingress interno (`allowInsecure=true`, HTTP dentro l'environment) e nginx nel FE inoltra `/api/` e `/hubs/` (WebSocket) a `http://fantastiche-api-prod.internal.<defaultDomain>`. `Cors__AllowedOrigins__0` e `Invitations__PublicBaseUrl` valgono l'URL del FE.
+
+I percorsi `/health/live` e `/health/ready` dell'API non passano dal proxy: sono raggiungibili solo dal probe di liveness del Container App (`/health/live`) e dai log. Diagnostica: `az containerapp logs show -n fantastiche-api-prod -g rg-fantastiche-prod --tail 100`.
 
 Limite noto: il rate limiter del login partiziona per IP client, ma dietro nginx e l'ingress l'API vede solo l'IP del proxy (`ReverseProxy__KnownProxies` accetta IP puntuali, non reti). Conseguenza concreta: 5 login falliti da chiunque bloccano il login di **tutti** per un minuto. Follow-up: supporto a `KnownNetworks` nel backend.
 
