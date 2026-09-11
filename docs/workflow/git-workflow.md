@@ -14,6 +14,10 @@ Come ACKS: branch di produzione e `develop`, feature/fix verso develop, hotfix d
 
 Quando Boards sarà collegato, usare work item → branch `feature/<id>-<descrizione>` o `fix/<id>-<descrizione>` → PR associata. PR di feature in squash; merge tra branch permanenti con merge commit. Tag e versionamento automatico richiedono pipeline dedicate.
 
+## Rilascio
+
+Oggi `master` è l'unico branch di rilascio: ogni push che tocca `be/`, `fe/`, `infra/`, `.github/workflows/` o `GitVersion.yml` avvia `.github/workflows/build-deploy.yml`, che builda le immagini, esegue la migrazione con la nuova immagine e poi applica i Bicep delle app (al primo deploy la migrazione segue il deploy, perché il job non esiste ancora), e crea il tag `vX.Y.Z` calcolato da GitVersion sui conventional commits. Con lo squash merge conta il titolo della PR. Il foundation Bicep non passa dalla pipeline: vedi [infra](../../infra/README.md).
+
 ## Convenzioni attuali
 
 Conventional commits: `docs: documenta le convenzioni`, `feat(be): aggiunge il rilancio`, `fix(fe): ripristina lo stato alla riconnessione`. Codice in inglese, descrizione in italiano. Nessuna firma AI.

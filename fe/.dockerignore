@@ -1,0 +1,15 @@
+node_modules
+dist
+.tanstack
+.vite
+test-results
+playwright-report
+coverage
+.env
+.env.*
+!.env.example
+.git
+.DS_Store
+*.log
+Dockerfile
+.dockerignore

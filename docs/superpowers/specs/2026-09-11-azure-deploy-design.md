@@ -71,7 +71,7 @@ FE e API su origin diverse romperebbero il cookie `Fantastiche.Auth` con `SameSi
 - `Cors__AllowedOrigins__0` e `Invitations__PublicBaseUrl` valgono l'URL pubblico del FE: il primo serve alla verifica dell'Origin sul WebSocket, il secondo ai link negli inviti.
 - Lo Scheduler non ha ingress.
 
-Limite noto, follow-up: `ReverseProxy__KnownProxies` accetta solo IP puntuali, mentre nginx e l'ingress hanno IP dinamici. L'API ignorerà quindi gli header forwarded e il rate limiter partizionerà per l'IP del proxy. Non blocca un progetto interno; si risolverà aggiungendo il supporto a `KnownNetworks` nel backend.
+Header forwarded: `ReverseProxy__KnownProxies` accetta solo IP puntuali, mentre nginx e l'ingress hanno IP dinamici. nginx normalizza `X-Forwarded-For` con il modulo `realip`: prende l'ultima voce (aggiunta dall'ingress fidato) come IP client e riscrive l'header verso l'API con quella sola voce, scartando ciò che il client ha inviato. Il backend espone `ReverseProxy__TrustAllProxies` (svuota `KnownProxies` e `KnownIPNetworks`, lecito perché l'ingress dell'API è interno) e `ReverseProxy__ForwardLimit` (voci da risalire da destra; 2 in produzione, così si arriva al client con o senza la voce aggiunta dall'ingress dell'API), impostati da `apps-be.bicep` sull'API. Così il rate limiter del login vede l'IP reale del client. In locale i default (loopback, un hop) non cambiano.
 
 ## 3. Modifiche al codice applicativo
 
@@ -173,15 +173,15 @@ Job:
 1. `version`: checkout con storia completa, `gittools/actions` setup ed execute, output `semver` e `major-minor-patch`.
 2. `build-be` (needs `version`): `azure/login` con OIDC, `az acr build` di `fantastiche-api` e `fantastiche-scheduler`, tag `<semver>`, `<sha7>`, `prod`, build-arg `VERSION` e `SHA`.
 3. `build-fe` (needs `version`, parallelo a `build-be`): `az acr build` di `fantastiche-fe` con `VITE_API_BASE_URL=` vuoto e `VITE_APP_VERSION=<semver>`.
-4. `deploy-be` (needs `build-be`): `az deployment group create` di `apps-be.bicep` con immagini `:<semver>`; poi `az containerapp job start` su `fantastiche-migrate-prod` e attesa dell'esecuzione con esito `Succeeded`, altrimenti il job fallisce. Il deploy Bicep aggiorna le app prima della migrazione: la nuova API parte durante la migrazione. Accettato per un progetto interno, perché le migrazioni EF sono idempotenti e l'API non tocca lo schema; se in futuro servirà, si separerà l'aggiornamento del job da quello delle app.
+4. `deploy-be` (needs `build-be`): `az deployment group create` di `apps-be.bicep` con immagini `:<semver>`; poi `az containerapp job start` su `fantastiche-migrate-prod` e attesa dell'esecuzione con esito `Succeeded`, altrimenti il job fallisce. Se il job esiste già, la migrazione gira prima del deploy delle app con la nuova immagine (`az containerapp job start --image`); al primo deploy il job viene creato dal Bicep e avviato subito dopo. Loop di attesa in `.github/scripts/wait-job.sh`.
 5. `deploy-fe` (needs `deploy-be`): `az deployment group create` di `apps-fe.bicep`.
-6. `release-tag` (needs `deploy-fe`): crea e pusha `v<major-minor-patch>` se il tag non esiste. Idempotente.
+6. `release-tag` (needs `deploy-fe`): crea e pusha `v<major-minor-patch>` se il tag non esiste. Idempotente. I job `deploy-be`, `deploy-fe` e `release-tag` girano solo se `github.ref == 'refs/heads/master'`.
 
 Configurazione GitHub: variabili di repository `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`. Nessun segreto in GitHub.
 
 Gli ambienti sono descritti come `env` nel workflow con i valori di `prod`; un secondo ambiente richiederebbe un job matrix o un reusable workflow, scelta rimandata.
 
-Una PR non deploya: il workflow gira solo su push a `master`. Un `workflow_dispatch` da un altro branch buildi e deploya quel branch: da usare solo consapevolmente.
+Una PR non deploya: il workflow gira solo su push a `master`. Un `workflow_dispatch` da un altro branch non deploya né tagga (guardia `github.ref`) e in pratica non builda nemmeno: la federated credential accetta solo `refs/heads/master`, quindi `azure/login` fallisce.
 
 ## 7. Procedura operativa
 
@@ -208,4 +208,4 @@ Il foundation non passa dalla CI, come ACKSD: modifiche a `main.bicep` vanno app
 
 ## 9. Fuori scope
 
-Staging, custom domain, Private Endpoint, SQL passwordless, identità per app, migrazione separata dall'avvio API, protezione dell'importatore Python per Azure, PWA. `KnownNetworks` per il rate limiter è il primo follow-up.
+Staging, custom domain, Private Endpoint, SQL passwordless, identità per app, migrazione separata dall'avvio API, protezione dell'importatore Python per Azure, PWA. Ruolo CI ristretto a `Microsoft.App/*` al posto di Contributor è il primo follow-up.

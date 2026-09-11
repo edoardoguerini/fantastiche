@@ -1,0 +1,52 @@
+# =====================================================================
+# Fantastiche — justfile infra (operazioni Azure).
+# Uso: `just infra` (dal root) o `just --list` (dentro infra/).
+# =====================================================================
+
+set shell := ["bash", "-uc"]
+
+# Subscription MPN - Mahiz (tenant mahiz.it).
+sub-prod := "818db21a-4d0b-430a-a42a-a00715f0345f"
+
+[private]
+default: help
+
+# Elenco dei comandi disponibili
+help:
+    @just --list
+
+alias list := help
+
+# Imposta la subscription Azure di Fantastiche e mostra il contesto
+[group('azure')]
+az-env:
+    #!/usr/bin/env bash
+    set -eo pipefail
+    echo ""
+    echo "  → az account set --subscription {{sub-prod}}"
+    az account set --subscription "{{sub-prod}}"
+    echo ""
+    echo "  Contesto attivo:"
+    az account show --query "{subscription:name, id:id, tenant:tenantDefaultDomain, user:user.name}" -o yaml | sed 's/^/    /'
+    echo "  Risorse prod:"
+    echo "    Resource group : rg-fantastiche-prod"
+    echo "    Key Vault      : kv-fantastiche-prod"
+    echo "    Storage        : stfantasticheprod"
+    echo "    ACR (condiviso): fantasticheacr.azurecr.io"
+    echo ""
+
+# Scrive/aggiorna un segreto in Key Vault (a domande, valore nascosto)
+[group('azure')]
+az-secrets:
+    bash scripts/az-secrets.sh
+
+# Anteprima delle modifiche della foundation (what-if), senza applicare
+[group('azure')]
+az-whatif operator-object-id:
+    #!/usr/bin/env bash
+    set -e
+    read -rsp "  Password SQL admin (input nascosto, serve solo alla validazione): " pw
+    echo ""
+    az deployment sub what-if --location westeurope \
+      --template-file main.bicep --parameters prod.bicepparam \
+      --parameters operatorObjectId="{{operator-object-id}}" sqlAdministratorLoginPassword="$pw"

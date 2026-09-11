@@ -27,3 +27,11 @@ lint:
 
 fmt:
     pnpm format
+
+# Costruisce l'immagine di produzione (nginx + SPA) con tag locale
+build-image:
+    docker build -t fantastiche-fe:local --build-arg VITE_APP_VERSION=local .
+
+# Avvia l'immagine su http://localhost:8080 inoltrando /api all'API locale 6060
+run-image:
+    docker run --rm -p 8080:8080 -e API_UPSTREAM=http://host.docker.internal:6060 fantastiche-fe:local

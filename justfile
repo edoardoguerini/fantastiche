@@ -1,6 +1,7 @@
 set shell := ["bash", "-uc"]
 mod be
 mod fe
+mod infra
 
 [private]
 default: help
@@ -46,6 +47,14 @@ test:
 lint:
     @just be lint
     @just fe lint
+
+# Imposta la subscription Azure di Fantastiche
+az-env:
+    @just infra az-env
+
+# Scrive/aggiorna un segreto in Key Vault
+az-secrets:
+    @just infra az-secrets
 
 alias watch-all := up-all
 alias watch-all-down := down-all

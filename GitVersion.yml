@@ -1,0 +1,14 @@
+# Configurazione GitVersion per Fantastiche (monorepo, versione unica repo-wide).
+# GitFlow: master = stabile, develop = -alpha (predisposto). Bump da conventional commits.
+# Con lo squash merge di GitHub conta il titolo della PR; il suffisso "(#n)" non interferisce.
+# I marcatori `+semver:` e `BREAKING CHANGE:` valgono solo a inizio riga.
+workflow: GitFlow/v1
+next-version: 0.1.0
+major-version-bump-message: '^(\w+)(\([^)]*\))?!:|(?m:^BREAKING CHANGE:)|(?m:^\+semver:\s?(breaking|major))'
+minor-version-bump-message: '^feat(\([^)]*\))?:|(?m:^\+semver:\s?(feature|minor))'
+patch-version-bump-message: '^(fix|perf|refactor|chore|docs|test|build|ci|style)(\([^)]*\))?:|(?m:^\+semver:\s?(fix|patch))'
+branches:
+  main:
+    label: ''
+  develop:
+    label: alpha

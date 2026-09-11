@@ -1,0 +1,234 @@
+# Pipeline unica di build & deploy su Azure Container Apps (ambiente prod).
+#   version → build-be + build-fe → deploy-be (migrazione con la nuova immagine, poi Bicep; al primo deploy migrazione dopo) → deploy-fe → release-tag
+# Il foundation (infra/main.bicep) NON passa da qui: si applica a mano (vedi infra/README.md).
+# Login Azure via OIDC: in GitHub solo variabili non segrete, nessun secret.
+name: build-deploy
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'be/**'
+      - 'fe/**'
+      - 'infra/**'
+      - '.github/workflows/**'
+      - '.github/scripts/**'
+      - 'GitVersion.yml'
+  workflow_dispatch:
+
+# Due push ravvicinati si accodano: mai due deploy sovrapposti.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # tag di release
+  id-token: write   # OIDC verso Azure
+
+env:
+  ENV_NAME: prod
+  RG: rg-fantastiche-prod
+  ACR_NAME: fantasticheacr
+  ACR_LOGIN_SERVER: fantasticheacr.azurecr.io
+  KV_URI: https://kv-fantastiche-prod.vault.azure.net/
+  BLOB_ENDPOINT: https://stfantasticheprod.blob.core.windows.net/
+  DATAPROTECTION_KEY_ID: https://kv-fantastiche-prod.vault.azure.net/keys/dataprotection
+  # Da compilare al provisioning: il deploy fallisce finché restano CHANGE_ME.
+  MAILGUN_DOMAIN: CHANGE_ME
+  MAILGUN_FROM: CHANGE_ME
+  BOOTSTRAP_EMAIL: CHANGE_ME
+
+jobs:
+  version:
+    name: compute version
+    runs-on: ubuntu-latest
+    outputs:
+      semver: ${{ steps.gitversion.outputs.semVer }}
+      mmp: ${{ steps.gitversion.outputs.majorMinorPatch }}
+      sha7: ${{ steps.sha.outputs.sha7 }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: gittools/actions/gitversion/setup@v4.7.0
+        with:
+          versionSpec: '6.x'
+      - id: gitversion
+        uses: gittools/actions/gitversion/execute@v4.7.0
+        with:
+          useConfigFile: true
+          configFilePath: GitVersion.yml
+      - id: sha
+        run: echo "sha7=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - run: echo "SemVer ${{ steps.gitversion.outputs.semVer }}"
+
+  build-be:
+    name: build api + scheduler
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: azure/login@v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: api → ACR
+        env:
+          SEMVER: ${{ needs.version.outputs.semver }}
+          SHA7: ${{ needs.version.outputs.sha7 }}
+        run: |
+          set -eo pipefail
+          [ -n "$SEMVER" ] || { echo "semver vuota"; exit 1; }
+          az acr build --registry "$ACR_NAME" \
+            --image "fantastiche-api:$SEMVER" --image "fantastiche-api:$SHA7" --image "fantastiche-api:$ENV_NAME" \
+            --file be/Dockerfile --build-arg "VERSION=$SEMVER" --build-arg "SHA=$SHA7" be
+      - name: scheduler → ACR
+        env:
+          SEMVER: ${{ needs.version.outputs.semver }}
+          SHA7: ${{ needs.version.outputs.sha7 }}
+        run: |
+          set -eo pipefail
+          az acr build --registry "$ACR_NAME" \
+            --image "fantastiche-scheduler:$SEMVER" --image "fantastiche-scheduler:$SHA7" --image "fantastiche-scheduler:$ENV_NAME" \
+            --file be/Dockerfile.scheduler --build-arg "VERSION=$SEMVER" --build-arg "SHA=$SHA7" be
+
+  build-fe:
+    name: build frontend
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: azure/login@v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: fe → ACR
+        env:
+          SEMVER: ${{ needs.version.outputs.semver }}
+          SHA7: ${{ needs.version.outputs.sha7 }}
+        run: |
+          set -eo pipefail
+          [ -n "$SEMVER" ] || { echo "semver vuota"; exit 1; }
+          # VITE_API_BASE_URL vuoto: stessa origin, nginx inoltra /api e /hubs.
+          az acr build --registry "$ACR_NAME" \
+            --image "fantastiche-fe:$SEMVER" --image "fantastiche-fe:$SHA7" --image "fantastiche-fe:$ENV_NAME" \
+            --file fe/Dockerfile --build-arg "VITE_API_BASE_URL=" --build-arg "VITE_APP_VERSION=$SEMVER" fe
+
+  deploy-be:
+    name: deploy backend
+    needs: [version, build-be]
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: azure/login@v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: migrate database (before deploy, if the job exists)
+        id: premigrate
+        env:
+          SEMVER: ${{ needs.version.outputs.semver }}
+        run: |
+          set -eo pipefail
+          JOB="fantastiche-migrate-$ENV_NAME"
+          if ! az containerapp job show -n "$JOB" -g "$RG" -o none 2>/dev/null; then
+            echo "Job $JOB assente (primo deploy): migrazione dopo il deploy delle app."
+            echo "ran=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Migra con la NUOVA immagine prima che API e Scheduler la ricevano.
+          EXEC=$(az containerapp job start -n "$JOB" -g "$RG" --image "$ACR_LOGIN_SERVER/fantastiche-api:$SEMVER" --query name -o tsv)
+          bash .github/scripts/wait-job.sh "$JOB" "$RG" "$EXEC"
+          echo "ran=true" >> "$GITHUB_OUTPUT"
+      - name: apps-be.bicep
+        env:
+          SEMVER: ${{ needs.version.outputs.semver }}
+        run: |
+          set -eo pipefail
+          for v in MAILGUN_DOMAIN MAILGUN_FROM BOOTSTRAP_EMAIL; do
+            [ "${!v}" != "CHANGE_ME" ] || { echo "$v non configurato nel workflow"; exit 1; }
+          done
+          SUB=$(az account show --query id -o tsv)
+          ENVID="/subscriptions/$SUB/resourceGroups/$RG/providers/Microsoft.App/managedEnvironments/cae-fantastiche-$ENV_NAME"
+          MIID="/subscriptions/$SUB/resourceGroups/$RG/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-fantastiche-$ENV_NAME"
+          DOMAIN=$(az containerapp env show -n "cae-fantastiche-$ENV_NAME" -g "$RG" --query properties.defaultDomain -o tsv)
+          FE_URL="https://fantastiche-fe-$ENV_NAME.$DOMAIN"
+          az deployment group create \
+            --name "apps-be-${GITHUB_RUN_ID}" \
+            --resource-group "$RG" \
+            --template-file infra/apps-be.bicep \
+            --parameters environmentName="$ENV_NAME" environmentId="$ENVID" identityId="$MIID" \
+                         acrLoginServer="$ACR_LOGIN_SERVER" kvUri="$KV_URI" \
+                         apiImage="$ACR_LOGIN_SERVER/fantastiche-api:$SEMVER" \
+                         schedulerImage="$ACR_LOGIN_SERVER/fantastiche-scheduler:$SEMVER" \
+                         frontendBaseUrl="$FE_URL" blobEndpoint="$BLOB_ENDPOINT" \
+                         dataProtectionKeyId="$DATAPROTECTION_KEY_ID" \
+                         mailgunDomain="$MAILGUN_DOMAIN" mailgunFrom="$MAILGUN_FROM" \
+                         bootstrapEmail="$BOOTSTRAP_EMAIL"
+      - name: migrate database (first deploy only)
+        if: steps.premigrate.outputs.ran != 'true'
+        run: |
+          set -eo pipefail
+          JOB="fantastiche-migrate-$ENV_NAME"
+          EXEC=$(az containerapp job start -n "$JOB" -g "$RG" --query name -o tsv)
+          bash .github/scripts/wait-job.sh "$JOB" "$RG" "$EXEC"
+
+  deploy-fe:
+    name: deploy frontend
+    needs: [version, build-fe, deploy-be]
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: azure/login@v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: apps-fe.bicep
+        env:
+          SEMVER: ${{ needs.version.outputs.semver }}
+        run: |
+          set -eo pipefail
+          SUB=$(az account show --query id -o tsv)
+          ENVID="/subscriptions/$SUB/resourceGroups/$RG/providers/Microsoft.App/managedEnvironments/cae-fantastiche-$ENV_NAME"
+          MIID="/subscriptions/$SUB/resourceGroups/$RG/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-fantastiche-$ENV_NAME"
+          DOMAIN=$(az containerapp env show -n "cae-fantastiche-$ENV_NAME" -g "$RG" --query properties.defaultDomain -o tsv)
+          az deployment group create \
+            --name "apps-fe-${GITHUB_RUN_ID}" \
+            --resource-group "$RG" \
+            --template-file infra/apps-fe.bicep \
+            --parameters environmentName="$ENV_NAME" environmentId="$ENVID" identityId="$MIID" \
+                         acrLoginServer="$ACR_LOGIN_SERVER" \
+                         feImage="$ACR_LOGIN_SERVER/fantastiche-fe:$SEMVER" \
+                         apiUpstream="http://fantastiche-api-$ENV_NAME.internal.$DOMAIN"
+          echo "FE: https://fantastiche-fe-$ENV_NAME.$DOMAIN"
+
+  release-tag:
+    name: release tag
+    needs: [version, deploy-fe]
+    # Un workflow_dispatch da un ref diverso da master deve solo compilare, senza taggare la release.
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: tag v<major.minor.patch>
+        env:
+          MMP: ${{ needs.version.outputs.mmp }}
+        run: |
+          set -eo pipefail
+          TAG="v$MMP"
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "Tag $TAG già esistente, skip."; exit 0
+          fi
+          git config user.email "build@fantastiche.local"
+          git config user.name "GitHub Actions"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+          echo "Creato $TAG"
