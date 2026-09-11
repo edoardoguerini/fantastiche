@@ -53,6 +53,10 @@ pnpm preview
 
 Il prerender della shell avvia temporaneamente un server locale. Negli ambienti con sandbox occorre consentire l’apertura della porta locale per completare la build.
 
+### Immagine di produzione
+
+`just fe build-image` costruisce `fantastiche-fe:local` (build SPA + nginx non root su 8080); `just fe run-image` la avvia su `http://localhost:8080` inoltrando `/api` e `/hubs` all'API locale 6060. La configurazione nginx è `fe/nginx/default.conf.template`: `API_UPSTREAM` è l'unica variabile resa a runtime. Su Azure la stessa immagine riceve l'FQDN interno dell'API dal Bicep `infra/apps-fe.bicep`.
+
 ## Verifiche del 9 settembre 2026
 
 - Frontend: 8 test unit/component e 8 test browser passati. Controllati desktop 1440px, mobile 390px e 320px, tastiera, errori, sessione e paginazione.
