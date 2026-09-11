@@ -1,4 +1,5 @@
 using System.Security.Cryptography.X509Certificates;
+using Azure.Identity;
 using Fantastiche.Core.Email;
 using Fantastiche.Gateways.Mailgun;
 using Fantastiche.Infrastructure.Common;
@@ -33,14 +34,21 @@ public static class DependencyInjection
         }).AddEntityFrameworkStores<FantasticheDbContext>().AddDefaultTokenProviders();
         services.TryAddSingleton(TimeProvider.System);
         var environment = configuration["ASPNETCORE_ENVIRONMENT"] ?? configuration["DOTNET_ENVIRONMENT"] ?? "Production";
-        var keyPath = configuration["DataProtection:KeyPath"];
-        var certificatePath = configuration["DataProtection:CertificatePath"];
-        if (environment != "Development" && (string.IsNullOrWhiteSpace(keyPath) || string.IsNullOrWhiteSpace(certificatePath)))
-            throw new InvalidOperationException("Fuori Development servono DataProtection__KeyPath e DataProtection__CertificatePath persistenti.");
-        var protection = services.AddDataProtection().SetApplicationName("Fantastiche")
-         .PersistKeysToFileSystem(new DirectoryInfo(keyPath ?? ".local/keys"));
-        if (!string.IsNullOrWhiteSpace(certificatePath))
-            protection.ProtectKeysWithCertificate(X509CertificateLoader.LoadPkcs12FromFile(certificatePath, configuration["DataProtection:CertificatePassword"]));
+        var protection = services.AddDataProtection().SetApplicationName("Fantastiche");
+        switch (DataProtectionSettings.Resolve(configuration, environment))
+        {
+            case DataProtectionSettings.AzureBlob azure:
+                // AZURE_CLIENT_ID in ambiente indica quale identità user-assigned usare.
+                var credential = new DefaultAzureCredential();
+                protection.PersistKeysToAzureBlobStorage(azure.BlobUri, credential)
+                    .ProtectKeysWithAzureKeyVault(azure.KeyVaultKeyId, credential);
+                break;
+            case DataProtectionSettings.FileSystem file:
+                protection.PersistKeysToFileSystem(new DirectoryInfo(file.KeyPath));
+                if (!string.IsNullOrWhiteSpace(file.CertificatePath))
+                    protection.ProtectKeysWithCertificate(X509CertificateLoader.LoadPkcs12FromFile(file.CertificatePath, file.CertificatePassword));
+                break;
+        }
         services.AddScoped<EmailPayloadProtector>();
         services.AddScoped<LeagueWorkflow>();
         services.AddScoped<CatalogWorkflow>();
