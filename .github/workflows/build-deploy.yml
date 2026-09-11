@@ -1,5 +1,5 @@
 # Pipeline unica di build & deploy su Azure Container Apps (ambiente prod).
-#   version → build-be + build-fe (paralleli) → deploy-be (Bicep + job migrazione) → deploy-fe → release-tag
+#   version → build-be + build-fe → deploy-be (migrazione con la nuova immagine, poi Bicep; al primo deploy migrazione dopo) → deploy-fe → release-tag
 # Il foundation (infra/main.bicep) NON passa da qui: si applica a mano (vedi infra/README.md).
 # Login Azure via OIDC: in GitHub solo variabili non segrete, nessun secret.
 name: build-deploy
@@ -118,6 +118,7 @@ jobs:
   deploy-be:
     name: deploy backend
     needs: [version, build-be]
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
@@ -126,6 +127,22 @@ jobs:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: migrate database (before deploy, if the job exists)
+        id: premigrate
+        env:
+          SEMVER: ${{ needs.version.outputs.semver }}
+        run: |
+          set -eo pipefail
+          JOB="fantastiche-migrate-$ENV_NAME"
+          if ! az containerapp job show -n "$JOB" -g "$RG" -o none 2>/dev/null; then
+            echo "Job $JOB assente (primo deploy): migrazione dopo il deploy delle app."
+            echo "ran=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Migra con la NUOVA immagine prima che API e Scheduler la ricevano.
+          EXEC=$(az containerapp job start -n "$JOB" -g "$RG" --image "$ACR_LOGIN_SERVER/fantastiche-api:$SEMVER" --query name -o tsv)
+          bash .github/scripts/wait-job.sh "$JOB" "$RG" "$EXEC"
+          echo "ran=true" >> "$GITHUB_OUTPUT"
       - name: apps-be.bicep
         env:
           SEMVER: ${{ needs.version.outputs.semver }}
@@ -151,25 +168,18 @@ jobs:
                          dataProtectionKeyId="$DATAPROTECTION_KEY_ID" \
                          mailgunDomain="$MAILGUN_DOMAIN" mailgunFrom="$MAILGUN_FROM" \
                          bootstrapEmail="$BOOTSTRAP_EMAIL"
-      - name: migrate database
+      - name: migrate database (first deploy only)
+        if: steps.premigrate.outputs.ran != 'true'
         run: |
           set -eo pipefail
           JOB="fantastiche-migrate-$ENV_NAME"
           EXEC=$(az containerapp job start -n "$JOB" -g "$RG" --query name -o tsv)
-          echo "Esecuzione $EXEC"
-          for _ in $(seq 1 90); do
-            STATUS=$(az containerapp job execution show -n "$JOB" -g "$RG" --job-execution-name "$EXEC" --query properties.status -o tsv)
-            case "$STATUS" in
-              Succeeded) echo "Migrazione completata"; exit 0 ;;
-              Failed|Stopped) echo "Migrazione $STATUS"; az containerapp job logs show -n "$JOB" -g "$RG" --execution "$EXEC" --container "$JOB" || true; exit 1 ;;
-            esac
-            sleep 10
-          done
-          echo "Timeout in attesa della migrazione"; exit 1
+          bash .github/scripts/wait-job.sh "$JOB" "$RG" "$EXEC"
 
   deploy-fe:
     name: deploy frontend
     needs: [version, deploy-be]
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
@@ -200,6 +210,8 @@ jobs:
   release-tag:
     name: release tag
     needs: [version, deploy-fe]
+    # Un workflow_dispatch da un ref diverso da master deve solo compilare, senza taggare la release.
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
