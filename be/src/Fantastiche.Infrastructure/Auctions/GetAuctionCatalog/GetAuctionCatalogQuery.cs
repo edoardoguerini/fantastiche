@@ -10,4 +10,5 @@ public sealed record GetAuctionCatalogQuery(
     string? Role = null,
     bool AvailableOnly = true,
     int Page = 1,
-    int PageSize = 30) : IRequest<AuctionPage<AuctionCatalogPlayerView>>;
+    int PageSize = 30,
+    string? Sort = null) : IRequest<AuctionPage<AuctionCatalogPlayerView>>;

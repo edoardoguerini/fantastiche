@@ -5,6 +5,8 @@ import { leaguePageSchema, leagueSchema } from '../types/leagues.types'
 export const leaguesQueryOptions = (userId: string, page: number) =>
   queryOptions({
     queryKey: ['leagues', userId, 'list', page],
+    staleTime: 0,
+    refetchInterval: 15_000,
     queryFn: async ({ signal }) =>
       leaguePageSchema.parse(
         await api.get(`/Leagues?page=${page}&pageSize=20`, signal),

@@ -1,22 +1,9 @@
-/* Palette della sala: superfici neutre, viola per azioni e selezioni. */
+/* La sala eredita la palette globale e aggiunge i token di dominio. */
 body:has(.auction-room) {
-  --background: #0c0c0e;
-  --surface: #18181b;
-  --secondary: #242427;
-  --foreground: #f4f4f5;
-  --muted-foreground: #aaaab3;
-  --primary: #c4a1ff;
-  --primary-foreground: #181020;
-  --border: rgb(255 255 255 / 8%);
-  --input: var(--border);
-  --ring: #c4a1ff;
-  --destructive: #ff929e;
-  --auction-raised: #202023;
-  --auction-accent-soft: #c4a1ff14;
-  --auction-accent-surface: #30283e;
+  --auction-raised: var(--surface-raised);
+  --auction-accent-soft: var(--accent-soft);
+  --auction-accent-surface: var(--accent-surface);
   --auction-success: #8cdbac;
-  --forest-soft: #74618e;
-  --forest-accent: #494050;
 }
 
 .app-shell:has(.auction-room) {
@@ -38,8 +25,9 @@ body:has(.auction-room) {
   gap: 10px;
 }
 .app-shell:has(.auction-room) .brand--compact {
-  width: 40px;
-  height: 40px;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
 }
 .app-shell:has(.auction-room) #main-content {
   display: flex;
@@ -118,7 +106,7 @@ body:has(.auction-room) {
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: thin;
-  scrollbar-color: var(--forest-accent) transparent;
+  scrollbar-color: var(--scrollbar) transparent;
   border-block: 1px solid var(--border);
   margin-bottom: 20px;
   padding-block: 2px;
@@ -311,7 +299,7 @@ body:has(.auction-room) {
 }
 .auction-waiting > i {
   font-size: 28px;
-  color: var(--forest-soft);
+  color: var(--accent-muted);
   margin-bottom: 18px;
 }
 .auction-waiting h2 {
@@ -400,10 +388,6 @@ body:has(.auction-room) {
   min-height: 36px;
   padding: 7px 10px;
   flex-shrink: 0;
-}
-.catalog-available {
-  color: var(--muted-foreground);
-  font-size: 12px;
 }
 .auction-side {
   padding-top: 9px;
@@ -529,17 +513,6 @@ body:has(.auction-room) {
   color: var(--muted-foreground);
   line-height: 1.8;
 }
-.auction-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding-top: 20px;
-  font-size: 14px;
-}
-.auction-pagination button {
-  font-size: 14px;
-}
 .auction-room select {
   width: 100%;
   background: var(--surface);
@@ -549,14 +522,6 @@ body:has(.auction-room) {
   font-size: 16px;
   min-height: 48px;
   color: var(--foreground);
-}
-.roster-select {
-  display: grid;
-  gap: 8px;
-  max-width: 320px;
-  font-size: 14px;
-  color: var(--muted-foreground);
-  margin-bottom: 20px;
 }
 .roster-price {
   font-size: 18px;
@@ -811,9 +776,6 @@ body:has(.auction-room) {
     margin-top: 10px;
     padding: 10px;
   }
-  .catalog-available {
-    font-size: 11px;
-  }
   .catalog-row {
     gap: 10px;
   }
@@ -840,7 +802,7 @@ body:has(.auction-room) {
   max-height: 560px;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: var(--forest-accent) transparent;
+  scrollbar-color: var(--scrollbar) transparent;
   overscroll-behavior-y: contain;
 }
 @media (max-width: 650px) {

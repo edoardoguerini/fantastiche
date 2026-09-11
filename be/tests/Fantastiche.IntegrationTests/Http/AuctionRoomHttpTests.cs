@@ -51,8 +51,30 @@ public sealed partial class HttpFlowTests
         Assert.Equal(JsonValueKind.Null, catalog.GetProperty("items")[0].GetProperty("photoUrl").ValueKind);
         Assert.Equal(JsonValueKind.Null, catalog.GetProperty("items")[0].GetProperty("clubLogoUrl").ValueKind);
         Assert.Equal(JsonValueKind.Null, catalog.GetProperty("items")[0].GetProperty("teamId").ValueKind);
-        foreach (var query in new[] { "page=0", "pageSize=101", "role=X", "search=" + new string('a', 201) })
+        foreach (var query in new[] { "page=0", "pageSize=101", "role=X", "search=" + new string('a', 201), "sort=unknown" })
             Assert.Equal(HttpStatusCode.BadRequest, (await participant.GetAsync(catalogRoute + "?" + query)).StatusCode);
+
+        await using (var scope = fixture.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<FantasticheDbContext>();
+            await db.ListEntries.Where(x => x.ListVersionId == listId && x.Role == "P")
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.Fvm, 100).SetProperty(x => x.CurrentQuotation, 4));
+            await db.ListEntries.Where(x => x.ListVersionId == listId && x.Role == "A")
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.Fvm, (int?)null).SetProperty(x => x.CurrentQuotation, 90));
+        }
+        foreach (var (sort, firstName, secondName) in new[] {
+            ("name", "Attaccante Due", "Portiere Uno"),
+            ("fvm", "Portiere Uno", "Attaccante Due"),
+            ("quotation", "Attaccante Due", "Portiere Uno") })
+        {
+            var first = await Data(await participant.GetAsync(catalogRoute + $"?sort={sort}&pageSize=1&page=1"), HttpStatusCode.OK);
+            var second = await Data(await participant.GetAsync(catalogRoute + $"?sort={sort}&pageSize=1&page=2"), HttpStatusCode.OK);
+            Assert.Equal(firstName, first.GetProperty("items")[0].GetProperty("name").GetString());
+            Assert.Equal(secondName, second.GetProperty("items")[0].GetProperty("name").GetString());
+        }
+        var filtered = await Data(await participant.GetAsync(catalogRoute + "?sort=fvm&role=A&search=Due"), HttpStatusCode.OK);
+        Assert.Equal(1, filtered.GetProperty("total").GetInt32());
+        Assert.Equal("Attaccante Due", filtered.GetProperty("items")[0].GetProperty("name").GetString());
 
         var outsideSetup = await PrepareAuctionLeague();
         using var outsider = Client(factory);

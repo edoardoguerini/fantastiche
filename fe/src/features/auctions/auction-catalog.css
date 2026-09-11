@@ -1,0 +1,115 @@
+.catalog-sort {
+  width: 100%;
+}
+.auction-catalog--expanded .catalog-sort {
+  flex: 0 0 220px;
+  width: 220px;
+}
+.catalog-sort [data-slot='select-trigger'] {
+  min-height: 44px;
+}
+.auction-catalog--expanded .catalog-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.auction-catalog--expanded .catalog-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto auto;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  min-width: 0;
+}
+.auction-catalog--expanded .catalog-row h3 {
+  font-size: 17px;
+  font-weight: 550;
+}
+.auction-catalog--expanded .catalog-row button {
+  min-height: 44px;
+  padding: 10px 16px;
+}
+.auction-catalog--expanded .catalog-row .player-valuation {
+  display: grid;
+  grid-template-columns: repeat(2, 52px);
+  gap: 6px;
+  margin: 0;
+}
+.auction-catalog--expanded .player-valuation > div {
+  display: block;
+  padding: 7px 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  text-align: center;
+}
+.auction-catalog--expanded .player-valuation dd {
+  font-size: 18px;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+.auction-catalog--expanded .role-filters {
+  flex: 0 0 auto;
+  min-width: 260px;
+}
+.auction-catalog--expanded .role-filters button {
+  min-width: 44px;
+}
+.auction-catalog--expanded .catalog-row--selected {
+  border-color: var(--primary);
+  background: var(--auction-accent-surface);
+}
+.auction-catalog--expanded .catalog-row--selected::after {
+  content: none;
+}
+@media (max-width: 1199px) {
+  .auction-catalog--expanded .catalog-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 950px) {
+  .auction-catalog--expanded .catalog-sort {
+    flex-basis: auto;
+    width: 100%;
+  }
+}
+@media (max-width: 650px) {
+  .auction-catalog--expanded .catalog-toolbar {
+    align-items: stretch;
+  }
+  .auction-catalog--expanded .role-filters {
+    min-width: 0;
+  }
+  .auction-catalog--expanded .catalog-row {
+    grid-template-columns: 56px minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 12px;
+  }
+  .auction-catalog--expanded .catalog-row > .player-photo,
+  .auction-catalog--expanded .catalog-row > .role-badge {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    width: 56px;
+  }
+  .auction-catalog--expanded .catalog-row > div {
+    grid-column: 2 / -1;
+  }
+  .auction-catalog--expanded .catalog-row h3 {
+    font-size: 15px;
+  }
+  .auction-catalog--expanded .catalog-row .player-valuation {
+    grid-column: 2;
+    grid-template-columns: repeat(2, minmax(48px, 1fr));
+    gap: 4px;
+  }
+  .auction-catalog--expanded .player-valuation dd {
+    font-size: 16px;
+  }
+  .auction-catalog--expanded .catalog-row button {
+    grid-column: 3;
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+}

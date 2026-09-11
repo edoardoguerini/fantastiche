@@ -4,11 +4,11 @@ Applica anche [CLAUDE.md root](../CLAUDE.md). Implementati login centrato solo d
 
 ## Stack e struttura
 
-Palette attuale: Forest Green fornita dall’utente (#406D61, #224B40, #133129, #081F1C, #021010), con testi e CTA crema dal logo. Login senza box, radiale centrato piccolo e campi con etichette visibili. Il radiale contiene la foto di erba fornita dall’utente, compressa in WebP 640×480 (`src/assets/pitch-grass.webp`), statica e sfumata tramite maschera CSS; non deve interferire con il form. Colore attenuato via CSS per restare coerente con la palette.
+Palette globale approvata dall’utente: nero (#0C0C0E), superfici antracite (#18181B, #202023, #242427), testi neutri (#F4F4F5, #AAAAB3) e accento lilla (#C4A1FF) per azioni, selezioni e focus. I token condivisi sono in `src/styles/globals.css` e si applicano a login, inviti, leghe, catalogo e sala d’asta.
 
-La sala d’asta usa una palette dedicata nero/antracite con testi neutri e accenti viola/lilla per azioni e selezioni. I colori dei ruoli e degli stati conservano il significato; il tema è circoscritto alla sala.
+Login centrato senza box, campi con etichette visibili e sfondo CSS a gradiente radiale viola (#30243E, #1A1125) che sfuma nel nero. Lo stesso sfondo è condiviso dalla pagina degli inviti; la texture del campo non è più utilizzata. La sala d’asta eredita la palette globale; i colori dei ruoli e degli stati conservano il significato.
 
-Linee e bordi sempre minimali: token condiviso `--border`/`--input` verde desaturato al 10% di opacità, hover discreto. Separare le sezioni soprattutto con gli spazi, evitare contorni marcati. Conservare indicatori di focus e di errore riconoscibili.
+Linee e bordi sempre minimali: token condiviso `--border`/`--input` bianco all’8% di opacità, hover discreto al 14%. Separare le sezioni soprattutto con gli spazi, evitare contorni marcati. Nei campi e nei select il focus usa un solo bordo lilla, senza anello esterno aggiuntivo. Conservare indicatori di focus da tastiera e di errore riconoscibili.
 
 Tipografia: Sora per tutta l’interfaccia, inclusi titoli, marchio, testi, form e controlli. Font variabile self-hosted tramite Fontsource; nessuna richiesta a Google Fonts.
 

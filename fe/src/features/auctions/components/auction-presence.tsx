@@ -9,12 +9,14 @@ export function AuctionPresence({
   users,
   participants = [],
   userId,
+  awaitingStart = false,
 }: {
   connected: boolean
   connectedUsers: number | null
   users: AuctionParticipant[] | null
   participants: AuctionParticipant[]
   userId: string
+  awaitingStart?: boolean
 }) {
   const panelId = useId()
   const titleId = useId()
@@ -31,13 +33,15 @@ export function AuctionPresence({
       <div role="status" aria-label="Connessione alla sala">
         <button
           type="button"
-          className={`auction-live-badge ${connected ? 'auction-live-badge--online' : ''}`}
+          className={`auction-live-badge ${connected || awaitingStart ? 'auction-live-badge--online' : ''}`}
           aria-label="Mostra utenti della sala"
           aria-haspopup="dialog"
           popoverTarget={panelId}
         >
-          <strong>{connected ? 'LIVE' : 'Riconnessione'}</strong>
-          {connected && (
+          <strong>
+            {connected || awaitingStart ? 'LIVE' : 'Riconnessione'}
+          </strong>
+          {(connected || awaitingStart) && (
             <>
               <span className="auction-presence-label">
                 Utenti connessi: {connectedUsers ?? '—'}
@@ -48,7 +52,7 @@ export function AuctionPresence({
                   {connectedUsers ?? '—'}
                 </span>
               </span>
-              <span className="sr-only">Connesso alla sala</span>
+              {connected && <span className="sr-only">Connesso alla sala</span>}
             </>
           )}
         </button>
@@ -74,7 +78,12 @@ export function AuctionPresence({
         <p className="auction-presence-description">
           Presenze in questa sessione d’asta.
         </p>
-        {!connected ? (
+        {awaitingStart ? (
+          <p className="auction-presence-message" role="status">
+            La sessione non è ancora iniziata. Le presenze saranno aggiornate
+            all’avvio dell’asta.
+          </p>
+        ) : !connected ? (
           <p className="auction-presence-message" role="status">
             Riconnessione in corso. Le presenze verranno aggiornate al
             ripristino.

@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
 import { keepLatestSession } from '../validations/auction-rules'
 import { api } from '@/lib/api/client'
 import {
@@ -56,14 +56,25 @@ export const catalogQueryOptions = (
   sessionId: string,
   search: string,
   role: string,
-  page: number,
+  sort = 'name',
 ) =>
-  queryOptions({
-    queryKey: ['auctions', userId, 'catalog', sessionId, search, role, page],
-    queryFn: async ({ signal }) =>
+  infiniteQueryOptions({
+    queryKey: [
+      'auctions',
+      userId,
+      'catalog',
+      sessionId,
+      search,
+      role,
+      sort,
+      'infinite',
+    ],
+    initialPageParam: 1,
+    getNextPageParam: nextPage,
+    queryFn: async ({ signal, pageParam }) =>
       pageSchema(catalogEntrySchema).parse(
         await api.get(
-          `/Auctions/Sessions/${sessionId}/Catalog?${new URLSearchParams({ search, role, page: String(page), pageSize: '30', availableOnly: 'true' })}`,
+          `/Auctions/Sessions/${sessionId}/Catalog?${new URLSearchParams({ search, role, page: String(pageParam), pageSize: '30', availableOnly: 'true', sort })}`,
           signal,
         ),
       ),
@@ -72,18 +83,41 @@ export const rosterQueryOptions = (
   userId: string,
   sessionId: string,
   teamId = '',
-  page = 1,
 ) =>
-  queryOptions({
-    queryKey: ['auctions', userId, 'roster', sessionId, teamId, page],
-    queryFn: async ({ signal }) =>
+  infiniteQueryOptions({
+    queryKey: ['auctions', userId, 'roster', sessionId, teamId, 'infinite'],
+    initialPageParam: 1,
+    getNextPageParam: nextPage,
+    queryFn: async ({ signal, pageParam }) =>
       pageSchema(rosterEntrySchema).parse(
         await api.get(
-          `/Auctions/Sessions/${sessionId}/Roster?${new URLSearchParams({ ...(teamId ? { teamId } : {}), page: String(page), pageSize: '100' })}`,
+          `/Auctions/Sessions/${sessionId}/Roster?${new URLSearchParams({ ...(teamId ? { teamId } : {}), page: String(pageParam), pageSize: '100' })}`,
           signal,
         ),
       ),
   })
+
+function nextPage(last: {
+  items: unknown[]
+  page: number
+  pageSize: number
+  total: number
+}) {
+  return last.items.length > 0 && last.page * last.pageSize < last.total
+    ? last.page + 1
+    : undefined
+}
+
+export function loadedPlayers<T extends { playerId: string }>(
+  pages: { items: T[] }[] | undefined,
+): T[] {
+  const players = new Map<string, T>()
+  for (const page of pages ?? [])
+    for (const player of page.items) {
+      if (!players.has(player.playerId)) players.set(player.playerId, player)
+    }
+  return [...players.values()]
+}
 export const bidsQueryOptions = (
   userId: string,
   sessionId: string,

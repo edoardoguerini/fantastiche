@@ -17,19 +17,23 @@
 
 :root {
   color-scheme: dark;
-  --forest-soft: #406d61;
-  --forest-accent: #224b40;
-  --surface: #081f1c;
-  --background: #021010;
-  --foreground: #f4e8ca;
-  --primary: #f0dfb4;
-  --primary-foreground: var(--surface);
-  --secondary: #133129;
-  --muted-foreground: #a8bcb5;
-  --border: rgb(168 188 181 / 10%);
+  --surface: #18181b;
+  --surface-raised: #202023;
+  --background: #0c0c0e;
+  --foreground: #f4f4f5;
+  --primary: #c4a1ff;
+  --primary-foreground: #181020;
+  --secondary: #242427;
+  --accent-soft: #c4a1ff14;
+  --accent-surface: #30283e;
+  --accent-muted: #74618e;
+  --scrollbar: #494050;
+  --muted-foreground: #aaaab3;
+  --border: rgb(255 255 255 / 8%);
+  --border-hover: rgb(255 255 255 / 14%);
   --input: var(--border);
-  --ring: #d9c592;
-  --destructive: #f2a59b;
+  --ring: var(--primary);
+  --destructive: #ff929e;
 }
 
 @layer base {
@@ -58,7 +62,13 @@
     outline-offset: 4px;
   }
   input:focus-visible {
-    outline-offset: 2px;
+    outline: none;
+  }
+  input[type='checkbox']:focus-visible,
+  input[type='radio']:focus-visible,
+  select:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
   }
   h1,
   h2,
@@ -77,8 +87,8 @@
     text-decoration: none;
   }
   ::selection {
-    background: var(--forest-soft);
-    color: #fff4d9;
+    background: var(--primary);
+    color: var(--primary-foreground);
   }
 }
 
@@ -90,30 +100,10 @@
   place-items: center;
   padding: 44px 20px;
   background-image: radial-gradient(
-    ellipse 220px 200px at center,
-    var(--forest-accent) 0%,
-    var(--secondary) 42%,
-    var(--surface) 70%,
+    ellipse min(88vw, 580px) 430px at 50% 46%,
+    #30243e 0%,
+    #1a1125 48%,
     transparent 100%
-  );
-}
-.login-page::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background-image: url('../assets/pitch-grass.webp');
-  background-size: 560px 420px;
-  background-position: center;
-  background-repeat: no-repeat;
-  filter: saturate(0.35) hue-rotate(20deg);
-  opacity: 0.4;
-  mask-image: radial-gradient(
-    ellipse 220px 200px at center,
-    #000 0%,
-    rgb(0 0 0 / 70%) 40%,
-    transparent 90%
   );
 }
 .login-container {
@@ -206,7 +196,7 @@
 }
 .form-error {
   padding: 12px;
-  background: #422923;
+  background: color-mix(in srgb, var(--destructive) 12%, var(--surface));
   border-radius: 8px;
 }
 .login-invitation {
@@ -250,6 +240,7 @@
   font-weight: 650;
   letter-spacing: -0.5px;
 }
+.app-brand-context:empty,
 .app-header-slot:empty {
   display: none;
 }
@@ -395,7 +386,8 @@ body > .page-state {
   margin: 0 auto 25px;
   font-size: 34px;
   font-weight: 750;
-  background: var(--forest-accent);
+  background: var(--accent-surface);
+  color: var(--primary);
   border: 1px solid var(--border);
   border-radius: 12px 12px 25px 25px;
 }
@@ -416,17 +408,29 @@ body > .page-state {
   gap: 14px;
 }
 .league-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 24px;
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px;
-  background: var(--surface);
+  border-radius: 16px;
+  padding: 28px;
+  background: linear-gradient(
+    110deg,
+    #30243e 0%,
+    #201a2b 45%,
+    var(--surface) 100%
+  );
 }
-.league-card:hover {
-  border-color: rgb(168 188 181 / 18%);
-  background: var(--secondary);
+.league-card > .league-logo {
+  width: 80px;
+  height: 80px;
+}
+.league-logo {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
 }
 .league-monogram {
   flex-shrink: 0;
@@ -435,36 +439,71 @@ body > .page-state {
   width: 56px;
   height: 64px;
   border-radius: 8px 8px 22px 22px;
-  background: var(--forest-accent);
-  color: #efe1b8;
+  background: var(--accent-surface);
+  color: var(--primary);
   font-size: 28px;
   font-weight: 700;
 }
 .league-card-content {
   min-width: 0;
-  flex: 1;
 }
 .league-card h2 {
-  font-size: 23px;
+  margin-block: 6px;
+  font-size: 24px;
   font-weight: 600;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 .league-card p {
   font-size: 13px;
   color: var(--muted-foreground);
-  line-height: 1.7;
+  line-height: 1.6;
 }
-.league-season {
-  margin-bottom: 3px;
-}
-.league-open {
-  font-size: 14px;
+.league-card-meta {
   display: flex;
-  gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
 }
-.league-open span {
-  font-size: 21px;
+.league-auction-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.league-auction-status > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.league-auction-status[data-status='Active'] {
+  color: #8cdbac;
+}
+.league-auction-status[data-status='Paused'] {
+  color: #e6c981;
+}
+.league-card .league-my-team {
+  color: var(--foreground);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.league-card-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 12px;
+}
+.league-card-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  min-width: 180px;
+}
+.league-card-actions > a {
+  min-height: 46px;
 }
 .pagination {
   display: flex;
@@ -600,14 +639,20 @@ body > .page-state {
     gap: 20px;
   }
   .league-card {
+    grid-template-columns: auto minmax(0, 1fr);
     padding: 20px 16px;
-    gap: 16px;
+    gap: 20px 14px;
+  }
+  .league-card > .league-logo {
+    width: 56px;
+    height: 56px;
+  }
+  .league-card-actions {
+    grid-column: 1 / -1;
+    gap: 8px;
   }
   .league-card h2 {
     font-size: 20px;
-  }
-  .league-open {
-    display: none;
   }
   .league-monogram {
     width: 44px;

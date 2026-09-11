@@ -1,5 +1,8 @@
 import { test, expect, type Page, type WebSocketRoute } from '@playwright/test'
-import type { BombAuctionView } from '../../src/features/auctions/types/auction.types'
+import type {
+  BombAuctionView,
+  CatalogEntry,
+} from '../../src/features/auctions/types/auction.types'
 
 const sid = '00000000-0000-4000-8000-000000000001'
 const aid = '00000000-0000-4000-8000-000000000002'
@@ -34,6 +37,7 @@ async function setupRoom(
     teamCount?: number
     currentRole?: 'P' | 'D' | 'C' | 'A'
     rosterRoles?: ('P' | 'D' | 'C' | 'A')[]
+    catalogPlayer?: Partial<CatalogEntry>
   } = {},
 ) {
   await page.addInitScript(() => {
@@ -54,6 +58,8 @@ async function setupRoom(
     'Borussia Porcelli',
     'AC Picchia',
     'FC Mai una Gioia',
+    'Paris San Gennaro',
+    'AS Intomatici',
   ]
     .slice(0, options.teamCount ?? 4)
     .map((name, i) => ({
@@ -112,6 +118,8 @@ async function setupRoom(
     commands: [] as Record<string, unknown>[],
     receiptReads: 0,
     rosterReads: 0,
+    catalogRemoved: [] as string[],
+    catalogRequests: [] as number[],
   }
   const receipts = new Map<string, unknown>()
   let socket: WebSocketRoute | undefined
@@ -316,9 +324,14 @@ async function setupRoom(
       if (control.uncertain) return route.abort('failed')
       return respond(receipt, receipt.statusCode)
     }
-    if (path.endsWith('/Catalog'))
-      return respond({
-        items: Array.from({ length: options.catalogSize ?? 1 }, (_, index) => ({
+    if (path.endsWith('/Catalog')) {
+      const requestedPage = Number(
+        new URL(route.request().url()).searchParams.get('page') ?? 1,
+      )
+      control.catalogRequests.push(requestedPage)
+      const items = Array.from(
+        { length: options.catalogSize ?? 1 },
+        (_, index) => ({
           playerId: index === 0 ? playerId : `player-${index}`,
           name: index === 0 ? 'Alessandro Fabbri' : `Calciatore ${index + 1}`,
           role: options.currentRole ? (index % 2 === 0 ? 'P' : 'D') : 'A',
@@ -328,14 +341,29 @@ async function setupRoom(
           fvm: 57,
           isAvailable: true,
           teamId: null,
-        })),
-        total: options.catalogSize ?? 1,
-        page: 1,
+          ...options.catalogPlayer,
+        }),
+      ).filter((item) => !control.catalogRemoved.includes(item.playerId))
+      return respond({
+        items: items.slice((requestedPage - 1) * 30, requestedPage * 30),
+        total: items.length,
+        page: requestedPage,
         pageSize: 30,
       })
+    }
     if (path.endsWith('/Roster')) {
       control.rosterReads++
-      const items = (options.rosterRoles ?? []).map((role, index) => ({
+      const requestedTeam = new URL(route.request().url()).searchParams.get(
+        'teamId',
+      )
+      const requestedPage = Number(
+        new URL(route.request().url()).searchParams.get('page') ?? 1,
+      )
+      const items = (
+        requestedTeam && requestedTeam !== teamId(0)
+          ? []
+          : (options.rosterRoles ?? [])
+      ).map((role, index) => ({
         playerId: `roster-player-${index}`,
         teamId: teamId(0),
         playerAuctionId: `auction-${index}`,
@@ -345,7 +373,12 @@ async function setupRoom(
         price: index + 1,
         acquiredAt: new Date().toISOString(),
       }))
-      return respond({ items, total: items.length, page: 1, pageSize: 100 })
+      return respond({
+        items: items.slice((requestedPage - 1) * 100, requestedPage * 100),
+        total: items.length,
+        page: requestedPage,
+        pageSize: 100,
+      })
     }
     if (path.endsWith('/Bids'))
       return respond({ items: [], total: 0, page: 1, pageSize: 100 })
@@ -510,6 +543,164 @@ test('la prova vittoria è locale e con movimento ridotto mostra un riepilogo st
   expect(control.commands).toHaveLength(0)
 })
 
+for (const width of [320, 1440]) {
+  test(`listone a card: layout, filtri e selezione a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    const { state, notify, control } = await setupRoom(page, {
+      waiting: true,
+      catalogSize: 4,
+      catalogPlayer: { currentQuotation: 137, fvm: 445 },
+    })
+    if (width === 320) {
+      const waiting = page.locator('.auction-waiting')
+      const button = page.getByRole('button', {
+        name: 'Scegli dal listone',
+        exact: true,
+      })
+      const bounds = (await waiting.boundingBox())!
+      const action = (await button.boundingBox())!
+      expect(Math.abs(action.width - bounds.width)).toBeLessThanOrEqual(1)
+      await expect(waiting.locator('.auction-waiting-copy')).toHaveCSS(
+        'text-align',
+        'center',
+      )
+      await page.screenshot({
+        path: test.info().outputPath('waiting-centered-mobile.png'),
+      })
+    }
+    await page.getByRole('tab', { name: 'Listone', exact: true }).click()
+    const catalog = page.locator('.auction-catalog--expanded')
+    await expect(
+      page.getByRole('heading', { name: 'Listone', exact: true }),
+    ).toHaveCount(0)
+    const rows = catalog.locator('.catalog-row')
+    await expect(rows).toHaveCount(4)
+    await expect(catalog.getByText('Disponibile', { exact: true })).toHaveCount(
+      0,
+    )
+    const first = (await rows.nth(0).boundingBox())!
+    const second = (await rows.nth(1).boundingBox())!
+    if (width === 1440) {
+      expect(Math.abs(first.y - second.y)).toBeLessThan(2)
+      expect(second.x).toBeGreaterThan(first.x)
+    } else {
+      expect(second.y).toBeGreaterThan(first.y)
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBeLessThanOrEqual(width)
+    }
+    const filters = catalog.locator('.role-filters button')
+    for (let index = 1; index < (await filters.count()); index++) {
+      const previous = (await filters.nth(index - 1).boundingBox())!
+      const current = (await filters.nth(index).boundingBox())!
+      expect(current.x).toBeGreaterThanOrEqual(previous.x + previous.width)
+    }
+    await expect(rows.first().getByText('137', { exact: true })).toBeVisible()
+    await expect(rows.first().getByText('445', { exact: true })).toBeVisible()
+    for (const value of await rows
+      .first()
+      .locator('.player-valuation dd')
+      .all()) {
+      expect((await value.boundingBox())!.height).toBeLessThan(24)
+      expect(
+        await value.evaluate((node) => node.scrollWidth <= node.clientWidth),
+      ).toBe(true)
+    }
+    const choose = catalog.getByRole('button', {
+      name: 'Seleziona Alessandro Fabbri',
+      exact: true,
+    })
+    await expect(choose).toBeEnabled()
+    await page.screenshot({
+      path: test.info().outputPath(`catalog-cards-${width}.png`),
+      fullPage: true,
+    })
+    state.currentTeamId = teamId(1)
+    state.version++
+    notify()
+    await expect(choose).toBeDisabled()
+    expect(control.commands).toHaveLength(0)
+  })
+}
+
+for (const width of [320, 1440]) {
+  test(`ordinamento listone conserva filtri e torna alla prima pagina a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    await setupRoom(page, { waiting: true, currentRole: 'P', catalogSize: 60 })
+    await page.getByRole('tab', { name: 'Listone', exact: true }).click()
+    if (width === 320) {
+      const select = (await page
+        .getByRole('combobox', { name: 'Ordina il listone' })
+        .boundingBox())!
+      const caption = (await page.locator('.catalog-caption').boundingBox())!
+      expect(caption.y - select.y - select.height).toBeLessThan(40)
+      expect(select.width).toBeGreaterThan(250)
+    }
+    const searchRequest = page.waitForRequest(
+      (r) =>
+        r.url().includes('/Catalog?') &&
+        new URL(r.url()).searchParams.get('search') === 'Fabbri',
+    )
+    await page.getByLabel('Cerca calciatore').fill('Fabbri')
+    await searchRequest
+    const nextRequest = page.waitForRequest(
+      (r) =>
+        r.url().includes('/Catalog?') &&
+        new URL(r.url()).searchParams.get('page') === '2',
+    )
+    await page
+      .locator('.auction-catalog--expanded .infinite-scroll-more')
+      .scrollIntoViewIfNeeded()
+    await nextRequest
+    for (const [value, label] of [
+      ['fvm', 'Ordina: FVM ↓'],
+      ['quotation', 'Ordina: Quotazione ↓'],
+    ] as const) {
+      const request = page.waitForRequest(
+        (r) =>
+          r.url().includes('/Catalog?') &&
+          new URL(r.url()).searchParams.get('sort') === value,
+      )
+      await page.getByRole('combobox', { name: 'Ordina il listone' }).click()
+      await page.getByRole('option', { name: label, exact: true }).click()
+      const params = new URL((await request).url()).searchParams
+      expect(params.get('page')).toBe('1')
+      expect(params.get('role')).toBe('P')
+      expect(params.get('search')).toBe('Fabbri')
+      await expect(
+        page.getByRole('combobox', { name: 'Ordina il listone' }),
+      ).toHaveText(label)
+    }
+    await page.getByRole('combobox', { name: 'Ordina il listone' }).click()
+    await page
+      .getByRole('option', { name: 'Ordina: Nome', exact: true })
+      .click()
+    await expect(
+      page.getByRole('combobox', { name: 'Ordina il listone' }),
+    ).toHaveText('Ordina: Nome')
+    await expect(page.getByLabel('Cerca calciatore')).toHaveValue('Fabbri')
+    await expect(
+      page.getByRole('button', { name: 'Precedente', exact: true }),
+    ).toHaveCount(0)
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(width)
+    await page.getByRole('tab', { name: 'Rose', exact: true }).click()
+    await expect(
+      page.getByRole('heading', { name: 'Rose', exact: true }),
+    ).toHaveCount(0)
+    await expect(
+      page.getByText('Giocatori, budget e posti disponibili di ogni squadra.', {
+        exact: true,
+      }),
+    ).toHaveCount(0)
+  })
+}
+
 test('il Live desktop affianca il listone e dispone le squadre sotto il giocatore', async ({
   page,
 }) => {
@@ -527,7 +718,7 @@ test('il Live desktop affianca il listone e dispone le squadre sotto il giocator
   expect(board.y).toBeGreaterThan(player.y + player.height)
 })
 
-test('il listone arriva alla barra inferiore e mantiene la paginazione visibile', async ({
+test('il listone laterale arriva alla barra inferiore e carica scorrendo', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -542,16 +733,15 @@ test('il listone arriva alla barra inferiore e mantiene la paginazione visibile'
         return Math.abs(panel.y + panel.height + 16 - bar.y)
       })
       .toBeLessThanOrEqual(2)
-    const pagination = (await page
-      .getByRole('navigation', { name: 'Pagine del listone' })
-      .boundingBox())!
-    const bar = (await footer.boundingBox())!
-    expect(pagination.y + pagination.height).toBeLessThanOrEqual(bar.y)
+    await expect(
+      page.getByRole('navigation', { name: 'Pagine del listone' }),
+    ).toHaveCount(0)
   }
   await expectAligned()
   await page.locator('.catalog-list').evaluate((list) => {
     list.scrollTop = list.scrollHeight
   })
+  await expect(page.locator('.auction-catalog .catalog-row')).toHaveCount(60)
   await expectAligned()
   await page.setViewportSize({ width: 1440, height: 700 })
   await expectAligned()
@@ -844,7 +1034,9 @@ test('selezione privata in anteprima: annulla senza offerte e chiama solo dopo c
     preview.getByRole('heading', { name: 'Alessandro Fabbri' }),
   ).toBeVisible()
   expect(control.commands).toHaveLength(0)
-  await preview.getByRole('button', { name: 'Annulla', exact: true }).click()
+  await preview
+    .getByRole('button', { name: 'Annulla selezione', exact: true })
+    .click()
   await expect(preview).not.toBeVisible()
   expect(control.commands).toHaveLength(0)
   await page
@@ -860,9 +1052,7 @@ test('selezione privata in anteprima: annulla senza offerte e chiama solo dopo c
   })
   await increments.getByRole('button', { name: '+2', exact: true }).click()
   await increments.getByRole('button', { name: '+10', exact: true }).click()
-  await page
-    .getByRole('button', { name: 'Chiama a 1 credito', exact: true })
-    .click()
+  await page.getByRole('button', { name: 'Chiama', exact: true }).click()
   await expect(
     page
       .getByRole('region', { name: 'Asta corrente', exact: true })
@@ -910,6 +1100,75 @@ test('le opzioni della chiamata restano compatte su mobile e richiedono almeno u
   })
 })
 
+for (const [width, role] of [
+  [1920, 'P'],
+  [1440, 'D'],
+  [1024, 'C'],
+  [768, 'A'],
+  [390, 'P'],
+  [320, 'A'],
+] as const) {
+  test(`selezione ${role}: scheda e comandi leggibili a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    const name =
+      width === 320 ? 'Un nome di calciatore particolarmente lungo' : 'Caprile'
+    const { control } = await setupRoom(page, {
+      waiting: true,
+      currentRole: role,
+      catalogPlayer: {
+        name,
+        role,
+        currentQuotation: width === 320 ? null : 11,
+        initialQuotation: width === 320 ? null : 9,
+        fvm: width === 320 ? null : 25,
+      },
+    })
+    if (width < 1024)
+      await page.getByRole('tab', { name: 'Listone', exact: true }).click()
+    await page
+      .getByRole('button', { name: `Seleziona ${name}`, exact: true })
+      .click()
+    const preview = page.getByRole('form', { name: 'Anteprima chiamata' })
+    const card = preview.getByRole('region', { name: 'Giocatore selezionato' })
+    const panel = preview.getByRole('region', {
+      name: 'Impostazioni e chiamata',
+    })
+    await expect(card.getByRole('heading', { name })).toBeVisible()
+    await expect(card.getByRole('definition')).toHaveCount(4)
+    const cardBox = (await card.boundingBox())!
+    const panelBox = (await panel.boundingBox())!
+    if (width >= 1440) {
+      expect(panelBox.x).toBeGreaterThanOrEqual(cardBox.x + cardBox.width)
+      expect(Math.abs(panelBox.y - cardBox.y)).toBeLessThan(2)
+    } else {
+      expect(panelBox.y).toBeGreaterThanOrEqual(cardBox.y + cardBox.height)
+    }
+    expect(
+      await preview.evaluate((el) => el.scrollWidth <= el.clientWidth),
+    ).toBe(true)
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true)
+    const submit = panel.getByRole('button', {
+      name: 'Chiama',
+      exact: true,
+    })
+    await submit.scrollIntoViewIfNeeded()
+    await expect(submit).toBeInViewport()
+    await page.screenshot({
+      path: test.info().outputPath(`selection-${width}.png`),
+      fullPage: true,
+    })
+    await preview.getByRole('button', { name: 'Annulla selezione' }).click()
+    await expect(preview).not.toBeVisible()
+    expect(control.commands).toHaveLength(0)
+  })
+}
+
 test('preparazione: l’organizzatore riordina le squadre e apre la sessione', async ({
   page,
 }) => {
@@ -918,6 +1177,10 @@ test('preparazione: l’organizzatore riordina le squadre e apre la sessione', a
     organizer: true,
     waiting: true,
   })
+  await expect(page.getByRole('banner')).toBeVisible()
+  await expect(
+    page.getByText('Utenti connessi: 0', { exact: true }),
+  ).toBeVisible()
   await page
     .getByRole('button', { name: 'Sposta su Real Sbronzi', exact: true })
     .click()
@@ -927,6 +1190,7 @@ test('preparazione: l’organizzatore riordina le squadre e apre la sessione', a
   await expect(
     page.getByText('Connesso alla sala', { exact: true }),
   ).toBeVisible()
+  await expect(page.getByRole('banner')).toBeVisible()
   expect(control.commands).toEqual([
     {
       leagueId: league.id,
@@ -940,6 +1204,10 @@ test('preparazione: il partecipante attende l’avvio senza comandi amministrati
   page,
 }) => {
   await setupRoom(page, { setup: true })
+  await expect(page.getByRole('banner')).toBeVisible()
+  await expect(
+    page.getByText('Utenti connessi: 0', { exact: true }),
+  ).toBeVisible()
   await expect(
     page.getByRole('button', { name: 'Apri la sessione d’asta', exact: true }),
   ).toHaveCount(0)
@@ -1219,7 +1487,7 @@ test('il partecipante può chiamare solo nel proprio turno e non gestisce l’as
   state.version++
   notify()
   await expect(
-    page.getByRole('button', { name: 'Chiama a 1 credito', exact: true }),
+    page.getByRole('button', { name: 'Chiama', exact: true }),
   ).toHaveCount(0)
 })
 
@@ -1275,7 +1543,7 @@ test('scegliendo dal fondo del listone il form di chiamata diventa raggiungibile
     page.getByRole('button', { name: '15 secondi', exact: true }),
   ).toBeInViewport()
   await expect(
-    page.getByRole('button', { name: 'Chiama a 1 credito', exact: true }),
+    page.getByRole('button', { name: 'Chiama', exact: true }),
   ).toBeInViewport()
 })
 
@@ -1291,7 +1559,9 @@ test('il turno resta accessibile e il tabellone apre la rosa scelta', async ({
   await expect(
     page.getByRole('tab', { name: 'Rose', exact: true }),
   ).toHaveAttribute('aria-selected', 'true')
-  await expect(page.getByLabel('Rosa della squadra')).toHaveValue(teamId(1))
+  await expect(
+    page.getByRole('article', { name: 'Rosa Real Sbronzi', exact: true }),
+  ).toBeFocused()
   await expect(turn).toHaveClass('sr-only')
   await page.getByRole('tab', { name: 'Storico' }).click()
   await expect(
@@ -1300,6 +1570,13 @@ test('il turno resta accessibile e il tabellone apre la rosa scelta', async ({
     ),
   ).toBeVisible()
   await expect(turn).toHaveClass('sr-only')
+  const historyTab = page.getByRole('tab', { name: 'Storico', exact: true })
+  await historyTab.focus()
+  await historyTab.press('ArrowLeft')
+  const rosterTab = page.getByRole('tab', { name: 'Rose', exact: true })
+  await expect(rosterTab).toBeFocused()
+  await rosterTab.press('ArrowRight')
+  await expect(historyTab).toBeFocused()
   await page.getByRole('tab', { name: 'Live', exact: true }).click()
   await page
     .getByRole('button', { name: 'Scegli dal listone', exact: true })
@@ -1339,24 +1616,50 @@ test('una sessione scaduta durante l’asta torna al login', async ({ page }) =>
   await expect(page.locator('.auction-stage')).toHaveCount(0)
 })
 
-test('intestazione asta: logo centrato e presenze reali a destra', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1440, height: 900 })
-  const { presence } = await setupRoom(page)
-  presence(2)
-  const badge = page.getByRole('status', { name: 'Connessione alla sala' })
-  await expect(badge).toContainText('Utenti connessi: 2')
-  const logo = (await page.locator('.app-brand').boundingBox())!
-  const live = (await badge.boundingBox())!
-  expect(Math.abs(logo.x + logo.width / 2 - 720)).toBeLessThan(2)
-  expect(live.x).toBeGreaterThan(logo.x + logo.width)
-  presence(1)
-  await expect(badge).toContainText('Utenti connessi: 1')
-  await page.evaluate(() => window.dispatchEvent(new Event('offline')))
-  await expect(badge).toContainText('Riconnessione')
-  await expect(badge).not.toContainText('Utenti connessi: 1')
-})
+for (const width of [320, 390, 768, 1440]) {
+  test(`intestazione asta: lega e squadra accanto al logo a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 })
+    const { presence } = await setupRoom(page)
+    presence(2)
+    const badge = page.getByRole('status', { name: 'Connessione alla sala' })
+    await expect(badge).toContainText('Utenti connessi: 2')
+    const logo = (await page.locator('.app-brand').boundingBox())!
+    const live = (await badge.boundingBox())!
+    if (width > 650)
+      expect(Math.abs(logo.x + logo.width / 2 - width / 2)).toBeLessThan(2)
+    expect(live.x).toBeGreaterThan(logo.x + logo.width)
+    const header = page.locator('.app-header')
+    if (width <= 650) {
+      const profile = (await page
+        .getByRole('button', { name: 'Apri menu profilo' })
+        .boundingBox())!
+      expect(logo.x).toBeGreaterThanOrEqual(profile.x + profile.width)
+      expect(
+        Math.abs(logo.y + logo.height / 2 - live.y - live.height / 2),
+      ).toBeLessThan(2)
+      expect((await header.boundingBox())!.height).toBeLessThanOrEqual(72)
+    }
+    await expect(
+      header.locator('.auction-header-identity > strong'),
+    ).toHaveText('Lega di prova')
+    await expect(header.locator('.auction-header-identity > span')).toHaveText(
+      'Atletico Spritz',
+    )
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(width)
+    await header.screenshot({
+      path: test.info().outputPath(`header-${width}.png`),
+    })
+    presence(1)
+    await expect(badge).toContainText('Utenti connessi: 1')
+    await page.evaluate(() => window.dispatchEvent(new Event('offline')))
+    await expect(badge).toContainText('Riconnessione')
+    await expect(badge).not.toContainText('Utenti connessi: 1')
+  })
+}
 
 for (const width of [390, 1440]) {
   test(`il badge LIVE mostra utenti connessi e assenti in tempo reale a ${width}px`, async ({
@@ -1420,7 +1723,7 @@ test('il budget personale resta fisso e segue lo snapshot nelle altre sezioni', 
     exact: true,
   })
   const progress = budget.getByRole('progressbar')
-  await expect(budget).toContainText('Atletico Spritz')
+  await expect(budget).not.toContainText('Atletico Spritz')
   await expect(progress).toHaveAttribute('value', '500')
   await expect(progress).toHaveAttribute('max', '500')
   await expect(page.locator('#live-bid-controls')).toHaveCount(0)
@@ -1430,8 +1733,14 @@ test('il budget personale resta fisso e segue lo snapshot nelle altre sezioni', 
   notify()
   await expect(progress).toHaveAttribute('value', '250')
   await expect(budget).toContainText('250')
+  await page
+    .locator('.auction-bottom-bar')
+    .screenshot({ path: test.info().outputPath('bottom-bar-desktop.png') })
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(budget).toBeInViewport()
+  await page
+    .locator('.auction-bottom-bar')
+    .screenshot({ path: test.info().outputPath('bottom-bar-mobile.png') })
   state.teams[0]!.budget = 0
   state.version++
   notify()
@@ -1511,18 +1820,14 @@ for (const width of [390, 1440]) {
     await page
       .getByRole('button', { name: 'Seleziona Alessandro Fabbri' })
       .click()
-    await expect(
-      page.getByRole('button', { name: 'Chiama a 1 credito' }),
-    ).toBeEnabled()
+    await expect(page.getByRole('button', { name: 'Chiama' })).toBeEnabled()
     state.teams.forEach((team) => {
       team.goalkeepers = league.goalkeepers
     })
     state.currentRole = 'D'
     state.version++
     notify()
-    await expect(
-      page.getByRole('button', { name: 'Chiama a 1 credito' }),
-    ).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Chiama' })).toHaveCount(0)
     await page.getByRole('tab', { name: 'Listone', exact: true }).click()
     await expect(
       page.getByRole('button', { name: 'D', exact: true }),
@@ -1567,9 +1872,7 @@ for (const width of [320, 1440]) {
     const arena = page.getByRole('region', { name: 'Asta Bomba', exact: true })
     await expect(arena).toBeVisible()
     await expect(page.getByRole('tablist')).toBeHidden()
-    await expect(
-      page.getByRole('button', { name: 'Chiama a 1 credito' }),
-    ).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Chiama' })).toHaveCount(0)
     const offer = page.getByLabel('La tua offerta segreta')
     await expect(arena.getByText('La sfida sta per iniziare')).toBeVisible()
     await expect(offer).toHaveCount(0)
@@ -1830,4 +2133,234 @@ test('Bomba: uno spettatore entra dalla tab Rose, segue il vincitore e non ripet
         (window as unknown as { auctionAudioPlays: number }).auctionAudioPlays,
     ),
   ).toBe(0)
+})
+
+for (const width of [320, 768, 1440]) {
+  test(`rose a card: gruppi e navigazione responsive a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    await setupRoom(page, {
+      waiting: true,
+      teamCount: 10,
+      rosterRoles: ['A', 'C', 'P', 'D', 'P'],
+    })
+    await page.getByRole('tab', { name: 'Rose', exact: true }).click()
+    const panel = page.getByRole('tabpanel', { name: 'Rose', exact: true })
+    await expect(panel.getByRole('article')).toHaveCount(10)
+    const mine = panel.getByRole('article', {
+      name: 'Rosa Atletico Spritz',
+      exact: true,
+    })
+    await expect(mine.getByRole('heading', { level: 4 })).toHaveText([
+      'Portieri',
+      'Difensori',
+      'Centrocampisti',
+      'Attaccanti',
+    ])
+    await expect(mine).toContainText('Budget')
+    await expect(mine).toContainText('Offerta max')
+    await expect(
+      panel.getByRole('article', { name: 'Rosa Real Sbronzi', exact: true }),
+    ).toContainText('Il primo acquisto ti aspetta')
+    const next = panel.getByRole('button', { name: 'Squadre successive' })
+    if (width < 1200) {
+      await expect(next).toBeVisible()
+      await next.click()
+      const board = panel.getByLabel('Scorri le squadre', { exact: true })
+      await board.focus()
+      await board.press('End')
+      await expect(
+        panel.getByRole('article', {
+          name: 'Rosa AS Intomatici',
+          exact: true,
+        }),
+      ).toBeInViewport({ ratio: 0.9 })
+      await board.press('Home')
+      await expect(mine).toBeInViewport({ ratio: 0.9 })
+    } else {
+      await expect(next).toBeHidden()
+      const first = await mine.boundingBox()
+      const last = await panel
+        .getByRole('article', { name: 'Rosa AS Intomatici', exact: true })
+        .boundingBox()
+      const fifth = await panel.getByRole('article').nth(4).boundingBox()
+      const sixth = await panel.getByRole('article').nth(5).boundingBox()
+      expect(fifth!.y).toBe(first!.y)
+      expect(sixth!.y).toBeGreaterThan(first!.y)
+      expect(last!.y).toBe(sixth!.y)
+    }
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(width)
+    await page.screenshot({
+      path: test.info().outputPath(`rose-${width}.png`),
+      fullPage: true,
+    })
+  })
+}
+
+test('scroll infinito: errore, fine lista e acquisti realtime non perdono o duplicano calciatori', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const { control, state, notify } = await setupRoom(page, {
+    waiting: true,
+    catalogSize: 61,
+  })
+  let rejected = 0
+  let fail = true
+  await page.route('**/Catalog?**', async (route) => {
+    if (
+      fail &&
+      new URL(route.request().url()).searchParams.get('page') === '2'
+    ) {
+      rejected++
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          isSuccess: false,
+          data: null,
+          errors: [{ code: 'test.error', message: 'Errore di prova' }],
+        }),
+      })
+    } else await route.fallback()
+  })
+  await page.getByRole('tab', { name: 'Listone', exact: true }).click()
+  const catalog = page.locator('.auction-catalog--expanded')
+  await expect(catalog.locator('.catalog-row')).toHaveCount(30)
+  await catalog.locator('.infinite-scroll-more').scrollIntoViewIfNeeded()
+  await expect(catalog.getByRole('alert')).toBeVisible()
+  expect(rejected).toBe(1)
+  await expect(catalog.locator('.catalog-row')).toHaveCount(30)
+  fail = false
+  await catalog
+    .getByRole('button', {
+      name: 'Riprova: Carica altri calciatori',
+      exact: true,
+    })
+    .click()
+  await expect(catalog.locator('.catalog-row')).toHaveCount(60)
+  await catalog.locator('.infinite-scroll-more').scrollIntoViewIfNeeded()
+  await expect(catalog.locator('.catalog-row')).toHaveCount(61)
+  await expect(catalog.locator('.infinite-scroll-more')).toHaveCount(0)
+  expect(control.catalogRequests.every((pageNumber) => pageNumber <= 3)).toBe(
+    true,
+  )
+  control.catalogRemoved.push(playerId, 'player-1')
+  state.version++
+  notify()
+  await expect(catalog.locator('.catalog-row')).toHaveCount(59)
+  await expect(
+    catalog.getByText('Alessandro Fabbri', { exact: true }),
+  ).toHaveCount(0)
+  await expect(catalog.getByText('Calciatore 61', { exact: true })).toHaveCount(
+    1,
+  )
+  const names = await catalog.locator('.catalog-row h3').allTextContents()
+  expect(new Set(names).size).toBe(names.length)
+})
+
+test('ogni rosa carica scorrendo senza perdere acquisti e lo storico resta completo', async ({
+  page,
+}) => {
+  await setupRoom(page, {
+    waiting: true,
+    rosterRoles: Array.from({ length: 101 }, () => 'P' as const),
+  })
+  await page.getByRole('tab', { name: 'Rose', exact: true }).click()
+  const mine = page.getByRole('article', {
+    name: 'Rosa Atletico Spritz',
+    exact: true,
+  })
+  await mine.locator('.infinite-scroll-more').scrollIntoViewIfNeeded()
+  await expect(mine.getByText('Calciatore 101', { exact: true })).toBeVisible()
+  await expect(mine.getByText('Calciatore 1', { exact: true })).toHaveCount(1)
+  await page.getByRole('tab', { name: 'Storico', exact: true }).click()
+  await expect(
+    page
+      .getByRole('tabpanel', { name: 'Storico' })
+      .getByText('Calciatore 1', { exact: true }),
+  ).toBeVisible()
+  const history = page.getByRole('tabpanel', { name: 'Storico' })
+  await history.locator('.infinite-scroll-more').scrollIntoViewIfNeeded()
+  await expect(history.locator('.catalog-row')).toHaveCount(101)
+  await expect(history.getByText('Calciatore 1', { exact: true })).toHaveCount(
+    1,
+  )
+  await page.getByRole('tab', { name: 'Rose', exact: true }).click()
+  await expect(mine.getByText('Calciatore 101', { exact: true })).toBeVisible()
+})
+
+test('le rose passano da griglia a carosello al resize e raggiungono tutte le squadre', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await setupRoom(page, { waiting: true, teamCount: 8 })
+  await page.getByRole('tab', { name: 'Rose', exact: true }).click()
+  const panel = page.getByRole('tabpanel', { name: 'Rose', exact: true })
+  const next = panel.getByRole('button', { name: 'Squadre successive' })
+  await expect(next).toBeHidden()
+  await page.setViewportSize({ width: 390, height: 1000 })
+  await expect(next).toBeEnabled()
+  const board = panel.getByLabel('Scorri le squadre', { exact: true })
+  await board.focus()
+  await board.press('End')
+  const last = panel.getByRole('article', {
+    name: 'Rosa FC Mai una Gioia',
+    exact: true,
+  })
+  await expect(last).toBeInViewport({ ratio: 0.9 })
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await expect(next).toBeHidden()
+  const first = panel.getByRole('article', {
+    name: 'Rosa Atletico Spritz',
+    exact: true,
+  })
+  await expect(first).toBeInViewport()
+  expect((await last.boundingBox())!.y).toBeGreaterThan(
+    (await first.boundingBox())!.y,
+  )
+})
+
+test('un errore caricando la rosa conserva gli acquisti e permette di riprovare', async ({
+  page,
+}) => {
+  await setupRoom(page, {
+    waiting: true,
+    rosterRoles: Array.from({ length: 101 }, () => 'P' as const),
+  })
+  let reject = true
+  await page.route('**/Roster?**', async (route) => {
+    const params = new URL(route.request().url()).searchParams
+    if (
+      reject &&
+      params.get('teamId') === teamId(0) &&
+      params.get('page') === '2'
+    ) {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({ title: 'Errore di prova', status: 400 }),
+      })
+    } else await route.fallback()
+  })
+  await page.getByRole('tab', { name: 'Rose', exact: true }).click()
+  const mine = page.getByRole('article', {
+    name: 'Rosa Atletico Spritz',
+    exact: true,
+  })
+  await mine.locator('.infinite-scroll-more').scrollIntoViewIfNeeded()
+  await expect(mine.getByRole('alert')).toContainText(
+    'Non riusciamo a caricare altri risultati.',
+  )
+  await expect(mine.getByText('Calciatore 1', { exact: true })).toHaveCount(1)
+  reject = false
+  await mine
+    .getByRole('button', {
+      name: 'Riprova: Carica altri giocatori di Atletico Spritz',
+    })
+    .click()
+  await expect(mine.getByText('Calciatore 101', { exact: true })).toBeVisible()
 })

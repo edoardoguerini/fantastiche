@@ -14,7 +14,7 @@ using Microsoft.Extensions.Configuration;
 namespace Fantastiche.Infrastructure.Leagues;
 
 public sealed class LeagueWorkflow(FantasticheDbContext db, UserManager<ApplicationUser> users,
- EmailPayloadProtector protector, TimeProvider clock, IConfiguration configuration)
+ EmailPayloadProtector protector, TimeProvider clock, IConfiguration configuration, LeagueLogoStorage logos)
 {
     public async Task<LeagueDetails> CreateLeagueAsync(CreateLeagueCommand r, CancellationToken ct)
     {
@@ -242,5 +242,5 @@ public sealed class LeagueWorkflow(FantasticheDbContext db, UserManager<Applicat
     }
     private static DomainException Forbidden() => new("auth.forbidden", "Operazione non consentita.", 403);
     private static DomainException NotFound() => new("resource.not_found", "Risorsa non disponibile.", 404);
-    private static LeagueDetails Details(League l, LeagueSeason s) => new(l.Id, l.Name, s.Id, s.Name, s.Budget, s.Goalkeepers, s.Defenders, s.Midfielders, s.Forwards);
+    private LeagueDetails Details(League l, LeagueSeason s) => new(l.Id, l.Name, s.Id, s.Name, s.Budget, s.Goalkeepers, s.Defenders, s.Midfielders, s.Forwards, logos.Url(l.LogoBlobName));
 }

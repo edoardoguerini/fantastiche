@@ -289,3 +289,107 @@ test('un logout fallito resta nel menu profilo e consente di riprovare', async (
   await page.getByRole('menuitem', { name: 'Esci' }).click()
   await expect(page).toHaveURL(/login/)
 })
+
+test('la card mostra il logo della lega e recupera le iniziali se non è disponibile', async ({
+  page,
+}) => {
+  await setupApi(page, true)
+  const logoUrl = '/brand/fantastiche-logo.png'
+  await page.route('http://localhost:6060/api/Leagues?**', (route) =>
+    route.fulfill({
+      json: {
+        isSuccess: true,
+        data: {
+          items: [{ ...league, logoUrl }],
+          totalCount: 1,
+          page: 1,
+          pageSize: 20,
+        },
+        errors: [],
+      },
+    }),
+  )
+  await page.goto('/leghe')
+  const logo = page.locator('.league-card .league-logo')
+  await expect(logo).toBeVisible()
+  await expect
+    .poll(() =>
+      logo.evaluate((element: HTMLImageElement) => element.naturalWidth),
+    )
+    .toBeGreaterThan(0)
+  await page.route('**/brand/fantastiche-logo.png', (route) =>
+    route.fulfill({ status: 404 }),
+  )
+  await page.reload()
+  await expect(page.locator('.league-card .league-monogram')).toHaveText('L')
+})
+
+for (const width of [320, 1440]) {
+  for (const [status, label] of Object.entries({
+    NotStarted: 'Da iniziare',
+    Active: 'In corso',
+    Paused: 'In pausa',
+    Completed: 'Conclusa',
+  })) {
+    test(`card lega ${status}: stato e accessi a ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await setupApi(page, true)
+      const myTeamName = status === 'NotStarted' ? null : 'Atletico Spritz'
+      await page.route('http://localhost:6060/api/Leagues?**', (route) =>
+        route.fulfill({
+          json: {
+            isSuccess: true,
+            data: {
+              items: [
+                {
+                  ...league,
+                  auctionStatus: status,
+                  myTeamName,
+                  logoUrl: '/brand/fantastiche-logo-transparent.png',
+                },
+              ],
+              totalCount: 1,
+              page: 1,
+              pageSize: 20,
+            },
+            errors: [],
+          },
+        }),
+      )
+      await page.goto('/leghe')
+      const card = page.getByRole('article', { name: league.name })
+      await expect(card.getByText(label, { exact: true })).toBeVisible()
+      if (myTeamName)
+        await expect(card.getByText(myTeamName, { exact: true })).toBeVisible()
+      else await expect(card.locator('.league-my-team')).toHaveCount(0)
+      await expect(
+        card.getByText('Budget iniziale 500', { exact: true }),
+      ).toBeVisible()
+      await expect(card.getByText('Rosa da 25', { exact: true })).toBeVisible()
+      const action = card.getByRole('link', {
+        name: status === 'Completed' ? 'Rivedi l’asta' : 'Entra nell’asta',
+        exact: true,
+      })
+      await expect(action).toHaveAttribute('href', '/leghe/league-1/asta')
+      await expect(action).toBeInViewport()
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBeLessThanOrEqual(width)
+      if (status === 'Active')
+        await page.screenshot({
+          path: test.info().outputPath(`league-card-${width}.png`),
+        })
+      await card
+        .getByRole('link', {
+          name: `Dettagli lega ${league.name}`,
+          exact: true,
+        })
+        .click()
+      await expect(
+        page.getByRole('heading', { name: 'Configurazione della rosa' }),
+      ).toBeVisible()
+    })
+  }
+}

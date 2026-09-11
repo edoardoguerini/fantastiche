@@ -1,4 +1,10 @@
 using System.Net;
+using Fantastiche.Infrastructure.Auctions;
+using Fantastiche.Infrastructure.Catalog;
+using Fantastiche.Infrastructure.Teams;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 using Fantastiche.Infrastructure.Common.Authentication;
 using Fantastiche.Infrastructure.Common.Persistence;
 using Fantastiche.Infrastructure.Leagues;
@@ -9,6 +15,84 @@ namespace Fantastiche.IntegrationTests.Http;
 
 public sealed partial class HttpFlowTests
 {
+    [Fact]
+    public async Task LeagueListShowsCurrentUserTeamAndCurrentAuctionStatus()
+    {
+        var user = await CreateLeagueListUser();
+        var other = await CreateLeagueListUser();
+        var target = await AddLeagueForList("Riepilogo", "2026/27", user.Id, MembershipStatus.Active, DateTimeOffset.UtcNow);
+        await using var factory = Factory();
+        using var client = Client(factory);
+        await Login(client, user.Email, Password);
+        async Task<System.Text.Json.JsonElement> Summary()
+        {
+            var result = await Data(await client.GetAsync("/api/Leagues"), HttpStatusCode.OK);
+            return Assert.Single(result.GetProperty("items").EnumerateArray());
+        }
+        var initial = await Summary();
+        Assert.Equal("NotStarted", initial.GetProperty("auctionStatus").GetString());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, initial.GetProperty("myTeamName").ValueKind);
+        Guid sessionId;
+        await using (var scope = fixture.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<FantasticheDbContext>();
+            var mine = new Team { LeagueId = target.LeagueId, LeagueSeasonId = target.SeasonId, Name = "La mia squadra", NormalizedName = "LA MIA SQUADRA", Budget = 500 };
+            var theirs = new Team { LeagueId = target.LeagueId, LeagueSeasonId = target.SeasonId, Name = "Altra squadra", NormalizedName = "ALTRA SQUADRA", Budget = 500 };
+            var list = new ListVersion { SeasonName = "2026/27", Source = "Test", ContentHash = Guid.NewGuid().ToString("N").PadRight(64, '0'), CreatedByUserId = fixture.Admin.UserId!.Value, CreatedAt = DateTimeOffset.UtcNow };
+            var active = new AuctionSession { LeagueId = target.LeagueId, LeagueSeasonId = target.SeasonId, ListVersionId = list.Id, Status = AuctionSessionStatus.Active, Version = 1, CreatedAt = DateTimeOffset.UtcNow, CreatedByUserId = fixture.Admin.UserId.Value };
+            sessionId = active.Id;
+            db.AddRange(mine, theirs, list, active,
+                new LeagueMember { LeagueId = target.LeagueId, UserId = other.Id, Status = MembershipStatus.Active },
+                new TeamMember { TeamId = mine.Id, LeagueId = target.LeagueId, LeagueSeasonId = target.SeasonId, UserId = user.Id },
+                new TeamMember { TeamId = theirs.Id, LeagueId = target.LeagueId, LeagueSeasonId = target.SeasonId, UserId = other.Id },
+                new AuctionSession { LeagueId = target.LeagueId, LeagueSeasonId = target.SeasonId, ListVersionId = list.Id, Status = AuctionSessionStatus.Completed, Version = 1, CreatedAt = DateTimeOffset.UtcNow.AddDays(1), CreatedByUserId = fixture.Admin.UserId.Value });
+            await db.SaveChangesAsync();
+        }
+        var running = await Summary();
+        Assert.Equal("La mia squadra", running.GetProperty("myTeamName").GetString());
+        Assert.Equal("Active", running.GetProperty("auctionStatus").GetString());
+        foreach (var status in new[] { AuctionSessionStatus.Paused, AuctionSessionStatus.Completed })
+        {
+            await using var scope = fixture.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<FantasticheDbContext>();
+            await db.AuctionSessions.Where(x => x.Id == sessionId).ExecuteUpdateAsync(set => set.SetProperty(x => x.Status, status));
+            Assert.Equal(status.ToString(), (await Summary()).GetProperty("auctionStatus").GetString());
+        }
+        using var otherClient = Client(factory);
+        await Login(otherClient, other.Email, Password);
+        var otherList = await Data(await otherClient.GetAsync("/api/Leagues"), HttpStatusCode.OK);
+        Assert.Equal("Altra squadra", Assert.Single(otherList.GetProperty("items").EnumerateArray()).GetProperty("myTeamName").GetString());
+    }
+
+    [Fact]
+    public async Task LeagueLogoIsConsistentInListAndDetailAndOptional()
+    {
+        var user = await CreateLeagueListUser();
+        var target = await AddLeagueForList("Con logo", "2026/27", user.Id, MembershipStatus.Active, DateTimeOffset.UtcNow);
+        await using (var scope = fixture.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<FantasticheDbContext>();
+            var entity = await db.Leagues.FindAsync(target.LeagueId);
+            entity!.LogoBlobName = $"{target.LeagueId}/logo prova.png";
+            await db.SaveChangesAsync();
+        }
+        await using var factory = Factory().WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, config) =>
+            config.AddInMemoryCollection(new Dictionary<string, string?> {
+                ["Storage:LeagueLogos:PublicBaseUrl"] = "https://media.example.test/league-logos"
+            })));
+        using var client = Client(factory);
+        await Login(client, user.Email, Password);
+        var list = await Data(await client.GetAsync("/api/Leagues"), HttpStatusCode.OK);
+        var detail = await Data(await client.GetAsync($"/api/Leagues/{target.LeagueId}"), HttpStatusCode.OK);
+        var item = Assert.Single(list.GetProperty("items").EnumerateArray());
+        var expected = $"https://media.example.test/league-logos/{target.LeagueId}/logo%20prova.png";
+        Assert.Equal(expected, item.GetProperty("logoUrl").GetString());
+        Assert.Equal(expected, detail.GetProperty("logoUrl").GetString());
+        var without = await AddLeagueForList("Senza logo", "2026/27", user.Id, MembershipStatus.Active, DateTimeOffset.UtcNow);
+        var noLogo = await Data(await client.GetAsync($"/api/Leagues/{without.LeagueId}"), HttpStatusCode.OK);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, noLogo.GetProperty("logoUrl").ValueKind);
+    }
+
     [Fact]
     public async Task LeagueListRequiresAuthentication()
     {

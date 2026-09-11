@@ -3,6 +3,11 @@ import { z } from 'zod'
 export const leagueSchema = z.object({
   id: z.string(),
   name: z.string(),
+  logoUrl: z.string().nullish(),
+  myTeamName: z.string().nullish(),
+  auctionStatus: z
+    .enum(['NotStarted', 'Active', 'Paused', 'Completed'])
+    .nullish(),
   leagueSeasonId: z.string(),
   seasonName: z.string(),
   budget: z.number(),

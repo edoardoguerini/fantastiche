@@ -48,117 +48,144 @@ export function PlayerCallForm({
         void form.handleSubmit()
       }}
     >
-      <div className="auction-stage-top">
-        <span className="auction-eyebrow">La tua selezione</span>
-      </div>
-      <div className="player-call-heading">
-        <PlayerPhoto url={player.photoUrl} role={player.role} large />
-        <div>
-          <span className={`catalog-role role-${player.role}`}>
-            {player.role}
-          </span>
-          <h2>{player.name}</h2>
-          <p className="player-club-line">
-            <ClubLabel name={player.clubName} logoUrl={player.clubLogoUrl} /> ·
-            Offerta iniziale 1 credito
-          </p>
-          <PlayerValuation player={player} />
-        </div>
-      </div>
-      <div className="call-settings-row">
-        <div className="call-settings">
-          <form.Field name="duration">
-            {(field) => (
-              <fieldset className="call-option-field" disabled={disabled}>
-                <legend>Timer</legend>
-                <div className="call-options">
-                  {durations.map((seconds) => (
-                    <Button
-                      key={seconds}
-                      variant="outline"
-                      className="call-option"
-                      id={
-                        field.state.value === seconds
-                          ? 'call-duration'
-                          : undefined
-                      }
-                      aria-label={`${seconds} secondi`}
-                      aria-pressed={field.state.value === seconds}
-                      onClick={() => field.handleChange(seconds)}
-                    >
-                      {seconds} s
-                    </Button>
-                  ))}
-                </div>
-              </fieldset>
-            )}
-          </form.Field>
-          <form.Field name="increments">
-            {(field) => (
-              <fieldset className="call-option-field" disabled={disabled}>
-                <legend>Incrementi dei rilanci</legend>
-                <div className="call-options">
-                  {incrementOptions.map((increment) => {
-                    const selected = field.state.value.includes(increment)
-                    const lastSelected =
-                      selected && field.state.value.length === 1
-                    return (
-                      <Button
-                        key={increment}
-                        variant="outline"
-                        className="call-option"
-                        aria-pressed={selected}
-                        aria-disabled={lastSelected || undefined}
-                        onClick={() => {
-                          if (lastSelected) return
-                          field.handleChange(
-                            selected
-                              ? field.state.value.filter(
-                                  (value) => value !== increment,
-                                )
-                              : [...field.state.value, increment].sort(
-                                  (a, b) => a - b,
-                                ),
-                          )
-                        }}
-                      >
-                        +{increment}
-                      </Button>
-                    )
-                  })}
-                </div>
-                {field.state.meta.errors[0] && (
-                  <p className="field-error" role="alert">
-                    {field.state.meta.errors[0].message}
-                  </p>
-                )}
-              </fieldset>
-            )}
-          </form.Field>
-        </div>
-        <div className="call-actions">
-          <Button variant="ghost" onClick={onCancel} disabled={disabled}>
-            Annulla
-          </Button>
-          {onBomb && (
-            <Button
-              className="bomb-launch"
-              variant="outline"
-              disabled={disabled}
-              onClick={() => void onBomb()}
-            >
-              <Icon name="bomb" variant="jelly" /> Sgancia la bomba
-            </Button>
-          )}
-          <form.Subscribe selector={(state) => state.isSubmitting}>
-            {(busy) => (
-              <Button type="submit" disabled={disabled || busy}>
-                Chiama a 1 credito
+      <form.Subscribe selector={(state) => state.isSubmitting}>
+        {(busy) => (
+          <fieldset className="player-call-fields" disabled={disabled || busy}>
+            <div className="auction-stage-top">
+              <span className="auction-eyebrow">La tua selezione</span>
+              <Button
+                className="call-close"
+                variant="ghost"
+                onClick={onCancel}
+                aria-label="Annulla selezione"
+                title="Annulla selezione"
+              >
+                <Icon name="xmark" />
               </Button>
-            )}
-          </form.Subscribe>
-        </div>
-      </div>
+            </div>
+            <div className="player-call-layout">
+              <section
+                className="player-call-card"
+                aria-label="Giocatore selezionato"
+              >
+                <div className="player-call-heading">
+                  <PlayerPhoto url={player.photoUrl} role={player.role} large />
+                  <div className="player-call-identity">
+                    <span className={`catalog-role role-${player.role}`}>
+                      {player.role}
+                    </span>
+                    <h2>{player.name}</h2>
+                    <p className="player-club-line">
+                      <ClubLabel
+                        name={player.clubName}
+                        logoUrl={player.clubLogoUrl}
+                      />
+                    </p>
+                  </div>
+                </div>
+                <PlayerValuation player={player} variant="tiles" />
+              </section>
+              <section
+                className="call-command-panel"
+                aria-label="Impostazioni e chiamata"
+              >
+                <div className="call-settings">
+                  <form.Field name="duration">
+                    {(field) => (
+                      <fieldset className="call-option-field">
+                        <legend>Timer</legend>
+                        <div className="call-options">
+                          {durations.map((seconds) => (
+                            <Button
+                              key={seconds}
+                              variant="outline"
+                              className="call-option"
+                              id={
+                                field.state.value === seconds
+                                  ? 'call-duration'
+                                  : undefined
+                              }
+                              aria-label={`${seconds} secondi`}
+                              aria-pressed={field.state.value === seconds}
+                              onClick={() => field.handleChange(seconds)}
+                            >
+                              {seconds} s
+                            </Button>
+                          ))}
+                        </div>
+                      </fieldset>
+                    )}
+                  </form.Field>
+                  <form.Field name="increments">
+                    {(field) => (
+                      <fieldset className="call-option-field">
+                        <legend>Incrementi dei rilanci</legend>
+                        <div className="call-options">
+                          {incrementOptions.map((increment) => {
+                            const selected =
+                              field.state.value.includes(increment)
+                            const lastSelected =
+                              selected && field.state.value.length === 1
+                            return (
+                              <Button
+                                key={increment}
+                                variant="outline"
+                                className="call-option"
+                                aria-pressed={selected}
+                                aria-disabled={lastSelected || undefined}
+                                onClick={() => {
+                                  if (lastSelected) return
+                                  field.handleChange(
+                                    selected
+                                      ? field.state.value.filter(
+                                          (value) => value !== increment,
+                                        )
+                                      : [...field.state.value, increment].sort(
+                                          (a, b) => a - b,
+                                        ),
+                                  )
+                                }}
+                              >
+                                +{increment}
+                              </Button>
+                            )
+                          })}
+                        </div>
+                        <p className="call-options-hint">
+                          Almeno un incremento attivo.
+                        </p>
+                        {field.state.meta.errors[0] && (
+                          <p className="field-error" role="alert">
+                            {field.state.meta.errors[0].message}
+                          </p>
+                        )}
+                      </fieldset>
+                    )}
+                  </form.Field>
+                </div>
+                <div className="call-actions">
+                  {onBomb && (
+                    <Button
+                      className="bomb-launch"
+                      variant="outline"
+                      onClick={() => void onBomb()}
+                    >
+                      <Icon name="bomb" variant="jelly" /> Sgancia la bomba
+                    </Button>
+                  )}
+                  <Button
+                    type="submit"
+                    className="call-submit"
+                    aria-busy={busy}
+                  >
+                    {busy ? 'Chiamata in corso…' : 'Chiama'}
+                  </Button>
+                </div>
+              </section>
+            </div>
+          </fieldset>
+        )}
+      </form.Subscribe>
     </form>
   )
 }

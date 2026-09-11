@@ -1,20 +1,22 @@
 import { useEffect, useId, useState } from 'react'
 import useEmblaCarousel from 'embla-carousel-react'
-import { useQuery } from '@tanstack/react-query'
 import { Icon } from '@/components/common/icon'
-import {
-  roles,
-  type AuctionTeam,
-  type RosterRules,
-} from '../types/auction.types'
-import { rosterQueryOptions } from '../actions/auction.queries'
-import { emptySlots, maxOffer } from '../validations/auction-rules'
-import { PlayerPhoto } from './player-photo'
+import type { AuctionTeam, RosterRules } from '../types/auction.types'
+import { TeamRosterCard } from './team-roster-card'
 
 const carouselOptions = {
   loop: true,
   align: () => 44,
   breakpoints: { '(prefers-reduced-motion: reduce)': { duration: 0 } },
+}
+
+const rosterCarouselOptions = {
+  loop: false,
+  align: 'start' as const,
+  breakpoints: {
+    '(prefers-reduced-motion: reduce)': { duration: 0 },
+    '(min-width: 1200px)': { active: false },
+  },
 }
 
 export function TeamBoard({
@@ -25,6 +27,9 @@ export function TeamBoard({
   currentTeamId,
   rules,
   onSelect,
+  expanded = false,
+  active = true,
+  selectedTeamId,
 }: {
   userId: string
   sessionId: string
@@ -33,10 +38,28 @@ export function TeamBoard({
   currentTeamId: string | null
   rules: RosterRules
   onSelect: (teamId: string) => void
+  expanded?: boolean
+  active?: boolean
+  selectedTeamId?: string
 }) {
-  const [boardRef, carousel] = useEmblaCarousel(carouselOptions)
+  const [boardRef, carousel] = useEmblaCarousel(
+    expanded ? rosterCarouselOptions : carouselOptions,
+  )
   const boardId = useId()
   const [edges, setEdges] = useState({ start: true, end: true })
+
+  const selectedIndex = teams.findIndex((team) => team.id === selectedTeamId)
+  useEffect(() => {
+    if (!carousel || !expanded || !active) return
+    carousel.reInit()
+    if (selectedIndex < 0) return
+    carousel.scrollTo(selectedIndex, true)
+    const card = carousel.slideNodes()[selectedIndex]
+    card?.focus({ preventScroll: true })
+    if (window.matchMedia('(min-width: 1200px)').matches) {
+      card?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    }
+  }, [carousel, expanded, active, selectedIndex])
 
   useEffect(() => {
     if (!carousel) return
@@ -57,6 +80,7 @@ export function TeamBoard({
     let lastWheelTime = 0
     let lastStepTime = 0
     const onWheel = (event: WheelEvent) => {
+      if (expanded && window.matchMedia('(min-width: 1200px)').matches) return
       if (event.ctrlKey || Math.abs(event.deltaX) <= Math.abs(event.deltaY))
         return
       if (!carousel.canScrollPrev() && !carousel.canScrollNext()) return
@@ -77,7 +101,7 @@ export function TeamBoard({
       carousel.off('select', updateEdges).off('reInit', updateEdges)
       viewport.removeEventListener('wheel', onWheel)
     }
-  }, [carousel])
+  }, [carousel, expanded])
 
   function scrollTeams(direction: -1 | 1) {
     if (direction < 0) carousel?.scrollPrev()
@@ -86,14 +110,14 @@ export function TeamBoard({
 
   return (
     <section
-      className="auction-teams"
-      aria-label="Tabellone delle squadre"
-      aria-roledescription="carosello"
+      className={`auction-teams ${expanded ? 'auction-teams--rosters' : ''}`}
+      aria-label={expanded ? 'Rose delle squadre' : 'Tabellone delle squadre'}
+      aria-roledescription={expanded ? undefined : 'carosello'}
     >
       <div className="auction-teams-heading">
-        <h2>Le squadre</h2>
+        <h2>{expanded ? `${teams.length} squadre` : 'Le squadre'}</h2>
         <div className="auction-teams-navigation">
-          <span>{teams.length} partecipanti</span>
+          {!expanded && <span>{teams.length} partecipanti</span>}
           <div className="auction-carousel-controls">
             <button
               type="button"
@@ -124,6 +148,8 @@ export function TeamBoard({
         aria-label="Scorri le squadre"
         onKeyDown={(event) => {
           if (event.target !== event.currentTarget) return
+          if (expanded && window.matchMedia('(min-width: 1200px)').matches)
+            return
           if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
             event.preventDefault()
             scrollTeams(event.key === 'ArrowLeft' ? -1 : 1)
@@ -135,7 +161,7 @@ export function TeamBoard({
       >
         <div className="auction-board-track">
           {teams.map((team, index) => (
-            <TeamColumn
+            <TeamRosterCard
               key={team.id}
               userId={userId}
               sessionId={sessionId}
@@ -144,129 +170,12 @@ export function TeamBoard({
               mine={team.id === myTeamId}
               current={team.id === currentTeamId}
               rules={rules}
+              expanded={expanded}
               onSelect={onSelect}
             />
           ))}
         </div>
       </div>
     </section>
-  )
-}
-function TeamColumn({
-  userId,
-  sessionId,
-  team,
-  index,
-  mine,
-  current,
-  rules,
-  onSelect,
-}: {
-  userId: string
-  sessionId: string
-  team: AuctionTeam
-  index: number
-  mine: boolean
-  current: boolean
-  rules: RosterRules
-  onSelect: (id: string) => void
-}) {
-  const roster = useQuery(rosterQueryOptions(userId, sessionId, team.id))
-  return (
-    <article
-      className={`team-column ${mine ? 'team-column--mine' : ''} ${current ? 'team-column--current' : ''}`}
-    >
-      <button
-        className="team-open"
-        type="button"
-        onClick={() => onSelect(team.id)}
-        aria-label={`Apri rosa ${team.name}`}
-      >
-        <div className="team-column-top">
-          <span className={`team-turn ${current ? 'team-turn--active' : ''}`}>
-            {current ? 'Di turno' : String(index + 1).padStart(2, '0')}
-          </span>
-          {mine && <span className="team-mine">Tu</span>}
-        </div>
-        <div className="team-identity">
-          <span className="team-monogram" aria-hidden="true">
-            {team.name
-              .split(' ')
-              .slice(0, 2)
-              .map((part) => part[0])
-              .join('')}
-          </span>
-          <h3>{team.name}</h3>
-        </div>
-      </button>
-      <div
-        className="team-purchases"
-        tabIndex={0}
-        aria-label={`Acquisti ${team.name}`}
-      >
-        {roster.isPending ? (
-          <p className="team-purchases-empty">Caricamento rosa…</p>
-        ) : roster.isError ? (
-          <button type="button" onClick={() => void roster.refetch()}>
-            Ricarica la rosa
-          </button>
-        ) : roster.data.items.length ? (
-          roles.map((role) => {
-            const players = roster.data.items.filter(
-              (player) => player.role === role.id,
-            )
-            if (!players.length) return null
-            return (
-              <div className="team-purchase-group" key={role.id}>
-                <h4>{role.label}</h4>
-                <ul aria-label={role.label}>
-                  {players.map((player) => (
-                    <li key={player.playerId}>
-                      <PlayerPhoto url={player.photoUrl} role={player.role} />
-                      <div className="team-purchase-details">
-                        <span>{player.name}</span>
-                        <span className={`catalog-role role-${player.role}`}>
-                          {player.role}
-                        </span>
-                      </div>
-                      <strong>{player.price}</strong>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )
-          })
-        ) : (
-          <p className="team-purchases-empty">
-            <Icon name="shirt" variant="jelly" />
-            <span>Il primo acquisto ti aspetta</span>
-          </p>
-        )}
-        {roster.data && roster.data.total > roster.data.items.length && (
-          <button type="button" onClick={() => onSelect(team.id)}>
-            Apri la rosa completa
-          </button>
-        )}
-      </div>
-      <div className="team-capacity">
-        {roles.map((role) => (
-          <span key={role.id} title={role.label}>
-            <b className={`role-${role.id}`}>{role.id}</b>
-            {team[role.field]}
-            <small>/{rules[role.field]}</small>
-          </span>
-        ))}
-      </div>
-      <div className="team-finances">
-        <p>
-          <span>Budget</span>
-          <strong>{team.budget}</strong>
-        </p>
-        <p>
-          <span>Offerta max</span>
-          <strong>{maxOffer(team.budget, emptySlots(team, rules))}</strong>
-        </p>
-      </div>
-    </article>
   )
 }

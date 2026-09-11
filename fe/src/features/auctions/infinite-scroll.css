@@ -1,0 +1,13 @@
+.infinite-scroll-more {
+  grid-column: 1 / -1;
+  padding: 12px 0;
+  min-height: 56px;
+  text-align: center;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.infinite-scroll-more button {
+  max-width: 100%;
+  white-space: normal;
+  font-size: 12px;
+}

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Fantastiche.Infrastructure.Leagues;
 
-public sealed class GetLeaguesQueryHandler(FantasticheDbContext db)
+public sealed class GetLeaguesQueryHandler(FantasticheDbContext db, LeagueLogoStorage logos)
     : IRequestHandler<GetLeaguesQuery, LeaguePage<LeagueDetails>>
 {
     public async Task<LeaguePage<LeagueDetails>> HandleAsync(GetLeaguesQuery request, CancellationToken ct)
@@ -59,7 +59,15 @@ public sealed class GetLeaguesQueryHandler(FantasticheDbContext db)
                    season.Goalkeepers,
                    season.Defenders,
                    season.Midfielders,
-                   season.Forwards
+                   season.Forwards,
+                   league.LogoBlobName AS LogoUrl,
+                   myTeam.Name AS MyTeamName,
+                   CASE currentAuction.Status
+                       WHEN 0 THEN N'Active'
+                       WHEN 1 THEN N'Paused'
+                       WHEN 2 THEN N'Completed'
+                       ELSE N'NotStarted'
+                   END AS AuctionStatus
             FROM Leagues league
             CROSS APPLY
                 (
@@ -75,6 +83,25 @@ public sealed class GetLeaguesQueryHandler(FantasticheDbContext db)
                     WHERE innerSeason.LeagueId = league.Id
                     ORDER BY innerSeason.Id DESC
                 ) season
+            OUTER APPLY
+                (
+                    SELECT team.Name
+                    FROM TeamMembers teamMember
+                    INNER JOIN Teams team ON team.Id = teamMember.TeamId
+                      AND team.LeagueSeasonId = teamMember.LeagueSeasonId AND team.LeagueId = teamMember.LeagueId
+                    INNER JOIN LeagueMembers membership ON membership.LeagueId = teamMember.LeagueId
+                      AND membership.UserId = teamMember.UserId AND membership.Status = 1
+                    WHERE teamMember.UserId = @userId AND teamMember.LeagueId = league.Id
+                      AND teamMember.LeagueSeasonId = season.Id
+                ) myTeam
+            OUTER APPLY
+                (
+                    SELECT TOP (1) auction.Status
+                    FROM AuctionSessions auction
+                    WHERE auction.LeagueId = league.Id AND auction.LeagueSeasonId = season.Id
+                    ORDER BY CASE WHEN auction.Status < 2 THEN 0 ELSE 1 END,
+                             auction.CreatedAt DESC, auction.Id DESC
+                ) currentAuction
             WHERE @isSuperAdmin = 1
                OR EXISTS
                   (
@@ -88,7 +115,7 @@ public sealed class GetLeaguesQueryHandler(FantasticheDbContext db)
             OFFSET @offset ROWS FETCH NEXT @PageSize ROWS ONLY;
             """, parameters, cancellationToken: ct));
         var totalCount = await result.ReadSingleAsync<int>();
-        var items = (await result.ReadAsync<LeagueDetails>()).ToList();
+        var items = (await result.ReadAsync<LeagueDetails>()).Select(item => item with { LogoUrl = logos.Url(item.LogoUrl) }).ToList();
         return new LeaguePage<LeagueDetails>(items, totalCount, request.Page, request.PageSize);
     }
 }

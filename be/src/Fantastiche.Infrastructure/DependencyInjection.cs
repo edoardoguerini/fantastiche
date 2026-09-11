@@ -43,6 +43,7 @@ public static class DependencyInjection
             protection.ProtectKeysWithCertificate(X509CertificateLoader.LoadPkcs12FromFile(certificatePath, configuration["DataProtection:CertificatePassword"]));
         services.AddScoped<EmailPayloadProtector>();
         services.AddScoped<LeagueWorkflow>();
+        services.AddScoped<LeagueLogoStorage>();
         services.AddScoped<CatalogWorkflow>();
         services.AddScoped<PlayerMediaImporter>();
         services.AddScoped<PlayerPhotoStorage>();

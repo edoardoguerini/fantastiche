@@ -32,6 +32,7 @@ env.setdefault('Email__LocalDirectory', str(root / '.local/mail'))
 env.setdefault('Email__Provider', 'Local')
 env.setdefault('Storage__PlayerPhotos__PublicBaseUrl', f'http://localhost:{env.get("AZURITE_BLOB_PORT", "10010")}/fantastiche/player-photos')
 env.setdefault('Storage__ClubLogos__PublicBaseUrl', f'http://localhost:{env.get("AZURITE_BLOB_PORT", "10010")}/fantastiche/club-logos')
+env.setdefault('Storage__LeagueLogos__PublicBaseUrl', f'http://localhost:{env.get("AZURITE_BLOB_PORT", "10010")}/fantastiche/league-logos')
 password = env['MSSQL_SA_PASSWORD']
 # Le virgolette seguono le regole ADO.NET per i valori con punto e virgola.
 escaped = password.replace('"', '""')

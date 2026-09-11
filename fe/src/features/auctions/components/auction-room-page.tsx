@@ -5,7 +5,10 @@ import { authQueryOptions } from '@/features/auth'
 import { leagueQueryOptions, type League } from '@/features/leagues'
 import { ErrorState, LoadingState } from '@/components/common/page-state'
 import { Button } from '@/components/primitives/button'
-import { AppHeaderContent } from '@/components/layout/app-shell'
+import {
+  AppBrandContent,
+  AppHeaderContent,
+} from '@/components/layout/app-shell'
 import {
   roomQueryOptions,
   sessionQueryOptions,
@@ -42,6 +45,7 @@ import { OrganizerControls } from './organizer-controls'
 import '../auction.css'
 import '../auction-navigation.css'
 import '../auction-console.css'
+import '../auction-rosters.css'
 
 export function AuctionRoomPage({ leagueId }: { leagueId: string }) {
   const { data: user } = useQuery(authQueryOptions())
@@ -66,8 +70,17 @@ function Room({ userId, league }: { userId: string; league: League }) {
   const room = useQuery(
     roomQueryOptions(userId, league.id, league.leagueSeasonId),
   )
+  const myTeam = room.data?.teams.find(
+    (team) => team.id === room.data?.myTeamId,
+  )
   return (
     <div className="auction-room">
+      <AppBrandContent>
+        <span className="auction-header-identity">
+          <strong title={league.name}>{league.name}</strong>
+          {myTeam && <span title={myTeam.name}>{myTeam.name}</span>}
+        </span>
+      </AppBrandContent>
       <h1 className="sr-only">Sala d’asta · {league.name}</h1>
       {room.isPending ? (
         <LoadingState />
@@ -204,9 +217,8 @@ function SessionView({
     player: CatalogEntry
     version: number
   } | null>(null)
-  const [rosterTeam, setRosterTeam] = useState(
-    room.myTeamId ?? session.teams[0]?.id ?? '',
-  )
+  const [rosterTeam, setRosterTeam] = useState('')
+  const [rosterOpened, setRosterOpened] = useState(false)
   const [newSession, setNewSession] = useState(false)
   const bids = useQuery(
     bidsQueryOptions(userId, session.id, session.currentAuction?.id ?? ''),
@@ -252,15 +264,14 @@ function SessionView({
     })
   }, [client, userId, session.id, rosterRevision])
   const selectSection = (next: AuctionSection) => {
+    setRosterTeam('')
+    if (next === 'roster') setRosterOpened(true)
     setTab(next)
     window.scrollTo({ top: 0, behavior: 'instant' })
   }
   const selectTeam = (id: string) => {
-    setRosterTeam(id)
     selectSection('roster')
-    requestAnimationFrame(() =>
-      document.getElementById('roster-team')?.focus({ preventScroll: true }),
-    )
+    setRosterTeam(id)
   }
   return (
     <div className="auction-session" data-section={tab}>
@@ -459,12 +470,9 @@ function SessionView({
               tabIndex={0}
               hidden={tab !== 'catalog' && tab !== 'live'}
             >
-              <h2>Listone</h2>
-              <p className="auction-section-description">
-                Cerca un calciatore e filtra per ruolo.
-                {canCall ? ' È il tuo turno: scegli chi chiamare.' : ''}
-              </p>
+              {tab === 'live' && <h2>Listone</h2>}
               <CatalogPanel
+                expanded={tab === 'catalog'}
                 key={`${session.id}:${session.currentRole}`}
                 currentRole={session.currentRole}
                 userId={userId}
@@ -497,19 +505,20 @@ function SessionView({
           tabIndex={0}
           hidden={tab !== 'roster'}
         >
-          <h2>Rose</h2>
-          <p className="auction-section-description">
-            Giocatori, budget e posti disponibili di ogni squadra.
-          </p>
-          <RosterPanel
-            key={rosterTeam}
-            userId={userId}
-            sessionId={session.id}
-            teamId={rosterTeam}
-            teams={session.teams}
-            rules={league}
-            onTeamChange={setRosterTeam}
-          />
+          {rosterOpened && (
+            <TeamBoard
+              userId={userId}
+              sessionId={session.id}
+              teams={session.teams}
+              myTeamId={room.myTeamId}
+              currentTeamId={session.currentTeamId}
+              rules={league}
+              onSelect={selectTeam}
+              expanded
+              active={tab === 'roster'}
+              selectedTeamId={rosterTeam}
+            />
+          )}
         </section>
         <section
           className="auction-section"
@@ -526,10 +535,7 @@ function SessionView({
           <RosterPanel
             userId={userId}
             sessionId={session.id}
-            teamId={rosterTeam}
             teams={session.teams}
-            history
-            onTeamChange={setRosterTeam}
           />
         </section>
         {room.canManage && (

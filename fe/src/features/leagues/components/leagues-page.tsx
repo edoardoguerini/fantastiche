@@ -4,6 +4,7 @@ import { authQueryOptions } from '@/features/auth'
 import { Button } from '@/components/primitives/button'
 import { Icon } from '@/components/common/icon'
 import { ErrorState, LoadingState } from '@/components/common/page-state'
+import { LeagueCard } from './league-card'
 import { leaguesQueryOptions } from '../actions/leagues.queries'
 
 export function LeaguesPage({ page }: { page: number }) {
@@ -68,32 +69,7 @@ export function LeaguesPage({ page }: { page: number }) {
         <>
           <div className="league-list">
             {leagues.data.items.map((league) => (
-              <Link
-                className="league-card"
-                to="/leghe/$leagueId"
-                params={{ leagueId: league.id }}
-                key={league.leagueSeasonId}
-              >
-                <div className="league-monogram" aria-hidden="true">
-                  {league.name.slice(0, 1).toLocaleUpperCase('it')}
-                </div>
-                <div className="league-card-content">
-                  <p className="league-season">Stagione {league.seasonName}</p>
-                  <h2>{league.name}</h2>
-                  <p>
-                    {league.budget} crediti iniziali{' '}
-                    <span aria-hidden="true">/</span>{' '}
-                    {league.goalkeepers +
-                      league.defenders +
-                      league.midfielders +
-                      league.forwards}{' '}
-                    giocatori in rosa
-                  </p>
-                </div>
-                <span className="league-open">
-                  Apri <Icon name="arrow-up-right" />
-                </span>
-              </Link>
+              <LeagueCard key={league.leagueSeasonId} league={league} />
             ))}
           </div>
           {leagues.data.totalCount > leagues.data.pageSize && (

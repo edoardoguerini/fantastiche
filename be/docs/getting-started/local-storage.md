@@ -42,3 +42,8 @@ Scaricate 594 card e 20 stemmi, con zero errori. Card: 64.146.271 byte; stemmi: 
 Azurite è stato ricreato conservando il volume; un nuovo import ha verificato tutti i 614 blob e aggiornato 0 file. Questa configurazione riguarda lo sviluppo locale; il provisioning Azure tramite Bicep resta un’attività successiva.
 
 Riferimenti: [Azurite Microsoft](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azurite), [SDK Blob Python](https://learn.microsoft.com/en-us/azure/storage/blobs/storage-blob-container-create-python), [stemmi dalla pagina ufficiale](https://www.fantacalcio.it/serie-a/squadre).
+
+
+## Logo delle leghe
+
+Il container pubblico a livello blob `league-logos` conserva i loghi associati tramite `Leagues.LogoBlobName`. `Storage__LeagueLogos__PublicBaseUrl` configura l’URL pubblico (locale: `http://localhost:10010/fantastiche/league-logos`); l’elenco e il dettaglio delle leghe restituiscono `logoUrl`, nullo se logo o configurazione mancano. La card frontend usa le iniziali come alternativa se l’immagine non è disponibile. La variante PNG trasparente `fe/public/brand/fantastiche-logo-transparent.png`, scontornata dal logo Fantastiche originale su richiesta dell’utente, è stata caricata e associata alla lega demo «Gli ultimi del bar». Il caricamento è una configurazione locale; non è ancora presente un form o endpoint per modificare il logo.

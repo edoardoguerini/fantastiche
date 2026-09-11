@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/primitives/button'
 import { Icon } from '@/components/common/icon'
+import { AppHeaderContent } from '@/components/layout/app-shell'
 import { api } from '@/lib/api/client'
 import { errorMessage } from '@/lib/api/error'
 import { auctionKeys } from '../actions/auction.queries'
 import { sessionSchema, type AuctionRoom } from '../types/auction.types'
+import { AuctionPresence } from './auction-presence'
 
 export function TeamOrderEditor({
   order,
@@ -84,6 +86,16 @@ export function SessionSetup({
   }
   return (
     <section className="auction-setup">
+      <AppHeaderContent>
+        <AuctionPresence
+          awaitingStart
+          connected={false}
+          connectedUsers={0}
+          users={[]}
+          participants={room.participants}
+          userId={userId}
+        />
+      </AppHeaderContent>
       <span className="auction-eyebrow">PRIMA DI COMINCIARE</span>
       <h2>{room.canManage ? 'Prepariamo l’asta.' : 'Ci siamo quasi.'}</h2>
       <p>
@@ -115,7 +127,6 @@ export function SessionSetup({
             }
             onClick={() => void create()}
           >
-            <Icon name="play" />
             {busy ? 'Apertura in corso…' : 'Apri la sessione d’asta'}
           </Button>
         </>

@@ -43,9 +43,9 @@ body:has(.bomb-room) {
   font-weight: 650;
   letter-spacing: -0.04em;
 }
-.bomb-header h2:focus-visible {
-  outline: 2px solid #c19cf7;
-  outline-offset: 5px;
+.bomb-header h2[tabindex='-1']:focus,
+.bomb-result h3[tabindex='-1']:focus {
+  outline: none;
 }
 .bomb-header p,
 .bomb-clock p {
@@ -361,27 +361,49 @@ body:has(.bomb-room) {
   }
 }
 @media (max-width: 680px) {
+  .bomb-room {
+    padding-bottom: calc(166px + env(safe-area-inset-bottom, 0px));
+    animation: none;
+  }
+  .bomb-room[data-phase='Cancelled'] {
+    padding-bottom: 20px;
+  }
   .bomb-header {
-    flex-wrap: wrap;
-    gap: 12px;
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 50;
+    display: grid;
+    grid-template-columns: 1fr 56px minmax(0, max-content) 1fr;
+    gap: 8px 0;
+    padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0px));
+    background: #21172d;
+    border-top: 1px solid #cfaaff20;
+  }
+  .bomb-header h2 {
+    font-size: 1rem;
   }
   .bomb-mark {
+    grid-column: 2;
     width: 44px;
     height: 44px;
     border-radius: 14px;
     font-size: 1.5rem;
   }
   .bomb-header > div {
-    flex: 1;
-    min-width: 160px;
+    grid-column: 3;
+    min-width: 0;
+    text-align: center;
   }
   .bomb-header p {
     font-size: 0.78rem;
   }
   .bomb-header > button {
-    margin-left: 50px;
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-left: 0;
     min-height: 36px;
     font-size: 0.78rem;
+    border: 1px solid #cfaaff20;
   }
   .bomb-arena {
     grid-template-columns: 1fr;
@@ -389,32 +411,30 @@ body:has(.bomb-room) {
     margin: 20px 0 28px;
   }
   .bomb-player {
-    display: grid;
-    grid-template-columns: 88px minmax(0, 1fr);
-    column-gap: 16px;
-    text-align: left;
-    justify-items: start;
+    text-align: center;
     padding: 0 0 12px;
   }
   .bomb-player .player-photo,
   .bomb-player > .role-badge {
-    grid-column: 1;
-    grid-row: 1 / 4;
     width: 88px;
     height: 108px;
-  }
-  .bomb-player > :not(.player-photo):not(.role-badge) {
-    grid-column: 2;
   }
   .bomb-player h3 {
     font-size: 1.4rem;
     margin-top: 6px;
   }
   .bomb-player .catalog-role {
-    margin-top: 0;
+    margin-top: 8px;
   }
   .bomb-clock {
-    gap: 14px;
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+  }
+  .bomb-confirmed,
+  .bomb-spectator,
+  .bomb-fineprint {
+    text-align: center;
   }
   .bomb-clock > strong {
     font-size: 3rem;
@@ -508,7 +528,8 @@ body:has(.bomb-room) {
 @media (max-width: 680px) {
   .bomb-lobby-quote {
     margin-top: 22px;
-    min-height: 165px;
+    min-height: 120px;
+    text-align: center;
   }
 }
 @media (prefers-reduced-motion: reduce) {

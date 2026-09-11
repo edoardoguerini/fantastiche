@@ -52,6 +52,7 @@ export function BombAuction({
   onCancel: () => Promise<void>
   onDismiss: () => void
 }) {
+  const cancelled = bomb.status === 'Cancelled'
   const [now, setNow] = useState(() => performance.now())
   const heading = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
@@ -59,7 +60,7 @@ export function BombAuction({
     window.scrollTo?.({ top: 0, behavior: 'instant' })
     const timer = setInterval(() => setNow(performance.now()), 100)
     return () => clearInterval(timer)
-  }, [])
+  }, [cancelled])
   const seconds = remainingSeconds(
     bomb.deadline,
     session.serverTime,
@@ -89,28 +90,30 @@ export function BombAuction({
       aria-label="Asta Bomba"
       data-phase={bomb.status}
     >
-      <header className="bomb-header">
-        <span className="bomb-mark">
-          <Icon name="bomb" variant="jelly" />
-        </span>
-        <div>
-          <h2 ref={heading} tabIndex={-1}>
-            {bomb.round > 1
-              ? `Spareggio · Round ${bomb.round}`
-              : 'È scoppiata la Bomba'}
-          </h2>
-          <p>{teamName(bomb.callerTeamId)} ha acceso la sfida.</p>
-        </div>
-        {canManage && !terminal && (
-          <Button
-            variant="ghost"
-            disabled={!connected || blocked}
-            onClick={() => void onCancel()}
-          >
-            Annulla Bomba
-          </Button>
-        )}
-      </header>
+      {!cancelled && (
+        <header className="bomb-header">
+          <span className="bomb-mark">
+            <Icon name="bomb" variant="jelly" />
+          </span>
+          <div>
+            <h2 ref={heading} tabIndex={-1}>
+              {bomb.round > 1
+                ? `Spareggio · Round ${bomb.round}`
+                : 'È scoppiata la Bomba'}
+            </h2>
+            <p>{teamName(bomb.callerTeamId)} ha acceso la sfida.</p>
+          </div>
+          {canManage && !terminal && (
+            <Button
+              variant="ghost"
+              disabled={!connected || blocked}
+              onClick={() => void onCancel()}
+            >
+              Annulla Bomba
+            </Button>
+          )}
+        </header>
+      )}
       {!connected && (
         <p className="bomb-connection" role="status">
           Riconnessione in corso. Recuperiamo le offerte e la fase attuale.
@@ -191,7 +194,7 @@ export function BombAuction({
             </>
           ) : terminal ? (
             <div className="bomb-result" role="status">
-              <h3>
+              <h3 ref={cancelled ? heading : undefined} tabIndex={-1}>
                 {bomb.status === 'Completed'
                   ? 'Aggiudicato!'
                   : bomb.status === 'Cancelled'
@@ -231,83 +234,85 @@ export function BombAuction({
           )}
         </div>
       </div>
-      <section
-        className="bomb-participants"
-        aria-label={
-          waiting || collecting ? 'Squadre partecipanti' : 'Offerte rivelate'
-        }
-      >
-        <div className="bomb-progress-label">
-          <h3>
-            {waiting
-              ? 'Squadre in attesa'
-              : collecting
-                ? 'Pronti alla rivelazione'
-                : 'Le offerte'}
-          </h3>
-          {collecting && (
-            <span role="status">
-              {ready} di {bomb.participants.length} confermate
-            </span>
+      {!cancelled && (
+        <section
+          className="bomb-participants"
+          aria-label={
+            waiting || collecting ? 'Squadre partecipanti' : 'Offerte rivelate'
+          }
+        >
+          <div className="bomb-progress-label">
+            <h3>
+              {waiting
+                ? 'Squadre in attesa'
+                : collecting
+                  ? 'Pronti alla rivelazione'
+                  : 'Le offerte'}
+            </h3>
+            {collecting && (
+              <span role="status">
+                {ready} di {bomb.participants.length} confermate
+              </span>
+            )}
+          </div>
+          {waiting || collecting ? (
+            <ul>
+              {bomb.participants.map((participant) => (
+                <li
+                  key={participant.teamId}
+                  className={
+                    !waiting && participant.hasSubmitted ? 'is-ready' : ''
+                  }
+                >
+                  <span>
+                    {teamName(participant.teamId)}
+                    {participant.teamId === myTeamId ? ' · Tu' : ''}
+                  </span>
+                  <span>
+                    {waiting ? (
+                      'In attesa'
+                    ) : participant.hasSubmitted ? (
+                      <>
+                        <Icon name="check" variant="jelly" /> Pronta
+                      </>
+                    ) : (
+                      'Sta scegliendo'
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <ol
+              className="bomb-offers"
+              aria-live="polite"
+              aria-relevant="additions"
+            >
+              {bomb.revealedOffers.map((offer) => (
+                <li
+                  key={`${bomb.round}:${offer.teamId}`}
+                  className={
+                    terminal && offer.teamId === bomb.winningTeamId
+                      ? 'is-winner'
+                      : ''
+                  }
+                >
+                  <span>{teamName(offer.teamId)}</span>
+                  <strong>{offer.amount} crediti</strong>
+                </li>
+              ))}
+            </ol>
           )}
-        </div>
-        {waiting || collecting ? (
-          <ul>
-            {bomb.participants.map((participant) => (
-              <li
-                key={participant.teamId}
-                className={
-                  !waiting && participant.hasSubmitted ? 'is-ready' : ''
-                }
-              >
-                <span>
-                  {teamName(participant.teamId)}
-                  {participant.teamId === myTeamId ? ' · Tu' : ''}
-                </span>
-                <span>
-                  {waiting ? (
-                    'In attesa'
-                  ) : participant.hasSubmitted ? (
-                    <>
-                      <Icon name="check" variant="jelly" /> Pronta
-                    </>
-                  ) : (
-                    'Sta scegliendo'
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <ol
-            className="bomb-offers"
-            aria-live="polite"
-            aria-relevant="additions"
-          >
-            {bomb.revealedOffers.map((offer) => (
-              <li
-                key={`${bomb.round}:${offer.teamId}`}
-                className={
-                  terminal && offer.teamId === bomb.winningTeamId
-                    ? 'is-winner'
-                    : ''
-                }
-              >
-                <span>{teamName(offer.teamId)}</span>
-                <strong>{offer.amount} crediti</strong>
-              </li>
-            ))}
-          </ol>
-        )}
-        {!waiting && !collecting && !terminal && (
-          <p className="bomb-fineprint">
-            {bomb.revealedOffers.length === 0
-              ? 'Le offerte sono ancora segrete.'
-              : 'La rivelazione continua…'}{' '}
-            A parità del massimo si va allo spareggio.
-          </p>
-        )}
-      </section>
+          {!waiting && !collecting && !terminal && (
+            <p className="bomb-fineprint">
+              {bomb.revealedOffers.length === 0
+                ? 'Le offerte sono ancora segrete.'
+                : 'La rivelazione continua…'}{' '}
+              A parità del massimo si va allo spareggio.
+            </p>
+          )}
+        </section>
+      )}
     </section>
   )
 }

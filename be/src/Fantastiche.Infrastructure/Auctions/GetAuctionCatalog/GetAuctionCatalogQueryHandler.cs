@@ -14,6 +14,13 @@ public sealed class GetAuctionCatalogQueryHandler(FantasticheDbContext db, Playe
         AuctionReadSession.ValidatePage(request.Page, request.PageSize);
         var search = request.Search?.Trim();
         var role = request.Role?.Trim().ToUpperInvariant();
+        var orderBy = request.Sort?.Trim().ToLowerInvariant() switch
+        {
+            null or "" or "name" => "entry.Name, entry.PlayerId",
+            "fvm" => "entry.Fvm DESC, entry.Name, entry.PlayerId",
+            "quotation" => "entry.CurrentQuotation DESC, entry.Name, entry.PlayerId",
+            _ => throw new DomainException("auction.invalid_query", "Ordinamento del catalogo non valido.")
+        };
         if (search?.Length > 200 || role is not (null or "" or "P" or "D" or "C" or "A"))
             throw new DomainException("auction.invalid_query", "Filtri del catalogo non validi.");
         await using var read = await AuctionReadSession.OpenAsync(db, request.Context, request.SessionId, ct);
@@ -56,7 +63,7 @@ public sealed class GetAuctionCatalogQueryHandler(FantasticheDbContext db, Playe
                    CAST(CASE WHEN {available} THEN 1 ELSE 0 END AS bit) AS IsAvailable, roster.TeamId, {PlayerPhotoStorage.SqlProjection}, {ClubLogoStorage.SqlProjection},
                    entry.CurrentQuotation, entry.InitialQuotation, entry.Fvm, entry.IsTransferred
             {source} AND (@AvailableOnly = 0 OR ({available}))
-            ORDER BY entry.Name, entry.PlayerId
+            ORDER BY {orderBy}
             OFFSET @Skip ROWS FETCH NEXT @PageSize ROWS ONLY;
             """, parameters, read.Transaction, cancellationToken: ct));
         var total = await result.ReadSingleAsync<int>();

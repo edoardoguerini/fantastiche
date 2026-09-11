@@ -8,7 +8,7 @@ Fantastiche gestisce aste Classic: account individuali, leghe, chiamata a turno,
 
 Il backend contiene solution .NET 10, Identity, moduli HTTP, schema/migrazioni, inviti e coda email con Scheduler, catalogo Classic versionato, motore d’asta con ricevute e SignalR, Docker e comandi just. Verificare lo stato effettivo nel documento di passaggio; login frontend, creazione/consultazione leghe e sala d’asta realtime sono implementati, insieme ad attivazione degli inviti, gestione partecipanti e catalogo da UI. Storage locale Azurite con card dei giocatori e stemmi dei club è operativo; PWA e deploy restano da realizzare.
 
-Priorità corrente: frontend. L’utente ha approvato solo dark mode, palette dal logo, login centrato e form di creazione lega per SuperAdmin, ora implementato. Linee e bordi minimali, Font Awesome self-hosted come ACKSD. Primo incremento in [specifica frontend](docs/superpowers/specs/2026-09-09-frontend-bootstrap-design.md); avvio e verifiche nel [setup frontend](fe/docs/getting-started/development-setup.md). La sala d’asta è descritta nella [guida frontend](fe/docs/architecture/auction-room.md). Lo stato backend è nel [documento di passaggio](docs/workflow/backend-handoff.md).
+Priorità corrente: frontend. L’utente ha approvato solo dark mode, palette globale nero/antracite e lilla ripresa dalla sala d’asta, login centrato con gradiente viola e form di creazione lega per SuperAdmin, ora implementato. Linee e bordi minimali, Font Awesome self-hosted come ACKSD. Primo incremento in [specifica frontend](docs/superpowers/specs/2026-09-09-frontend-bootstrap-design.md); avvio e verifiche nel [setup frontend](fe/docs/getting-started/development-setup.md). La sala d’asta è descritta nella [guida frontend](fe/docs/architecture/auction-room.md). Lo stato backend è nel [documento di passaggio](docs/workflow/backend-handoff.md).
 
 ## Mappa
 
@@ -42,7 +42,7 @@ Specifiche: [asta](docs/superpowers/specs/2026-09-09-asta-design.md), [catalogo 
 
 - Documentazione, commenti, commit e PR in italiano; codice, tabelle e campi in inglese.
 - Conventional commits, scope `be`, `fe`, `infra` o omesso. Niente firme AI o `Co-Authored-By` dell’assistente.
-- Segreti, credenziali, dump, CSV importati e immagini scaricate non vanno nel repository. Eccezione autorizzata: il logo fornito dall’utente, convertito in `fe/public/brand/fantastiche-logo.png`, è un asset del prodotto. Anche la texture di erba fornita dall’utente, compressa in `fe/src/assets/pitch-grass.webp`, è autorizzata come sfondo del login.
+- Segreti, credenziali, dump, CSV importati e immagini scaricate non vanno nel repository. Eccezione autorizzata: il logo fornito dall’utente, convertito in `fe/public/brand/fantastiche-logo.png`, è un asset del prodotto. Anche la texture di erba fornita dall’utente, compressa in `fe/src/assets/pitch-grass.webp`, è un asset autorizzato, attualmente non utilizzato.
 - Prima di una modifica leggere la guida dello stack e i file pertinenti. Aggiornare i docs quando cambia una convenzione.
 - Non copiare configurazioni, identificativi Azure, dati, asset premium o dipendenze di ACKS senza necessità e verifica.
 - Lo storage locale usa Azurite dedicato sulla porta 10010 con volume persistente; card e stemmi stanno in container separati, metadati su SQL. Importatori e istruzioni in [storage locale](be/docs/getting-started/local-storage.md). Nessun download del catalogo o backup locale va in Git.

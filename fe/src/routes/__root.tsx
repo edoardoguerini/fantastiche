@@ -22,7 +22,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           content: 'width=device-width, initial-scale=1, viewport-fit=cover',
         },
         { title: 'Fantastiche' },
-        { name: 'theme-color', content: '#021010' },
+        { name: 'theme-color', content: '#0c0c0e' },
         {
           name: 'description',
           content: 'La tua lega, la tua stagione. Fantastiche Fantacalcio.',

@@ -86,10 +86,6 @@ export function AuctionNavigation({
       {team && (
         <section className="auction-budget-strip" aria-label="Il tuo budget">
           <div className="auction-budget-content">
-            <p className="auction-budget-team">
-              <span>La tua squadra</span>
-              <strong title={team.name}>{team.name}</strong>
-            </p>
             <p className="auction-budget-amount">
               <strong>{team.budget}</strong> <span>crediti disponibili</span>
             </p>

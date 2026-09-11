@@ -82,3 +82,9 @@ Completati i form di adesione tramite invito, gestione partecipanti, reinvio/rev
 Verifica complessiva del 10 settembre: **44 test unitari/component frontend, 43 test browser, 68 test unitari backend e 95 integrazioni SQL**, tutti superati. Typecheck, ESLint, Prettier, build SPA e formattazione backend superati. Review dei permessi e dei flussi completata senza P1/P2 residui.
 
 Smoke reale con due account: chiamata di Carnesecchi, rilancio a 2 crediti, chiusura automatica, budget e rosa aggiornati su entrambi i browser; card e stemma Atalanta caricati da Azurite. Verificati anche dettaglio lega e catalogo reali su mobile e desktop, senza errori JavaScript o overflow orizzontale. Nella demo, dopo la prova, la prossima chiamata spetta alla seconda squadra nell’ordine. Gli accessi sono stati consegnati fuori dal repository.
+
+## Tema condiviso — 11 settembre 2026
+
+La palette nero/antracite e lilla della sala d’asta è ora globale: login, inviti, elenco/dettaglio/creazione leghe e catalogo condividono superfici, testi, pulsanti e focus. Login e inviti usano un gradiente radiale CSS viola che sfuma nel nero; la texture del campo non viene più caricata. Il colore del browser (`theme-color`) segue lo sfondo globale.
+
+Verificati 84 test browser, inclusi layout e navigazione da tastiera, build SPA, TypeScript ed ESLint. Controllate le schermate desktop e mobile e la formattazione dei file modificati. Il controllo Prettier globale segnala ancora il file preesistente `src/assets/animations/auction-confetti.json`, già minificato in Git e non modificato da questo intervento.
