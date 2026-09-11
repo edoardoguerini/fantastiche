@@ -7,7 +7,7 @@
 **/test-results/
 .git/
 .gitignore
-*.user
+**/*.user
 .env
 .env.*
 docker-compose*.yml
