@@ -16,7 +16,7 @@ Quando Boards sarà collegato, usare work item → branch `feature/<id>-<descriz
 
 ## Rilascio
 
-Oggi `master` è l'unico branch di rilascio: ogni push che tocca `be/`, `fe/`, `infra/`, `.github/workflows/` o `GitVersion.yml` avvia `.github/workflows/build-deploy.yml`, che builda le immagini, applica i Bicep delle app, esegue la migrazione e crea il tag `vX.Y.Z` calcolato da GitVersion sui conventional commits. Con lo squash merge conta il titolo della PR. Il foundation Bicep non passa dalla pipeline: vedi [infra](../../infra/README.md).
+Oggi `master` è l'unico branch di rilascio: ogni push che tocca `be/`, `fe/`, `infra/`, `.github/workflows/` o `GitVersion.yml` avvia `.github/workflows/build-deploy.yml`, che builda le immagini, esegue la migrazione con la nuova immagine e poi applica i Bicep delle app (al primo deploy la migrazione segue il deploy, perché il job non esiste ancora), e crea il tag `vX.Y.Z` calcolato da GitVersion sui conventional commits. Con lo squash merge conta il titolo della PR. Il foundation Bicep non passa dalla pipeline: vedi [infra](../../infra/README.md).
 
 ## Convenzioni attuali
 
