@@ -1,4 +1,5 @@
-import { test, expect, type Page, type WebSocketRoute } from '@playwright/test'
+import { setSsrSession } from '../ssr-fixture'
+import { test, expect, type Page, type WebSocketRoute } from '../ssr-fixture'
 import type {
   BombAuctionView,
   CatalogEntry,
@@ -121,6 +122,7 @@ async function setupRoom(
     catalogRemoved: [] as string[],
     catalogRequests: [] as number[],
   }
+  setSsrSession(page, () => ({ user: control.expired ? null : user }))
   const receipts = new Map<string, unknown>()
   let socket: WebSocketRoute | undefined
   const snapshot = () => ({ ...state, serverTime: new Date().toISOString() })
@@ -1958,16 +1960,29 @@ for (const width of [320, 1440]) {
     })
     state.currentBomb!.status = 'Revealing'
     state.currentBomb!.revealStartedAt = new Date().toISOString()
-    state.currentBomb!.nextRevealAt = new Date(Date.now() + 3000).toISOString()
+    state.currentBomb!.nextRevealAt = new Date(Date.now() + 30000).toISOString()
     state.version++
     notify()
     await expect(arena.getByText('Offerte chiuse. Ci siamo…')).toBeVisible()
+    await expect(arena.locator('.bomb-countdown')).toHaveText(/^(30|29|28)$/)
+    await expect(arena.locator('.bomb-player')).toHaveCount(0)
     await expect(offer).toHaveCount(0)
     state.currentBomb!.revealedOffers = [{ teamId: teamId(1), amount: 12 }]
     state.version++
     notify()
     await expect(arena.getByText('12 crediti')).toBeVisible()
     await expect(arena.getByText('35 crediti')).toHaveCount(0)
+    state.currentBomb!.revealedOffers.push({ teamId: teamId(0), amount: 35 })
+    state.version++
+    notify()
+    await expect(arena.getByText('35 crediti')).toBeVisible()
+    await expect(arena.getByText('12 crediti')).toHaveCount(0)
+    await expect(arena.locator('.bomb-reveal-offer')).toHaveCSS('opacity', '1')
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true)
     await page.screenshot({
       path: test.info().outputPath(`bomb-reveal-${width}.png`),
       fullPage: true,
@@ -2023,118 +2038,149 @@ for (const width of [320, 1440]) {
   })
 }
 
-test('Bomba: uno spettatore entra dalla tab Rose, segue il vincitore e non ripete la fanfara al reload', async ({
-  page,
-}) => {
-  const { state, control, notify } = await setupRoom(page, { waiting: true })
-  await page.getByRole('tab', { name: 'Rose', exact: true }).click()
-  state.currentBomb = {
-    id: aid,
-    playerId,
-    name: 'Alessandro Fabbri',
-    role: 'A',
-    clubName: 'Demo Aurora',
-    photoUrl: null,
-    clubLogoUrl: null,
-    callerTeamId: teamId(1),
-    status: 'Collecting',
-    round: 2,
-    minimumAmount: 35,
-    deadline: new Date(Date.now() + 60000).toISOString(),
-    revealStartedAt: null,
-    nextRevealAt: null,
-    participants: [
-      { teamId: teamId(1), hasSubmitted: false },
-      { teamId: teamId(2), hasSubmitted: false },
-    ],
-    revealedOffers: [],
-    ownAmount: null,
-    playerAuctionId: null,
-    winningTeamId: null,
-    winningAmount: null,
-  }
-  state.version++
-  notify()
-  const arena = page.getByRole('region', { name: 'Asta Bomba', exact: true })
-  await expect(arena).toBeVisible()
-  await expect(
-    page.getByRole('tabpanel', { name: 'Rose', exact: true }),
-  ).toBeHidden()
-  await expect(page.getByLabel('La tua offerta segreta')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Annulla Bomba' })).toHaveCount(
-    0,
-  )
-  state.currentBomb.status = 'Revealing'
-  state.currentBomb.revealedOffers = [
-    { teamId: teamId(2), amount: 38 },
-    { teamId: teamId(1), amount: 45 },
-  ]
-  state.version++
-  notify()
-  await expect(arena.getByText('45 crediti')).toBeVisible()
-  await expect(
-    page.getByRole('region', { name: 'Aggiudicazione', exact: true }),
-  ).toHaveCount(0)
-  state.currentBomb.status = 'Completed'
-  state.currentBomb.winningTeamId = teamId(1)
-  state.currentBomb.winningAmount = 45
-  state.currentBomb.playerAuctionId = aid
-  state.currentAuction = {
-    id: aid,
-    playerId,
-    name: 'Alessandro Fabbri',
-    role: 'A',
-    clubName: 'Demo Aurora',
-    callerTeamId: teamId(1),
-    winningTeamId: teamId(1),
-    currentAmount: 45,
-    durationSeconds: 60,
-    increments: [],
-    deadline: new Date().toISOString(),
-    status: 'Closed',
-    startedAt: new Date().toISOString(),
-    closedAt: new Date().toISOString(),
-  }
-  state.teams[1]!.budget -= 45
-  state.teams[1]!.forwards++
-  state.version++
-  notify()
-  const celebration = page.getByRole('region', {
-    name: 'Aggiudicazione',
-    exact: true,
-  })
-  await expect(celebration).toContainText('Real Sbronzi')
-  await expect(page.locator('.auction-victory-confetti svg')).toHaveCount(1)
-  await expect
-    .poll(() =>
-      page.evaluate(
+for (const width of [320, 1440]) {
+  test(`Bomba: vincitore in pagina e fanfara senza ripetizioni al reload a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    const { state, control, notify } = await setupRoom(page, { waiting: true })
+    await page.getByRole('tab', { name: 'Rose', exact: true }).click()
+    state.currentBomb = {
+      id: aid,
+      playerId,
+      name: 'Alessandro Fabbri',
+      role: 'A',
+      clubName: 'Demo Aurora',
+      photoUrl: null,
+      clubLogoUrl: null,
+      callerTeamId: teamId(1),
+      status: 'Collecting',
+      round: 2,
+      minimumAmount: 35,
+      deadline: new Date(Date.now() + 60000).toISOString(),
+      revealStartedAt: null,
+      nextRevealAt: null,
+      participants: [
+        { teamId: teamId(1), hasSubmitted: false },
+        { teamId: teamId(2), hasSubmitted: false },
+      ],
+      revealedOffers: [],
+      ownAmount: null,
+      playerAuctionId: null,
+      winningTeamId: null,
+      winningAmount: null,
+    }
+    state.version++
+    notify()
+    const arena = page.getByRole('region', { name: 'Asta Bomba', exact: true })
+    await expect(arena).toBeVisible()
+    await expect(
+      page.getByRole('tabpanel', { name: 'Rose', exact: true }),
+    ).toBeHidden()
+    await expect(page.getByLabel('La tua offerta segreta')).toHaveCount(0)
+    await expect(
+      page.getByRole('button', { name: 'Annulla Bomba' }),
+    ).toHaveCount(0)
+    state.currentBomb.status = 'Revealing'
+    state.currentBomb.revealedOffers = [
+      { teamId: teamId(2), amount: 38 },
+      { teamId: teamId(1), amount: 45 },
+    ]
+    state.version++
+    notify()
+    await expect(arena.getByText('45 crediti')).toBeVisible()
+    await expect(
+      page.getByRole('region', { name: 'Aggiudicazione', exact: true }),
+    ).toHaveCount(0)
+    state.currentBomb.status = 'Completed'
+    state.currentBomb.winningTeamId = teamId(1)
+    state.currentBomb.winningAmount = 45
+    state.currentBomb.playerAuctionId = aid
+    state.currentAuction = {
+      id: aid,
+      playerId,
+      name: 'Alessandro Fabbri',
+      role: 'A',
+      clubName: 'Demo Aurora',
+      callerTeamId: teamId(1),
+      winningTeamId: teamId(1),
+      currentAmount: 45,
+      durationSeconds: 60,
+      increments: [],
+      deadline: new Date().toISOString(),
+      status: 'Closed',
+      startedAt: new Date().toISOString(),
+      closedAt: new Date().toISOString(),
+    }
+    state.teams[1]!.budget -= 45
+    state.teams[1]!.forwards++
+    state.version++
+    notify()
+    const celebration = page.getByRole('region', {
+      name: 'Aggiudicazione',
+      exact: true,
+    })
+    await expect(celebration).toContainText('Real Sbronzi')
+    await expect(page.locator('.auction-victory-confetti svg')).toHaveCount(1)
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as unknown as { auctionAudioPlays: number })
+              .auctionAudioPlays,
+        ),
+      )
+      .toBe(1)
+    await expect(page.locator('.auction-victory')).toHaveCSS(
+      'position',
+      'relative',
+    )
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true)
+    await expect(
+      page.getByRole('button', { name: 'Chiudi celebrazione' }),
+    ).toHaveCount(0)
+    await page.screenshot({
+      path: test.info().outputPath(`bomb-winner-page-${width}.png`),
+      fullPage: true,
+    })
+    await expect(page.locator('.auction-victory-confetti svg')).toHaveCount(0, {
+      timeout: 7000,
+    })
+    await expect(arena.getByText('Aggiudicato!', { exact: true })).toBeVisible()
+    await page.reload()
+    await expect(celebration).toContainText('Real Sbronzi')
+    await expect(page.locator('.auction-victory-confetti svg')).toHaveCount(0)
+    expect(
+      await page.evaluate(
         () =>
           (window as unknown as { auctionAudioPlays: number })
             .auctionAudioPlays,
       ),
-    )
-    .toBe(1)
-  await page.getByRole('button', { name: 'Chiudi celebrazione' }).click()
-  await expect(arena.getByText('Aggiudicato!', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Torna alla sala' }).click()
-  await expect(
-    page.getByRole('tabpanel', { name: 'Rose', exact: true }),
-  ).toBeVisible()
-  expect(control.commands).toHaveLength(0)
-  await page.reload()
-  await expect(
-    page.getByRole('tab', { name: 'Live', exact: true }),
-  ).toBeVisible()
-  await expect(arena).toHaveCount(0)
-  await expect(celebration).toHaveCount(0)
-  expect(
-    await page.evaluate(
-      () =>
-        (window as unknown as { auctionAudioPlays: number }).auctionAudioPlays,
-    ),
-  ).toBe(0)
-})
-
+    ).toBe(0)
+    await page.getByRole('button', { name: 'Torna alla sala' }).click()
+    await expect(
+      page.getByRole('tabpanel', { name: 'Live', exact: true }),
+    ).toBeVisible()
+    expect(control.commands).toHaveLength(0)
+    await page.reload()
+    await expect(
+      page.getByRole('tab', { name: 'Live', exact: true }),
+    ).toBeVisible()
+    await expect(arena).toHaveCount(0)
+    await expect(celebration).toHaveCount(0)
+    expect(
+      await page.evaluate(
+        () =>
+          (window as unknown as { auctionAudioPlays: number })
+            .auctionAudioPlays,
+      ),
+    ).toBe(0)
+  })
+}
 for (const width of [320, 768, 1440]) {
   test(`rose a card: gruppi e navigazione responsive a ${width}px`, async ({
     page,

@@ -1,0 +1,26 @@
+{
+  "id": "/",
+  "name": "Fantastiche",
+  "short_name": "Fantastiche",
+  "description": "La tua lega, la tua stagione. Fantastiche Fantacalcio.",
+  "lang": "it",
+  "start_url": "/leghe",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0c0c0e",
+  "theme_color": "#0c0c0e",
+  "icons": [
+    {
+      "src": "/pwa/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

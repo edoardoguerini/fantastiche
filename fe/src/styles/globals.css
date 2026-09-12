@@ -222,13 +222,17 @@
   font-size: 12px;
   color: var(--muted-foreground);
 }
+.app-shell {
+  --app-content-width: 1100px;
+  --app-gutter: 24px;
+}
 .app-header {
   height: 88px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 0 max(24px, calc((100vw - 1100px) / 2));
+  padding: 0 max(var(--app-gutter), calc((100% - var(--app-content-width)) / 2));
   border-bottom: 1px solid var(--border);
 }
 .app-brand {
@@ -245,9 +249,9 @@
   display: none;
 }
 .content-container {
-  max-width: 1100px;
+  max-width: calc(var(--app-content-width) + 2 * var(--app-gutter));
   margin: auto;
-  padding: 56px 24px 72px;
+  padding: 56px var(--app-gutter) 72px;
 }
 .page-heading {
   margin-bottom: 36px;
@@ -264,6 +268,13 @@
   margin-top: 12px;
   font-size: 15px;
   line-height: 1.6;
+}
+.leagues-page .page-heading h1 {
+  font-size: clamp(26px, 3vw, 32px);
+  letter-spacing: -0.8px;
+}
+.leagues-page .page-heading p {
+  margin-top: 4px;
 }
 .page-heading-with-action {
   display: flex;
@@ -728,6 +739,9 @@ body > .page-state {
   }
 }
 @media (max-width: 600px) {
+  .app-shell {
+    --app-gutter: 20px;
+  }
   .login-page {
     padding: 28px 20px;
   }
@@ -748,7 +762,7 @@ body > .page-state {
   }
   .app-header {
     height: 76px;
-    padding: 0 20px;
+    padding: 0 var(--app-gutter);
     gap: 12px;
   }
   .app-brand {
@@ -756,7 +770,7 @@ body > .page-state {
     gap: 8px;
   }
   .content-container {
-    padding: 36px 20px 48px;
+    padding: 36px var(--app-gutter) 48px;
   }
   .page-heading {
     margin-bottom: 28px;

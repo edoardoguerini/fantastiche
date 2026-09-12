@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test'
+import { setSsrSession } from '../ssr-fixture'
+import { test, expect, type Page } from '../ssr-fixture'
 
 const user = {
   id: 'user-1',
@@ -25,6 +26,10 @@ async function setupApi(page: Page, initialSession = false) {
     requests: [] as string[],
     loginCount: 0,
   }
+  setSsrSession(page, () => ({
+    user: state.authenticated ? user : null,
+    offline: state.offline,
+  }))
   await page.route('http://localhost:6060/api/**', async (route) => {
     const request = route.request()
     const url = new URL(request.url())
@@ -107,6 +112,9 @@ test('sessione scaduta durante la consultazione torna al login', async ({
   await page.goto('/leghe')
   await expect(
     page.getByRole('heading', { name: 'Le mie leghe' }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: /Lega del mercoledì/ }),
   ).toBeVisible()
   state.expired = true
   await page.getByRole('link', { name: /Lega del mercoledì/ }).click()
@@ -208,6 +216,7 @@ for (const viewport of [
         () => document.documentElement.scrollWidth <= window.innerWidth,
       ),
     ).toBe(true)
+    await expect(page.getByLabel('Email', { exact: true })).toBeEnabled()
     await page.keyboard.press('Tab')
     await expect(page.getByLabel('Email', { exact: true })).toBeFocused()
     await page.keyboard.press('Tab')
@@ -241,6 +250,7 @@ for (const width of [320, 1440]) {
       ).toBeVisible()
       await expect(trigger.getByText(user.email, { exact: true })).toBeVisible()
     }
+    await expect(trigger).toBeEnabled()
     await trigger.focus()
     await page.keyboard.press('ArrowDown')
     await expect(menu).toBeVisible()

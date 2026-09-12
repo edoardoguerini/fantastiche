@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useHydrated } from '@tanstack/react-router'
 import { Button } from '@/components/primitives/button'
 import { Input } from '@/components/primitives/input'
 import { errorMessage } from '@/lib/api/error'
@@ -13,6 +14,7 @@ export function LoginForm({
 }: {
   onSuccess: () => void | Promise<void>
 }) {
+  const hydrated = useHydrated()
   const [showPassword, setShowPassword] = useState(false)
   const [submitError, setSubmitError] = useState<unknown>(null)
   const submitting = useRef(false)
@@ -43,6 +45,7 @@ export function LoginForm({
   return (
     <form
       className="login-form"
+      method="post"
       noValidate
       onSubmit={(event) => {
         event.preventDefault()
@@ -58,6 +61,7 @@ export function LoginForm({
               <label htmlFor="email">Email</label>
               <Input
                 id="email"
+                disabled={!hydrated}
                 name="email"
                 type="email"
                 autoComplete="username"
@@ -91,6 +95,7 @@ export function LoginForm({
               <div className="password-input">
                 <Input
                   id="password"
+                  disabled={!hydrated}
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
@@ -103,6 +108,7 @@ export function LoginForm({
                 />
                 <button
                   type="button"
+                  disabled={!hydrated}
                   className="password-toggle"
                   aria-label={
                     showPassword ? 'Nascondi password' : 'Mostra password'
@@ -132,7 +138,7 @@ export function LoginForm({
           <Button
             type="submit"
             className="login-submit"
-            disabled={isSubmitting}
+            disabled={!hydrated || isSubmitting}
             aria-busy={isSubmitting}
           >
             {isSubmitting ? 'Accesso in corso…' : 'Accedi'}

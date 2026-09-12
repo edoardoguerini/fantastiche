@@ -18,6 +18,7 @@ import {
 } from '../validations/auction-rules'
 import { PlayerPhoto } from './player-photo'
 import { ClubLabel } from './club-label'
+import { VictoryCelebration } from './auction-victory'
 import { bombLobbyQuotes, lobbyQuoteIndex } from './bomb-lobby-quotes'
 import '../auction-bomb.css'
 
@@ -53,6 +54,7 @@ export function BombAuction({
   onDismiss: () => void
 }) {
   const cancelled = bomb.status === 'Cancelled'
+  const [celebrate] = useState(() => isBombActive(bomb))
   const [now, setNow] = useState(() => performance.now())
   const heading = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
@@ -60,16 +62,16 @@ export function BombAuction({
     window.scrollTo?.({ top: 0, behavior: 'instant' })
     const timer = setInterval(() => setNow(performance.now()), 100)
     return () => clearInterval(timer)
-  }, [cancelled])
+  }, [bomb.status])
   const seconds = remainingSeconds(
     bomb.deadline,
     session.serverTime,
     session.receivedAt,
     now,
   )
-  const intro = bomb.revealStartedAt
+  const intro = bomb.nextRevealAt
     ? remainingSeconds(
-        new Date(Date.parse(bomb.revealStartedAt) + 3000).toISOString(),
+        bomb.nextRevealAt,
         session.serverTime,
         session.receivedAt,
         now,
@@ -84,6 +86,78 @@ export function BombAuction({
   const winner = session.teams.find((value) => value.id === bomb.winningTeamId)
   const teamName = (id: string) =>
     session.teams.find((value) => value.id === id)?.name ?? 'Squadra'
+  if (bomb.status === 'Completed') {
+    return (
+      <section
+        className="bomb-room bomb-showcase"
+        aria-label="Asta Bomba"
+        data-phase={bomb.status}
+      >
+        <VictoryCelebration
+          auction={{ ...bomb, currentAmount: bomb.winningAmount ?? 0 }}
+          teamName={winner?.name ?? 'Squadra vincitrice'}
+          mine={bomb.winningTeamId === myTeamId}
+          presentation="page"
+          celebrate={celebrate}
+          onDismiss={onDismiss}
+        />
+      </section>
+    )
+  }
+  if (bomb.status === 'Revealing') {
+    const offer = bomb.revealedOffers.at(-1)
+    return (
+      <section
+        className="bomb-room bomb-showcase"
+        aria-label="Asta Bomba"
+        data-phase={bomb.status}
+      >
+        <h2 className="sr-only" ref={heading} tabIndex={-1}>
+          Rivelazione delle offerte
+        </h2>
+        {canManage && (
+          <Button
+            className="bomb-showcase-cancel"
+            variant="ghost"
+            disabled={!connected || blocked}
+            onClick={() => void onCancel()}
+          >
+            Annulla Bomba
+          </Button>
+        )}
+        {!connected && (
+          <p className="bomb-connection" role="status">
+            Riconnessione in corso. Recuperiamo le offerte e la fase attuale.
+          </p>
+        )}
+        <div
+          className="bomb-stage"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {offer ? (
+            <BombRevealOffer
+              key={`${bomb.id}:${bomb.round}`}
+              offer={offer}
+              teams={session.teams}
+            />
+          ) : (
+            <div className="bomb-reveal-intro">
+              <p>Offerte chiuse. Ci siamo…</p>
+              {intro > 0 ? (
+                <strong className="bomb-countdown" aria-hidden="true">
+                  {intro}
+                </strong>
+              ) : (
+                <p>Scopriamo le carte.</p>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+    )
+  }
   return (
     <section
       className="bomb-room"
@@ -189,131 +263,93 @@ export function BombAuction({
               <p className="bomb-fineprint">
                 {seconds === 0
                   ? 'Tempo scaduto. Attendiamo la rivelazione dal server.'
-                  : 'Hai fino a 60 secondi. Chi non conferma resta fuori; se tutti sono pronti, si scoprono subito le carte.'}
+                  : 'Hai fino a 60 secondi. Quando tutti hanno confermato, o il tempo scade, partono i 30 secondi prima della rivelazione.'}
               </p>
             </>
-          ) : terminal ? (
-            <div className="bomb-result" role="status">
-              <h3 ref={cancelled ? heading : undefined} tabIndex={-1}>
-                {bomb.status === 'Completed'
-                  ? 'Aggiudicato!'
-                  : bomb.status === 'Cancelled'
-                    ? 'Bomba annullata'
-                    : 'Nessuna offerta confermata'}
-              </h3>
-              {bomb.status === 'Completed' ? (
-                <>
-                  <p>{winner?.name ?? 'Squadra vincitrice'}</p>
-                  <strong>
-                    {bomb.winningAmount} <small>crediti</small>
-                  </strong>
-                </>
-              ) : (
-                <p>{bomb.name} resta libero. Nessun credito speso.</p>
-              )}
-              <Button onClick={onDismiss}>Torna alla sala</Button>
-            </div>
           ) : (
-            <div className="bomb-reveal-heading" role="status">
-              {intro > 0 && bomb.revealedOffers.length === 0 ? (
-                <>
-                  <p>Offerte chiuse. Ci siamo…</p>
-                  <strong key={intro} className="bomb-countdown">
-                    {intro}
-                  </strong>
-                </>
-              ) : (
-                <>
-                  <h3>Scopriamo le carte.</h3>
-                  <p>
-                    Dalla più piccola alla più grande. Chi avrà osato di più?
-                  </p>
-                </>
-              )}
+            <div className="bomb-result" role="status">
+              <h3 ref={heading} tabIndex={-1}>
+                {cancelled ? 'Bomba annullata' : 'Nessuna offerta confermata'}
+              </h3>
+              <p>{bomb.name} resta libero. Nessun credito speso.</p>
+              <Button onClick={onDismiss}>Torna alla sala</Button>
             </div>
           )}
         </div>
       </div>
-      {!cancelled && (
+      {(waiting || collecting) && (
         <section
           className="bomb-participants"
-          aria-label={
-            waiting || collecting ? 'Squadre partecipanti' : 'Offerte rivelate'
-          }
+          aria-label="Squadre partecipanti"
         >
           <div className="bomb-progress-label">
-            <h3>
-              {waiting
-                ? 'Squadre in attesa'
-                : collecting
-                  ? 'Pronti alla rivelazione'
-                  : 'Le offerte'}
-            </h3>
+            <h3>{waiting ? 'Squadre in attesa' : 'Pronti alla rivelazione'}</h3>
             {collecting && (
               <span role="status">
                 {ready} di {bomb.participants.length} confermate
               </span>
             )}
           </div>
-          {waiting || collecting ? (
-            <ul>
-              {bomb.participants.map((participant) => (
-                <li
-                  key={participant.teamId}
-                  className={
-                    !waiting && participant.hasSubmitted ? 'is-ready' : ''
-                  }
-                >
-                  <span>
-                    {teamName(participant.teamId)}
-                    {participant.teamId === myTeamId ? ' · Tu' : ''}
-                  </span>
-                  <span>
-                    {waiting ? (
-                      'In attesa'
-                    ) : participant.hasSubmitted ? (
-                      <>
-                        <Icon name="check" variant="jelly" /> Pronta
-                      </>
-                    ) : (
-                      'Sta scegliendo'
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <ol
-              className="bomb-offers"
-              aria-live="polite"
-              aria-relevant="additions"
-            >
-              {bomb.revealedOffers.map((offer) => (
-                <li
-                  key={`${bomb.round}:${offer.teamId}`}
-                  className={
-                    terminal && offer.teamId === bomb.winningTeamId
-                      ? 'is-winner'
-                      : ''
-                  }
-                >
-                  <span>{teamName(offer.teamId)}</span>
-                  <strong>{offer.amount} crediti</strong>
-                </li>
-              ))}
-            </ol>
-          )}
-          {!waiting && !collecting && !terminal && (
-            <p className="bomb-fineprint">
-              {bomb.revealedOffers.length === 0
-                ? 'Le offerte sono ancora segrete.'
-                : 'La rivelazione continua…'}{' '}
-              A parità del massimo si va allo spareggio.
-            </p>
-          )}
+          <ul>
+            {bomb.participants.map((participant) => (
+              <li
+                key={participant.teamId}
+                className={
+                  !waiting && participant.hasSubmitted ? 'is-ready' : ''
+                }
+              >
+                <span>
+                  {teamName(participant.teamId)}
+                  {participant.teamId === myTeamId ? ' · Tu' : ''}
+                </span>
+                <span>
+                  {waiting ? (
+                    'In attesa'
+                  ) : participant.hasSubmitted ? (
+                    <>
+                      <Icon name="check" variant="jelly" /> Pronta
+                    </>
+                  ) : (
+                    'Sta scegliendo'
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
     </section>
+  )
+}
+
+// Sostituisce la singola offerta soltanto quando arriva un nuovo dato pubblico dal server.
+function BombRevealOffer({
+  offer,
+  teams,
+}: {
+  offer: BombAuctionView['revealedOffers'][number]
+  teams: AuctionTeam[]
+}) {
+  const [displayed, setDisplayed] = useState(offer)
+  const changing =
+    displayed.teamId !== offer.teamId || displayed.amount !== offer.amount
+  useEffect(() => {
+    if (!changing) return
+    const timer = setTimeout(() => setDisplayed(offer), 280)
+    return () => clearTimeout(timer)
+  }, [changing, offer])
+  return (
+    <div
+      key={`${displayed.teamId}:${displayed.amount}`}
+      className={`bomb-reveal-offer${changing ? ' is-leaving' : ''}`}
+    >
+      <h3>
+        {teams.find((team) => team.id === displayed.teamId)?.name ?? 'Squadra'}
+      </h3>
+      <strong>
+        {displayed.amount} {displayed.amount === 1 ? 'credito' : 'crediti'}
+      </strong>
+    </div>
   )
 }
 

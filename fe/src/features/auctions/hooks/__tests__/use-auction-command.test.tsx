@@ -66,6 +66,7 @@ it('recupera la ricevuta dopo riapertura senza reinviare l’offerta', async () 
   vi.stubGlobal('fetch', fetch)
   const hook = setup()
   await waitFor(() => expect(hook.result.current.pending).toBeNull())
+  expect(hook.result.current.message).toBe('')
   expect(fetch).toHaveBeenCalledTimes(1)
   expect(String(fetch.mock.calls[0]?.[0])).toContain(`/Commands/${rid}`)
 })
@@ -101,6 +102,7 @@ it('reinvia solo su gesto esplicito, conservando UUID e totale originali', async
   })
   expect(bodies).toEqual([command.body])
   expect(hook.result.current.pending).toBeNull()
+  expect(hook.result.current.message).toBe('')
 })
 
 it.each<PendingCommand>([

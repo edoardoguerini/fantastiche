@@ -98,7 +98,7 @@ export function AuctionNavigation({
           </div>
         </section>
       )}
-      <div className="auction-bottom-navigation">
+      <div className="auction-bottom-navigation" data-manage={canManage}>
         <div
           className="auction-bottom-tabs"
           data-manage={canManage}

@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import { setSsrSession } from '../ssr-fixture'
+import { expect, test, type Page } from '../ssr-fixture'
 
 const admin = {
   id: 'catalog-admin',
@@ -38,6 +39,7 @@ async function setup(page: Page, isSuperAdmin = true) {
     imported: false,
     published: false,
   }
+  setSsrSession(page, () => ({ user: { ...admin, isSuperAdmin } }))
   await page.route('http://localhost:6060/api/**', async (route) => {
     const req = route.request()
     const url = new URL(req.url())

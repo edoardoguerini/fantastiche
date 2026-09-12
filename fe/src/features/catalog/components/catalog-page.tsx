@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
+import { Link, useHydrated } from '@tanstack/react-router'
 import { authQueryOptions } from '@/features/auth'
 import { LoadingState } from '@/components/common/page-state'
 import { Input } from '@/components/primitives/input'
@@ -29,6 +29,7 @@ export function CatalogPage() {
   return <CatalogWorkspace key={auth.data.id} userId={auth.data.id} />
 }
 function CatalogWorkspace({ userId }: { userId: string }) {
+  const hydrated = useHydrated()
   const client = useQueryClient()
   const [seasonFilter, setSeasonFilter] = useState('')
   const [page, setPage] = useState(1)
@@ -68,12 +69,17 @@ function CatalogWorkspace({ userId }: { userId: string }) {
       >
         <div className="catalog-section-heading">
           <h2 id="catalog-versions-title">Versioni del listone</h2>
-          <Button variant="ghost" onClick={() => void refresh()}>
+          <Button
+            disabled={!hydrated}
+            variant="ghost"
+            onClick={() => void refresh()}
+          >
             Aggiorna listoni
           </Button>
         </div>
         <form
           className="catalog-season-filter"
+          method="post"
           onSubmit={(event) => {
             event.preventDefault()
             void filterForm.handleSubmit()
@@ -87,6 +93,7 @@ function CatalogWorkspace({ userId }: { userId: string }) {
                 </label>
                 <Input
                   id="catalog-version-season"
+                  disabled={!hydrated}
                   placeholder="Tutte le stagioni"
                   value={field.state.value}
                   maxLength={50}
@@ -95,7 +102,7 @@ function CatalogWorkspace({ userId }: { userId: string }) {
               </div>
             )}
           </filterForm.Field>
-          <Button variant="outline" type="submit">
+          <Button disabled={!hydrated} variant="outline" type="submit">
             Filtra versioni
           </Button>
         </form>

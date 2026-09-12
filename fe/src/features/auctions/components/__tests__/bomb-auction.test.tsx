@@ -3,7 +3,23 @@ import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { BombAuction } from '../bomb-auction'
 import type { BombAuctionView, TimedSession } from '../../types/auction.types'
 
-beforeEach(() => vi.stubGlobal('scrollTo', vi.fn()))
+const play = vi.fn(() => Promise.resolve())
+beforeEach(() => {
+  vi.stubGlobal('scrollTo', vi.fn())
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn(() => ({ matches: true })),
+  )
+  play.mockClear()
+  vi.stubGlobal(
+    'Audio',
+    class {
+      play = play
+      pause = vi.fn()
+      currentTime = 0
+    },
+  )
+})
 afterEach(() => vi.unstubAllGlobals())
 
 const bomb: BombAuctionView = {
@@ -221,4 +237,85 @@ it('fa scorrere automaticamente le citazioni con il countdown condiviso', () => 
     'value',
     '42',
   )
+})
+
+it('attende la scadenza server di 30 secondi e sostituisce ogni offerta con la successiva', () => {
+  const revealing: BombAuctionView = {
+    ...bomb,
+    status: 'Revealing',
+    revealStartedAt: session.serverTime,
+    nextRevealAt: '2026-09-10T17:00:30Z',
+  }
+  const view = render(<BombAuction {...props} bomb={revealing} />)
+  expect(screen.getByText('30')).toBeVisible()
+  expect(screen.queryByText(bomb.name)).toBeNull()
+  view.rerender(
+    <BombAuction
+      {...props}
+      bomb={{
+        ...revealing,
+        revealedOffers: [
+          { teamId: 'other', amount: 12 },
+          { teamId: 'team', amount: 20 },
+        ],
+      }}
+    />,
+  )
+  expect(screen.getByText('20 crediti')).toBeVisible()
+  expect(screen.getByRole('heading', { name: 'Real Sbronzi' })).toBeVisible()
+  expect(screen.queryByText('12 crediti')).toBeNull()
+  expect(screen.queryByText('Atletico Spritz')).toBeNull()
+  expect(screen.queryByRole('list')).toBeNull()
+  expect(screen.queryByText('Aggiudicato!')).toBeNull()
+  view.rerender(
+    <BombAuction
+      {...props}
+      connected={false}
+      bomb={{ ...revealing, revealedOffers: [{ teamId: 'team', amount: 20 }] }}
+    />,
+  )
+  expect(screen.getByText('20 crediti')).toBeVisible()
+  expect(screen.getByText(/Riconnessione in corso/)).toBeVisible()
+})
+
+it('passa dal reveal al vincitore in pagina solo alla conferma e non ripete gli effetti al reload', async () => {
+  const revealed: BombAuctionView = {
+    ...bomb,
+    status: 'Revealing',
+    revealedOffers: [{ teamId: 'team', amount: 20 }],
+  }
+  const completed: BombAuctionView = {
+    ...revealed,
+    status: 'Completed',
+    winningTeamId: 'team',
+    winningAmount: 20,
+    playerAuctionId: 'award',
+  }
+  const view = render(<BombAuction {...props} bomb={revealed} />)
+  expect(play).not.toHaveBeenCalled()
+  view.rerender(<BombAuction {...props} bomb={completed} />)
+  expect(
+    screen.getByRole('region', { name: 'Aggiudicazione' }),
+  ).toHaveTextContent('È tuo!')
+  expect(
+    screen.queryByRole('button', { name: 'Chiudi celebrazione' }),
+  ).toBeNull()
+  await waitFor(() => expect(play).toHaveBeenCalledTimes(1))
+  view.unmount()
+  render(<BombAuction {...props} bomb={completed} />)
+  expect(screen.getByRole('region', { name: 'Aggiudicazione' })).toBeVisible()
+  expect(play).toHaveBeenCalledTimes(1)
+})
+
+it('a zero resta in attesa del server, senza offrire o mostrare esiti', () => {
+  render(
+    <BombAuction
+      {...props}
+      bomb={{ ...bomb, status: 'Revealing', nextRevealAt: session.serverTime }}
+    />,
+  )
+  expect(screen.getByText('Scopriamo le carte.')).toBeVisible()
+  expect(screen.queryByRole('spinbutton')).toBeNull()
+  expect(screen.queryByRole('region', { name: 'Aggiudicazione' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Torna alla sala' })).toBeNull()
 })

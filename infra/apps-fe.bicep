@@ -1,11 +1,11 @@
-@description('Deploy del Container App frontend (nginx + SPA) nel RG dell ambiente. Deploy Incremental: non tocca BE/Scheduler.')
+@description('Deploy del Container App frontend (nginx + Node SSR) nel RG dell ambiente. Deploy Incremental: non tocca BE/Scheduler.')
 param location string = resourceGroup().location
 param environmentName string = 'prod'
 param environmentId string
 param identityId string
 param acrLoginServer string
 param feImage string
-@description('URL interno dell API usato dal proxy nginx, es. https://fantastiche-api-prod.internal.<defaultDomain> (HTTPS: l ingress interno riscrive X-Forwarded-Proto con lo schema usato da nginx).')
+@description('URL interno dell API usato dal proxy nginx e dalla verifica sessione SSR, es. https://fantastiche-api-prod.internal.<defaultDomain> (HTTPS: l ingress interno riscrive X-Forwarded-Proto con lo schema usato da nginx).')
 param apiUpstream string
 @description('Repliche minime del FE: 1 = sempre acceso; 0 = scale-to-zero.')
 @minValue(0)

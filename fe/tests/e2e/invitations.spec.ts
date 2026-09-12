@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import { setSsrSession } from '../ssr-fixture'
+import { expect, test, type Page } from '../ssr-fixture'
 
 const token = 'A'.repeat(64)
 const user = {
@@ -44,6 +45,7 @@ async function setup(
     accepts: [] as Record<string, unknown>[],
     sent: 0,
   }
+  setSsrSession(page, () => ({ user: state.authenticated ? user : null }))
   await page.route('http://localhost:6060/api/**', async (route) => {
     const request = route.request()
     const url = new URL(request.url())

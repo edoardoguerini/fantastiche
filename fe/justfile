@@ -20,6 +20,10 @@ test:
 test-e2e:
     pnpm test:e2e
 
+# Richiede una build di produzione aggiornata
+test-pwa:
+    pnpm test:pwa
+
 lint:
     pnpm typecheck
     pnpm lint
@@ -28,7 +32,7 @@ lint:
 fmt:
     pnpm format
 
-# Costruisce l'immagine di produzione (nginx + SPA) con tag locale
+# Costruisce l'immagine di produzione (nginx + Node SSR) con tag locale
 build-image:
     docker build -t fantastiche-fe:local --build-arg VITE_APP_VERSION=local .
 

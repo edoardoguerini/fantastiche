@@ -1,5 +1,4 @@
-# Immagine di produzione del frontend Fantastiche: build SPA + nginx.
-# nginx serve gli asset statici e inoltra /api e /hubs all'API (stessa origin).
+# Frontend SSR: Node rende le pagine; nginx serve asset, API e WebSocket.
 
 FROM node:24-alpine AS builder
 WORKDIR /app
@@ -14,12 +13,19 @@ ARG VITE_APP_VERSION=0.0.0
 ENV VITE_APP_VERSION=${VITE_APP_VERSION}
 RUN pnpm build
 
-FROM nginxinc/nginx-unprivileged:1.31-alpine AS runtime
-# L'entrypoint ufficiale rende /etc/nginx/templates/*.template in /etc/nginx/conf.d.
-ENV NGINX_ENVSUBST_FILTER=^API_UPSTREAM$
+FROM node:24-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
 ENV API_UPSTREAM=http://localhost:6060
-COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
-COPY --from=builder /app/dist/client /usr/share/nginx/html
+RUN apk add --no-cache nginx gettext supervisor \
+    && corepack enable && corepack prepare pnpm@10.33.1 --activate
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --prod --frozen-lockfile
+COPY --from=builder /app/dist ./dist
+COPY nginx ./nginx
+COPY server ./server
+USER node
 EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD wget -qO- http://127.0.0.1:8080/_shell.html > /dev/null || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD wget -qO- http://127.0.0.1:8080/healthz > /dev/null || exit 1
+CMD ["sh", "-c", "envsubst '${API_UPSTREAM}' < /app/nginx/default.conf.template > /tmp/fantastiche-server.conf && exec supervisord -c /app/server/supervisord.conf"]

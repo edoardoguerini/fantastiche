@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { StrictMode } from 'react'
-import { AuctionVictory } from '../auction-victory'
+import { AuctionVictory, VictoryCelebration } from '../auction-victory'
 import type { AuctionSession } from '../../types/auction.types'
 
 const play = vi.fn(() => Promise.resolve())
@@ -130,7 +130,7 @@ it('rispetta il movimento ridotto e permette la fanfara quando autoplay è blocc
 })
 
 it.each(['Waiting', 'Revealing'] as const)(
-  'celebra la chiusura della Bomba osservata da %s, senza ripeterla al reload',
+  'lascia alla pagina Bomba la celebrazione dopo %s',
   async (status) => {
     const bomb = {
       id: 'bomb',
@@ -174,11 +174,54 @@ it.each(['Waiting', 'Revealing'] as const)(
     )
     expect(play).not.toHaveBeenCalled()
     view.rerender(<AuctionVictory session={completed} myTeamId="other" />)
-    expect(screen.getByRole('status')).toHaveTextContent('Aggiudicato!')
-    await waitFor(() => expect(play).toHaveBeenCalledTimes(1))
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(play).not.toHaveBeenCalled()
     view.unmount()
     render(<AuctionVictory session={completed} myTeamId="other" />)
     expect(screen.queryByRole('status')).toBeNull()
-    expect(play).toHaveBeenCalledTimes(1)
+    expect(play).not.toHaveBeenCalled()
   },
 )
+
+it('mantiene il vincitore in pagina dopo gli effetti, senza modale, fino al ritorno alla sala', async () => {
+  vi.useFakeTimers()
+  try {
+    const onDismiss = vi.fn()
+    render(
+      <VictoryCelebration
+        auction={closed.currentAuction!}
+        teamName="Real Sbronzi"
+        mine
+        presentation="page"
+        onDismiss={onDismiss}
+      />,
+    )
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4600)
+    })
+    expect(play).toHaveBeenCalledTimes(1)
+    expect(pause).toHaveBeenCalled()
+    expect(screen.getByRole('heading', { name: 'Real Sbronzi' })).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: 'Chiudi celebrazione' }),
+    ).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Torna alla sala' }))
+    expect(onDismiss).toHaveBeenCalledOnce()
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it('mostra il risultato in pagina al reload senza ripetere gli effetti', () => {
+  render(
+    <VictoryCelebration
+      auction={closed.currentAuction!}
+      teamName="Real Sbronzi"
+      mine
+      presentation="page"
+      celebrate={false}
+    />,
+  )
+  expect(screen.getByRole('heading', { name: 'Real Sbronzi' })).toBeVisible()
+  expect(play).not.toHaveBeenCalled()
+})
