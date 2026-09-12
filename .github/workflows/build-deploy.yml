@@ -34,9 +34,9 @@ env:
   BLOB_ENDPOINT: https://stfantasticheprod.blob.core.windows.net/
   DATAPROTECTION_KEY_ID: https://kv-fantastiche-prod.vault.azure.net/keys/dataprotection
   # Da compilare al provisioning: il deploy fallisce finché restano CHANGE_ME.
-  MAILGUN_DOMAIN: CHANGE_ME
-  MAILGUN_FROM: CHANGE_ME
-  BOOTSTRAP_EMAIL: CHANGE_ME
+  MAILGUN_DOMAIN: fantastiche.mahiz.dev
+  MAILGUN_FROM: noreply@fantastiche.mahiz.dev
+  BOOTSTRAP_EMAIL: edoardo.guerini@mahiz.it
 
 jobs:
   version:
@@ -111,7 +111,7 @@ jobs:
         run: |
           set -eo pipefail
           [ -n "$SEMVER" ] || { echo "semver vuota"; exit 1; }
-          # VITE_API_BASE_URL vuoto: stessa origin, nginx inoltra /api e /hubs.
+          # VITE_API_BASE_URL vuoto: stessa origin, nginx inoltra /api e /hubs; Node gestisce SSR.
           az acr build --registry "$ACR_NAME" \
             --image "fantastiche-fe:$SEMVER" --image "fantastiche-fe:$SHA7" --image "fantastiche-fe:$ENV_NAME" \
             --file fe/Dockerfile --build-arg "VITE_API_BASE_URL=" --build-arg "VITE_APP_VERSION=$SEMVER" fe
