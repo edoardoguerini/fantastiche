@@ -1,12 +1,12 @@
 # infra/ — Infrastruttura Azure Fantastiche
 
-IaC Bicep per l'ambiente `prod` su Azure Container Apps (FE nginx + API + Scheduler + job di migrazione, SQL Basic, Key Vault, storage, ACR condiviso). Design: `docs/superpowers/specs/2026-09-11-azure-deploy-design.md`. Pipeline: `.github/workflows/build-deploy.yml`.
+IaC Bicep per l'ambiente `prod` su Azure Container Apps (FE nginx/Node SSR + API + Scheduler + job di migrazione, SQL Basic, Key Vault, storage, ACR condiviso). Design: `docs/superpowers/specs/2026-09-11-azure-deploy-design.md`. Pipeline: `.github/workflows/build-deploy.yml`.
 
 ## Target Azure
 
 - Subscription **MPN - Mahiz** `818db21a-4d0b-430a-a42a-a00715f0345f` (tenant `58b8838a-bd0a-4297-94a7-43cbae09891e`).
 - Regione **West Europe**. RG: `rg-fantastiche-shared` (ACR, identità CI) + `rg-fantastiche-prod`.
-- URL pubblico: `https://fantastiche-fe-prod.<defaultDomain>`; l'API è interna e raggiunta solo dal proxy nginx del FE.
+- URL pubblico: `https://fantastiche-fe-prod.<defaultDomain>`; l'API è interna e raggiunta dal proxy nginx e dal resolver SSR del FE.
 
 ## Layout
 
@@ -32,6 +32,8 @@ Il foundation crea role assignment: va applicato da un utente Owner o User Acces
    ```
 
    Output utili: `ciClientId`, `envDefaultDomain`, `sqlServerFqdn`, `dataProtectionKeyUri`.
+
+   La federated credential della CI usa il subject che GitHub presenta davvero, con gli id numerici di owner e repository (`repo:edoardoguerini@51255814/fantastiche@1361413706:ref:refs/heads/master`, parametro `githubRepository` in `prod.bicepparam`). Se il login OIDC fallisce con `AADSTS700213`, il messaggio riporta il subject atteso: copiarlo nel parametro e riapplicare il foundation.
 4. In GitHub → Settings → Secrets and variables → Actions → **Variables**: `AZURE_CLIENT_ID` = output `ciClientId`, `AZURE_TENANT_ID` = `58b8838a-bd0a-4297-94a7-43cbae09891e`, `AZURE_SUBSCRIPTION_ID` = `818db21a-4d0b-430a-a42a-a00715f0345f`. Nessun secret.
 5. Segreti in Key Vault con `just infra az-secrets`:
    - `ConnectionStrings--Fantastiche`: `Server=tcp:sql-fantastiche-prod.database.windows.net,1433;Database=fantastiche;User Id=fantasticheadmin;Password=<password>;Encrypt=True;TrustServerCertificate=False;`
@@ -103,3 +105,18 @@ Connection string in `be/.env.prod` (gitignored) e regola firewall per il propri
 ## Fuori scope
 
 Staging, custom domain, Private Endpoint, SQL passwordless, identità per app, migrazione separata dall'avvio API, PWA.
+
+## Frontend SSR
+
+Dal 12 settembre 2026 l’immagine FE include Node 24/TanStack Start oltre a nginx.
+nginx resta l’ingresso su 8080, serve gli asset con hash e inoltra API e WebSocket
+come prima; le altre route passano al processo Node su 127.0.0.1:3000. Entrambi
+i processi girano senza root sotto supervisord. API_UPSTREAM configura sia il
+proxy nginx sia la verifica server-side di `/api/Auth/Me`. La verifica SSR non
+modifica il percorso delle mutazioni o il rate limiter del login.
+
+`/healthz` attraversa nginx e il runtime Node; il controllo Docker verifica così
+entrambi i processi, senza richiedere una sessione o interrogare il database. La
+risposta HTML e i redirect sono `private, no-store`; gli asset con hash restano
+immutabili. Le variabili e la porta del Bicep FE restano compatibili con questa
+immagine. Non distribuire più il solo `dist/client`: serve anche `dist/server`.

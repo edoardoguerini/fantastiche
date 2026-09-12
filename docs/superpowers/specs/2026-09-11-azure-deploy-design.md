@@ -189,7 +189,7 @@ Documentata in `infra/README.md`, eseguita dall'operatore con la propria session
 
 1. `just infra az-env` imposta la subscription.
 2. Foundation: `az deployment sub create -l westeurope -f infra/main.bicep -p infra/prod.bicepparam --parameters sqlAdministratorLoginPassword=<pw> operatorObjectId=<objectId> githubRepository=edoardoguerini/fantastiche`.
-3. Federated credential dell'identità CI verso `repo:edoardoguerini/fantastiche:ref:refs/heads/master`, creata dal foundation; in GitHub impostare le tre variabili.
+3. Federated credential dell'identità CI verso `repo:edoardoguerini@51255814/fantastiche@1361413706:ref:refs/heads/master` (GitHub include gli id numerici di owner e repository nel subject), creata dal foundation; in GitHub impostare le tre variabili.
 4. Segreti in Key Vault con `just infra az-secrets`.
 5. Primo run della pipeline (push o `workflow_dispatch`) che builda, deploya e migra.
 6. Bootstrap SuperAdmin: `az containerapp job start -n fantastiche-migrate-prod -g rg-fantastiche-prod --args "--bootstrap-superadmin"`.
