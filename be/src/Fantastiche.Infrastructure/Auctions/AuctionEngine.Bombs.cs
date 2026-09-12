@@ -145,7 +145,7 @@ public sealed partial class AuctionEngine
     {
         bomb.Status = BombAuctionStatus.Revealing;
         bomb.RevealStartedAt = now;
-        bomb.NextRevealAt = now.AddSeconds(3);
+        bomb.NextRevealAt = now.AddSeconds(30);
         await SaveBombAsync(c, tx, bomb, ct);
     }
 
@@ -211,8 +211,8 @@ public sealed partial class AuctionEngine
             else if (bomb.RevealedCount < offers.Length)
             {
                 bomb.RevealedCount++;
-                bomb.NextRevealAt = now.AddSeconds(2);
-                // L’ultima offerta resta visibile due secondi prima dell’esito o dello spareggio.
+                bomb.NextRevealAt = now.AddSeconds(6);
+                // L’ultima offerta resta visibile sei secondi prima dell’esito o dello spareggio.
             }
             else if (offers.Count(o => o.Amount == offers[^1].Amount) == 1)
             {

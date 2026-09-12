@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type * as ReactRouter from '@tanstack/react-router'
 import { afterEach, expect, it, vi } from 'vitest'
 import { authQueryOptions, type AuthenticatedUser } from '@/features/auth'
 import { api } from '@/lib/api/client'
@@ -10,7 +11,8 @@ import { CatalogPublishControl } from '../catalog-publish-control'
 import { CatalogEntriesPreview } from '../catalog-entries-preview'
 import { CatalogPage } from '../catalog-page'
 
-vi.mock('@tanstack/react-router', () => ({
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof ReactRouter>()),
   Link: ({ children }: { children: React.ReactNode }) => (
     <span>{children}</span>
   ),

@@ -122,7 +122,8 @@ public sealed partial class HttpFlowTests
 
         // Nessun endpoint di avanzamento: il worker deve arrivare al risultato autonomamente.
         JsonElement state;
-        using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20)))
+        // Due offerte: 30 secondi di attesa e 6 secondi per ciascuna, più margine per il worker.
+        using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60)))
         {
             while (true)
             {

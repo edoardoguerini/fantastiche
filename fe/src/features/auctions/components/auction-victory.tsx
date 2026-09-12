@@ -25,13 +25,8 @@ export function AuctionVictory({
     if (
       auction?.status === 'Closed' &&
       auction.closedAt &&
-      ((observed?.id === auction.id && observed.status === 'Open') ||
-        (bomb?.status === 'Completed' &&
-          bomb.playerAuctionId === auction.id &&
-          observedBomb?.id === bomb.id &&
-          (observedBomb.status === 'Waiting' ||
-            observedBomb.status === 'Collecting' ||
-            observedBomb.status === 'Revealing')))
+      observed?.id === auction.id &&
+      observed.status === 'Open'
     ) {
       setAward(auction)
     }
@@ -57,19 +52,32 @@ export function AuctionVictory({
   )
 }
 
-function VictoryCelebration({
+export function VictoryCelebration({
   auction,
   teamName,
   mine,
+  presentation = 'overlay',
+  celebrate = true,
+  onDismiss,
 }: {
-  auction: PlayerAuction
+  auction: Pick<
+    PlayerAuction,
+    'name' | 'role' | 'photoUrl' | 'clubName' | 'currentAmount'
+  >
   teamName: string
   mine: boolean
+  presentation?: 'overlay' | 'page'
+  celebrate?: boolean
+  onDismiss?: () => void
 }) {
-  const [dismissed, setDismissed] = useState(false)
+  const [dismissed, setDismissed] = useState(!celebrate)
   const [audioBlocked, setAudioBlocked] = useState(false)
   const animationContainer = useRef<HTMLDivElement>(null)
   const audio = useRef<HTMLAudioElement | null>(null)
+  const heading = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    if (presentation === 'page') heading.current?.focus({ preventScroll: true })
+  }, [presentation])
 
   useEffect(() => {
     if (dismissed) return
@@ -84,7 +92,8 @@ function VictoryCelebration({
     })
     const timeout = setTimeout(() => setDismissed(true), 4500)
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setDismissed(true)
+      if (event.key === 'Escape' && presentation === 'overlay')
+        setDismissed(true)
     }
     window.addEventListener('keydown', onKey)
     return () => {
@@ -95,7 +104,7 @@ function VictoryCelebration({
       player.currentTime = 0
       audio.current = null
     }
-  }, [dismissed])
+  }, [dismissed, presentation])
 
   useEffect(() => {
     const container = animationContainer.current
@@ -121,28 +130,34 @@ function VictoryCelebration({
     }
   }, [dismissed])
 
-  if (dismissed) return null
+  if (dismissed && presentation === 'overlay') return null
   return (
-    <div className="auction-victory">
+    <div
+      className={`auction-victory${presentation === 'page' ? ' auction-victory-page' : ''}`}
+    >
       <div
         className="auction-victory-confetti"
         ref={animationContainer}
         aria-hidden="true"
       />
       <section className="auction-victory-card" aria-label="Aggiudicazione">
-        <button
-          type="button"
-          className="auction-victory-close"
-          aria-label="Chiudi celebrazione"
-          onClick={() => setDismissed(true)}
-        >
-          ×
-        </button>
+        {presentation === 'overlay' && (
+          <button
+            type="button"
+            className="auction-victory-close"
+            aria-label="Chiudi celebrazione"
+            onClick={() => setDismissed(true)}
+          >
+            ×
+          </button>
+        )}
         <div role="status" aria-atomic="true">
           <p className="auction-victory-eyebrow">
             {mine ? 'È tuo!' : 'Aggiudicato!'}
           </p>
-          <h2>{teamName}</h2>
+          <h2 ref={heading} tabIndex={presentation === 'page' ? -1 : undefined}>
+            {teamName}
+          </h2>
           <div className="auction-victory-player">
             <PlayerPhoto url={auction.photoUrl} role={auction.role} large />
             <div>
@@ -155,7 +170,7 @@ function VictoryCelebration({
             {auction.currentAmount === 1 ? 'credito' : 'crediti'}
           </p>
         </div>
-        {audioBlocked && (
+        {audioBlocked && !dismissed && (
           <button
             type="button"
             className="auction-victory-play"
@@ -167,6 +182,15 @@ function VictoryCelebration({
             }}
           >
             Riproduci fanfara
+          </button>
+        )}
+        {presentation === 'page' && (
+          <button
+            type="button"
+            className="auction-victory-return"
+            onClick={onDismiss}
+          >
+            Torna alla sala
           </button>
         )}
       </section>

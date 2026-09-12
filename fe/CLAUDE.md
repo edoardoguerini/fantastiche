@@ -12,6 +12,8 @@ Linee e bordi sempre minimali: token condiviso `--border`/`--input` bianco all�
 
 Tipografia: Sora per tutta l’interfaccia, inclusi titoli, marchio, testi, form e controlli. Font variabile self-hosted tramite Fontsource; nessuna richiesta a Google Fonts.
 
+Header e contenuti ordinari condividono larghezza utile di 1100 px e margini laterali minimi di 24 px (20 px su mobile), definiti dai token della shell. Il titolo dell’elenco leghe misura 26–32 px e dista 4 px dal sottotitolo.
+
 TanStack Start, React, TypeScript strict, Vite, TanStack Query, Tailwind e shadcn/ui. Manteniamo da ACKS pnpm, TanStack Form + Zod per i form e TanStack Table quando serve una tabella avanzata. Versioni compatibili fissate in package.json e pnpm-lock.yaml; non aggiornare automaticamente alle versioni del riferimento.
 
 - Routes sottili in `src/routes/`, logica e UI di dominio in `src/features/`.
@@ -28,10 +30,12 @@ Dettaglio: [struttura](docs/architecture/project-structure.md), [confini](docs/a
 
 ## Rendering, API e PWA
 
-SPA iniziale con backend .NET separato, frontend porta 6061 e API 6060. Non introdurre il BFF di ACKS, server functions o proxy di autenticazione senza una decisione architetturale specifica. Auth tramite cookie HttpOnly Identity e antiforgery X-XSRF-TOKEN richiesto prima di ogni mutazione; fetch credentials include. Nessun token in localStorage. VITE_API_BASE_URL configura l’origin pubblico API; default localhost:6060 in sviluppo e stessa origin in build.
+PWA installabile nella build di produzione, con pagina offline neutra e cache dei soli asset pubblici. Nessuna cache di HTML privato o API e nessun aggiornamento forzato: tutte le finestre devono chiudersi prima che il nuovo worker si attivi. Vite dev non registra service worker. Guida e verifiche in [PWA](docs/architecture/pwa-realtime.md).
 
-- API HTTP attraverso un client condiviso, errori tipizzati e messaggi UX in italiano.
-- TanStack Query per server state; query key includono lega e stagione quando pertinenti.
+SSR TanStack Start con backend .NET separato, frontend porta 6061 e API 6060. Passaggio approvato il 12 settembre 2026 come ACKSD, mantenendo il cookie Identity. La login e i guard sono eseguiti anche sul server; inviti (token nel fragment) e UI della sala usano `ssr: false`, senza disabilitare il guard del layout privato. Nessun BFF JWT o nuovo percorso di scrittura. Auth tramite cookie HttpOnly Identity e antiforgery X-XSRF-TOKEN richiesto prima di ogni mutazione; fetch credentials include. Nessun token in localStorage. VITE_API_BASE_URL configura l’origin pubblico API; default localhost:6060 in sviluppo e stessa origin in build. API_UPSTREAM è server-only, configura il backend della verifica SSR (default http://localhost:6060). Il cookie Identity deve raggiungere anche il frontend: in produzione nginx espone API e frontend sulla stessa origin.
+
+- API HTTP attraverso un client condiviso, errori tipizzati e messaggi UX in italiano. Il resolver `features/auth/actions/auth.server.ts` usa lo stesso parser delle risposte, inoltra solo i cookie Identity e non condivide stato tra richieste. `start.ts` preserva gli errori UX nella serializzazione e applica `private, no-store` anche ai redirect.
+- TanStack Query per server state; un QueryClient per richiesta SSR e hydration tramite l’integrazione ufficiale del router. Query key includono lega e stagione quando pertinenti.
 - Pulire/separare cache e sottoscrizioni al cambio account o lega.
 - Stato UI locale con React; form tramite TanStack Form e Zod.
 - Il client SignalR gestisce connessione e sottoscrizioni; gli eventi hanno versione per ignorare notifiche obsolete.

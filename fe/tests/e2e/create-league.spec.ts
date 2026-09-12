@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import { setSsrSession } from '../ssr-fixture'
+import { expect, test, type Page } from '../ssr-fixture'
 
 const admin = {
   id: 'admin-1',
@@ -29,6 +30,12 @@ async function setupApi(
     created: false,
     hold: undefined as Promise<void> | undefined,
   }
+  setSsrSession(page, () => ({
+    user:
+      role === 'anonymous'
+        ? null
+        : { ...admin, isSuperAdmin: role === 'admin' },
+  }))
   await page.route('http://localhost:6060/api/**', async (route) => {
     const request = route.request()
     const path = new URL(request.url()).pathname

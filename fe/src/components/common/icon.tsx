@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils/cn'
 import '@/assets/fontawesome/css/jelly.css'
 
 type IconName =
+  | 'download'
   | 'bomb'
   | 'volume-low'
   | 'volume-xmark'

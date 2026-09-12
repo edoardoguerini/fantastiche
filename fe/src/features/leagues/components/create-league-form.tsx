@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useHydrated } from '@tanstack/react-router'
 import { authQueryOptions } from '@/features/auth'
 import { Button } from '@/components/primitives/button'
 import { Input } from '@/components/primitives/input'
@@ -67,6 +68,7 @@ export function CreateLeagueForm({
   userId: string
   onSuccess: (league: League) => void | Promise<void>
 }) {
+  const hydrated = useHydrated()
   const client = useQueryClient()
   const create = useMutation(createLeagueMutationOptions())
   const submitting = useRef(false)
@@ -126,6 +128,7 @@ export function CreateLeagueForm({
   return (
     <form
       className="create-league-form"
+      method="post"
       noValidate
       onSubmit={(event) => {
         event.preventDefault()
@@ -141,7 +144,7 @@ export function CreateLeagueForm({
         {(isSubmitting) => (
           <fieldset
             className="league-form-fields"
-            disabled={isSubmitting || created}
+            disabled={!hydrated || isSubmitting || created}
           >
             {textSections.map((section) => (
               <section
@@ -288,7 +291,7 @@ export function CreateLeagueForm({
           {(isSubmitting) => (
             <Button
               type="submit"
-              disabled={isSubmitting || created}
+              disabled={!hydrated || isSubmitting || created}
               aria-busy={isSubmitting}
             >
               {created

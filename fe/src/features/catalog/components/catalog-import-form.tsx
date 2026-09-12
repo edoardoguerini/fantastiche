@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useForm } from '@tanstack/react-form'
+import { useHydrated } from '@tanstack/react-router'
 import { Button } from '@/components/primitives/button'
 import { Input } from '@/components/primitives/input'
 import { api } from '@/lib/api/client'
@@ -15,6 +16,7 @@ export function CatalogImportForm({
   userId: string
   onImported: (version: ListVersion) => void | Promise<void>
 }) {
+  const hydrated = useHydrated()
   const action = useCatalogAction(userId)
   const [imported, setImported] = useState(false)
   const [fileKey, setFileKey] = useState(0)
@@ -63,6 +65,7 @@ export function CatalogImportForm({
       </p>
       <form
         className="catalog-form"
+        method="post"
         noValidate
         onSubmit={(event) => {
           event.preventDefault()
@@ -80,7 +83,7 @@ export function CatalogImportForm({
                 placeholder="Es. 2026/27"
                 value={field.state.value}
                 maxLength={50}
-                disabled={action.busy || imported}
+                disabled={!hydrated || action.busy || imported}
                 onChange={(event) => field.handleChange(event.target.value)}
                 onBlur={field.handleBlur}
                 aria-invalid={field.state.meta.errors.length > 0}
@@ -111,7 +114,7 @@ export function CatalogImportForm({
                 id="catalog-import-file"
                 type="file"
                 accept=".csv,text/csv"
-                disabled={action.busy || imported}
+                disabled={!hydrated || action.busy || imported}
                 onChange={(event) =>
                   field.handleChange(event.target.files?.[0] ?? null)
                 }
@@ -140,7 +143,7 @@ export function CatalogImportForm({
             Listone importato. Puoi consultarlo nell’anteprima.
           </p>
         ) : (
-          <Button type="submit" disabled={action.busy}>
+          <Button type="submit" disabled={!hydrated || action.busy}>
             {action.busy ? 'Importazione in corso…' : 'Importa in bozza'}
           </Button>
         )}

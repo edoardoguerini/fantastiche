@@ -110,7 +110,7 @@ Connection string in `be/.env.prod` (gitignored) e regola firewall per il propri
 
 ## Fuori scope
 
-Staging, custom domain, Private Endpoint, SQL passwordless, identità per app, migrazione separata dall'avvio API, PWA.
+Staging, custom domain, Private Endpoint, SQL passwordless, identità per app, migrazione separata dall'avvio API.
 
 ## Frontend SSR
 

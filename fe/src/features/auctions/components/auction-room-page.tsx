@@ -282,9 +282,7 @@ function SessionView({
         connected={connected}
         visuallyHidden
       />
-      {(command.pending ||
-        (command.message &&
-          (!showBomb || command.message !== 'Operazione confermata.'))) && (
+      {(command.pending || command.message) && (
         <div className="auction-command-status" role="status">
           <p>{command.busy ? 'Verifica dell’operazione…' : command.message}</p>
           {command.pending && !command.busy && (
@@ -528,10 +526,6 @@ function SessionView({
           tabIndex={0}
           hidden={tab !== 'history'}
         >
-          <h2>Storico acquisti</h2>
-          <p className="auction-section-description">
-            Tutte le aggiudicazioni, con squadra e prezzo d’acquisto.
-          </p>
           <RosterPanel
             userId={userId}
             sessionId={session.id}

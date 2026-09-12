@@ -35,7 +35,9 @@ export function RosterPanel({
               <div>
                 <h3>{entry.name}</h3>
                 <p className="player-club-line">
-                  <span>{entry.role}</span>
+                  <span className={`catalog-role role-${entry.role}`}>
+                    {entry.role}
+                  </span>
                   <ClubLabel
                     name={entry.clubName}
                     logoUrl={entry.clubLogoUrl}

@@ -53,7 +53,7 @@ export function useAuctionCommand(
       setPending(null)
       setMessage(
         receipt.accepted
-          ? 'Operazione confermata.'
+          ? ''
           : (receipt.message ??
               'Operazione non accettata. Controlla lo stato aggiornato.'),
       )

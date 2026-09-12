@@ -6,3 +6,5 @@ node_modules
 test-results
 playwright-report
 src/assets/fontawesome/
+# Animazioni Lottie generate: conservare il JSON distribuito dall'asset.
+src/assets/animations/*.json

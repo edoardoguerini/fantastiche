@@ -38,10 +38,15 @@ public sealed partial class AuctionEngineTests
         await ProgressBombs();
         var reveal = (await State(data, session.Id)).CurrentBomb!;
         Assert.Equal("Revealing", reveal.Status);
+        Assert.Equal(reveal.RevealStartedAt!.Value.AddSeconds(30), reveal.NextRevealAt);
         Assert.Empty(reveal.RevealedOffers);
         Assert.Equal(data.Teams, reveal.Participants.Select(x => x.TeamId));
+        var beforeReveal = await State(data, session.Id);
         await RevealBombStep(id);
-        var first = (await State(data, session.Id)).CurrentBomb!;
+        var afterReveal = await State(data, session.Id);
+        var first = afterReveal.CurrentBomb!;
+        Assert.InRange(first.NextRevealAt!.Value,
+            beforeReveal.ServerTime.AddSeconds(6), afterReveal.ServerTime.AddSeconds(6));
         Assert.Equal(2, Assert.Single(first.RevealedOffers).Amount);
         Assert.Null(first.WinningTeamId);
         await RevealBombStep(id);

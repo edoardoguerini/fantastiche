@@ -14,7 +14,7 @@ export function LeaguesPage({ page }: { page: number }) {
     enabled: !!user,
   })
   return (
-    <div className="content-container">
+    <div className="content-container leagues-page">
       <header className="page-heading page-heading-with-action">
         <div>
           <h1>{user?.isSuperAdmin ? 'Le leghe' : 'Le mie leghe'}</h1>

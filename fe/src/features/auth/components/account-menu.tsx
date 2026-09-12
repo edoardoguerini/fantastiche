@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { useHydrated, useNavigate } from '@tanstack/react-router'
 import { Button } from '@/components/primitives/button'
 import { Icon } from '@/components/common/icon'
 import { ApiError, errorMessage } from '@/lib/api/error'
@@ -10,6 +10,7 @@ import { replaceSession } from '../actions/auth.cache'
 import '../account-menu.css'
 
 export function AccountMenu() {
+  const hydrated = useHydrated()
   const { data: user } = useQuery(authQueryOptions())
   const client = useQueryClient()
   const navigate = useNavigate()
@@ -76,6 +77,7 @@ export function AccountMenu() {
     >
       <button
         type="button"
+        disabled={!hydrated}
         className="account-trigger"
         ref={trigger}
         aria-label="Apri menu profilo"

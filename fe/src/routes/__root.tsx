@@ -8,12 +8,14 @@ import {
   useRouter,
 } from '@tanstack/react-router'
 import { ErrorState } from '@/components/common/page-state'
+import { PwaControls } from '@/components/common/pwa-controls'
 import '@fontsource-variable/sora/wght.css'
 import '@/assets/fontawesome/css/all.css'
 import '@/styles/globals.css'
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   {
+    headers: () => ({ 'Cache-Control': 'private, no-store', Vary: 'Cookie' }),
     head: () => ({
       meta: [
         { charSet: 'utf-8' },
@@ -23,6 +25,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         },
         { title: 'Fantastiche' },
         { name: 'theme-color', content: '#0c0c0e' },
+        { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        {
+          name: 'apple-mobile-web-app-status-bar-style',
+          content: 'black-translucent',
+        },
+        { name: 'apple-mobile-web-app-title', content: 'Fantastiche' },
         {
           name: 'description',
           content: 'La tua lega, la tua stagione. Fantastiche Fantacalcio.',
@@ -30,15 +38,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       ],
       links: [
         { rel: 'icon', type: 'image/png', href: '/brand/fantastiche-logo.png' },
+        { rel: 'manifest', href: '/manifest.webmanifest' },
+        {
+          rel: 'apple-touch-icon',
+          sizes: '180x180',
+          href: '/pwa/apple-touch-icon.png',
+        },
       ],
     }),
     component: () => (
+      <>
+        <Outlet />
+        {import.meta.env.PROD && <PwaControls />}
+      </>
+    ),
+    shellComponent: ({ children }) => (
       <html lang="it" className="dark">
         <head>
           <HeadContent />
         </head>
         <body>
-          <Outlet />
+          {children}
           <Scripts />
         </body>
       </html>

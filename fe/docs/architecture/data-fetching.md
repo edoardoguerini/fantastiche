@@ -15,3 +15,17 @@ L’offerta resta pending fino alla conferma; request ID stabile in caso di esit
 `GET /api/Leagues` arricchisce ogni lega con `logoUrl`, `myTeamName` e `auctionStatus`. La squadra è quella dell’utente autenticato nella stagione corrente, con membership attiva; organizzatori o spettatori senza squadra non mostrano un nome fittizio. Lo stato è `NotStarted`, `Active`, `Paused` o `Completed`: la sessione attiva/in pausa ha precedenza, altrimenti si usa l’ultima conclusa. Questi ultimi due campi sono un riepilogo dell’elenco e non sono richiesti dal dettaglio o dalla risposta di creazione lega.
 
 L’elenco si aggiorna ogni 15 secondi mentre la pagina è attiva, con query separata per utente e pagina. La card mostra logo (o iniziale), stagione, stato, nome della lega, squadra e impostazioni «Budget iniziale»/«Rosa da». Il pulsante apre direttamente la sala; per un’asta conclusa è etichettato «Rivedi l’asta». «Dettagli lega» apre la configurazione. Su mobile le azioni occupano tutta la larghezza della card. Il fondo riprende il gradiente viola della sala.
+
+## Sessione e primo rendering
+
+La query auth è isomorfa: in SSR inoltra il cookie Identity al backend configurato
+in API_UPSTREAM; nel browser usa il client HTTP pubblico. Senza cookie il server
+restituisce subito una sessione anonima, senza chiamare l’API. Un 401 consente la
+login; errori di rete o 5xx restano errori recuperabili. Nessuna sessione globale.
+L’integrazione Query/Router trasferisce i dati risolti durante SSR al browser.
+
+La login arriva già nel documento, con controlli disabilitati fino alla hydration
+per evitare invii HTML involontari o perdita dei valori digitati. Il form usa
+anche `method="post"`: le credenziali non devono mai finire nella query string.
+`ApiError` ha un adapter di serializzazione che conserva solo status, codice e
+messaggio UX. L’HTML e i redirect hanno `Cache-Control: private, no-store`.

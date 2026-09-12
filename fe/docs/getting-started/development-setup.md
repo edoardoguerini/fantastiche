@@ -1,6 +1,6 @@
 # Setup frontend
 
-Primo incremento eseguibile: login centrato in dark mode, sessione cookie e consultazione delle leghe e della loro configurazione. Stack TanStack Start in SPA, React, TypeScript strict, Vite, Query, Form/Zod, Tailwind e primitives compatibili con shadcn. Versioni fissate nel package e nel lockfile, TypeScript 6.0.3 compatibile con il parser ESLint.
+Primo incremento eseguibile: login centrato in dark mode, sessione cookie e consultazione delle leghe e della loro configurazione. Stack TanStack Start con SSR, React, TypeScript strict, Vite, Query, Form/Zod, Tailwind e primitives compatibili con shadcn. Versioni fissate nel package e nel lockfile, TypeScript 6.0.3 compatibile con il parser ESLint.
 
 ## Avvio locale
 
@@ -14,7 +14,7 @@ just fe install   # dipendenze dal lockfile
 just fe dev       # frontend Vite: http://localhost:6061/login
 ```
 
-`just up-all` continua a gestire il solo backend; Vite gira sull’host nel secondo terminale. Non occorre copiare `.env` per lo sviluppo locale. `VITE_API_BASE_URL` configura l’origin pubblico delle API, senza `/api` finale. Default sviluppo: `http://localhost:6060`; default build: stessa origin del sito. Solo configurazione pubblica nelle variabili `VITE_*`.
+`just up-all` continua a gestire il solo backend; Vite gira sull’host nel secondo terminale. Non occorre copiare `.env` per lo sviluppo locale. `VITE_API_BASE_URL` configura l’origin pubblico delle API, senza `/api` finale. Default sviluppo: `http://localhost:6060`; default build: stessa origin del sito. Solo configurazione pubblica nelle variabili `VITE_*`. Il processo server usa `API_UPSTREAM` per verificare la sessione; default `http://localhost:6060`. Per un backend diverso esportare questa variabile nel processo di sviluppo/start, oltre a impostare l’origin pubblica browser. Il cookie deve raggiungere anche il FE: usare lo stesso hostname in locale (`localhost` per entrambi) e la stessa origin con proxy nginx in produzione.
 
 Il database iniziale non contiene account predefiniti. Per entrare con un account amministrativo seguire [bootstrap SuperAdmin](../../../be/docs/getting-started/development-setup.md#configurazione-e-superadmin), senza riutilizzare credenziali di ACKSD. I test automatici usano database temporanei; gli account locali per le prove manuali vengono creati esplicitamente tramite bootstrap. Nessun account demo viene aggiunto automaticamente e nessuna credenziale va nel repository.
 
@@ -35,27 +35,61 @@ Il browser invia il cookie HttpOnly con `credentials: include`; prima di login/l
 ```sh
 just fe test       # Vitest + Testing Library
 just fe lint       # TypeScript, ESLint/import boundaries, Prettier
-just fe build      # build SPA e generazione della shell
+just fe build      # build client e server SSR
 just fe test-e2e   # Playwright, Chrome installato localmente
 ```
 
-Playwright avvia Vite se necessario. I test browser usano risposte API controllate sulla porta 6060 e non richiedono account; i test HTTP/SQL reali sono nel backend. Artefatti e screenshot sono in `fe/test-results`, ignorati da Git.
+Playwright usa server Vite isolati sulle porte 6261–6262 e una piccola API HTTP
+per worker: la sessione SSR è associata a un cookie sintetico per test. Le API
+del browser e SignalR restano intercettate da Playwright; nessun account o dato
+reale è necessario. I test HTTP/SQL reali restano nel backend. Artefatti e
+screenshot sono in `fe/test-results`, ignorati da Git.
 
-La build produce `dist/client/_shell.html` e gli asset statici. Il server di hosting deve servire prima gli asset esistenti, poi usare `_shell.html` come fallback delle route; `/api` resta destinato al backend. Nessun BFF o server function. [SPA mode ufficiale](https://tanstack.com/start/latest/docs/framework/react/guide/spa-mode).
-
-Per provare una build localmente contro le API 6060:
+La build produce `dist/client` (asset) e `dist/server/server.js` (handler SSR).
+Il runtime è `server/index.mjs`, avviato da `pnpm start` o `pnpm preview`. Per
+provare localmente contro le API 6060:
 
 ```sh
 cd fe
 VITE_API_BASE_URL=http://localhost:6060 pnpm build
-pnpm preview
+API_UPSTREAM=http://localhost:6060 pnpm preview
 ```
 
-Il prerender della shell avvia temporaneamente un server locale. Negli ambienti con sandbox occorre consentire l’apertura della porta locale per completare la build.
+La preview ascolta su 127.0.0.1:6061; `HOST` e `PORT` permettono di cambiarli.
+Il suo processo Node serve pagine e asset; il proxy `/api` e `/hubs` è nginx
+nell’immagine Docker. La build locale sopra usa quindi l’origin pubblica 6060.
+Per verificare i test browser anche sul runtime compilato:
+
+```sh
+VITE_API_BASE_URL=http://localhost:6060 pnpm build
+SSR_E2E_PREVIEW=1 pnpm test:e2e
+```
 
 ### Immagine di produzione
 
-`just fe build-image` costruisce `fantastiche-fe:local` (build SPA + nginx non root su 8080); `just fe run-image` la avvia su `http://localhost:8080` inoltrando `/api` e `/hubs` all'API locale 6060. La configurazione nginx è `fe/nginx/default.conf.template`: `API_UPSTREAM` è l'unica variabile resa a runtime. Su Azure la stessa immagine riceve l'FQDN interno dell'API dal Bicep `infra/apps-fe.bicep`.
+`just fe build-image` costruisce `fantastiche-fe:local` (Node SSR + nginx, senza
+root); `just fe run-image` la avvia su `http://localhost:8080`, inoltrando API e
+SignalR al backend locale 6060. nginx ascolta su 8080, Node su loopback:3000;
+`supervisord` avvia e sorveglia entrambi. `/healthz` verifica il percorso nginx →
+Node senza interrogare l’API. La configurazione `fe/nginx/default.conf.template`
+usa `API_UPSTREAM`, condivisa con il resolver SSR. Su Azure riceve il backend
+interno dal Bicep `infra/apps-fe.bicep`.
+
+Lo smoke del container usa un’API sintetica temporanea (Docker Desktop):
+
+```sh
+just fe build-image
+cd fe
+pnpm test:runtime
+```
+
+`SSR_TEST_IMAGE` permette di scegliere un tag diverso. Lo smoke verifica HTML,
+cache, propagazione dei cookie nei redirect e proxy HTTP/WebSocket. Non usa
+account, cataloghi o database reali.
+
+Il form login è già presente nell’HTML, anche senza JavaScript; interazioni e
+invio richiedono la hydration. La verifica sessione avviene prima del rendering,
+mentre inviti e UI dell’asta mantengono rendering client selettivo. Manifest e service worker PWA sono inclusi nella build di produzione: vedi la [guida PWA](../architecture/pwa-realtime.md).
 
 ## Verifiche del 9 settembre 2026
 
@@ -69,7 +103,7 @@ Il prerender della shell avvia temporaneamente un server locale. Negli ambienti 
 
 Creazione lega collegata all’API esistente, bordi condivisi al 10% di opacità e Font Awesome Pro self-hosted come ACKSD, con default Classic Light. Verificati 19 test unit/component e 18 casi browser (il caso invii multipli rieseguito dopo la correzione della simulazione). Build, TypeScript, ESLint e Prettier passati. Screenshot controllati a 1440 e 390 px, assenza di overflow verificata anche a 320 px; caricamento webfont locale verificato nel browser. Le prove di creazione usano API simulate e non aggiungono leghe al database di sviluppo.
 
-La creazione della lega accoda anche l’invito all’organizzatore. In sviluppo lo Scheduler salva l’email in `be/.local/mail`, senza inviarla esternamente. Il link `/invito` delle email è ora gestito dal frontend: attivazione di nuovi account o accesso e accettazione per account esistenti. Invito, reinvio e revoca sono disponibili agli organizzatori nel dettaglio lega. Recupero password, manifest/service worker PWA e deploy restano da implementare.
+La creazione della lega accoda anche l’invito all’organizzatore. In sviluppo lo Scheduler salva l’email in `be/.local/mail`, senza inviarla esternamente. Il link `/invito` delle email è ora gestito dal frontend: attivazione di nuovi account o accesso e accettazione per account esistenti. Invito, reinvio e revoca sono disponibili agli organizzatori nel dettaglio lega. Recupero password e deploy restano da implementare; il supporto PWA è nella build di produzione.
 
 ## Sala d’asta — 10 settembre 2026
 
@@ -92,3 +126,32 @@ Smoke reale con due account: chiamata di Carnesecchi, rilancio a 2 crediti, chiu
 La palette nero/antracite e lilla della sala d’asta è ora globale: login, inviti, elenco/dettaglio/creazione leghe e catalogo condividono superfici, testi, pulsanti e focus. Login e inviti usano un gradiente radiale CSS viola che sfuma nel nero; la texture del campo non viene più caricata. Il colore del browser (`theme-color`) segue lo sfondo globale.
 
 Verificati 84 test browser, inclusi layout e navigazione da tastiera, build SPA, TypeScript ed ESLint. Controllate le schermate desktop e mobile e la formattazione dei file modificati. Il controllo Prettier globale segnala ancora il file preesistente `src/assets/animations/auction-confetti.json`, già minificato in Git e non modificato da questo intervento.
+
+## SSR — 12 settembre 2026
+
+Passaggio approvato a SSR TanStack Start, mantenendo cookie Identity e backend
+.NET. Login presente nell’HTML senza JavaScript, redirect server per sessione
+valida, cache per richiesta isolata e form disabilitati fino alla hydration.
+Inviti e asta conservano il rendering client selettivo. Runtime di produzione
+Node + nginx su 8080; PWA aggiunta successivamente, compatibile con SSR.
+
+Verificati **71 test unitari/component, 120 test browser su Vite SSR, 38 test
+browser su build di produzione e uno smoke Docker con API/upgrade WebSocket
+simulati**. TypeScript, ESLint, Prettier e build SSR superati. La configurazione
+formatter ora esclude i JSON Lottie generati, preservando l’asset minificato.
+Controllata la login mobile; nessun dato applicativo reale modificato.
+
+## Prova PWA locale
+
+Il service worker è abilitato solo nella build di produzione, non con `pnpm dev`.
+
+```bash
+cd fe
+VITE_API_BASE_URL=http://localhost:6060 pnpm build
+pnpm test:pwa
+PORT=6165 pnpm preview
+```
+
+Aprire `http://localhost:6165`: «Installa app» usa il prompt del browser quando disponibile oppure mostra le istruzioni. Per verificare offline, caricare una volta online e attendere che il worker sia attivo. Le API locali restano su 6060. Da telefono usare un dominio HTTPS; `http://IP-LAN:6165` non abilita il service worker. Gli aggiornamenti attendono la chiusura di tutte le finestre dell’app. Nessun deploy è implicito in questi comandi.
+
+Verifica del 12 settembre 2026 per la PWA: 71 test unitari/componenti, 38 browser su build SSR, 9 controlli PWA (di cui una prova browser con profilo normale) e smoke Docker passati. TypeScript, ESLint, Prettier e build superati. Review del worker e della gestione aggiornamenti senza rilievi; dispositivi iOS/Android fisici non disponibili nella verifica automatica.
