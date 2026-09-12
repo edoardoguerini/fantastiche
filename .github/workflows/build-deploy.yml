@@ -141,7 +141,10 @@ jobs:
             exit 0
           fi
           # Migra con la NUOVA immagine prima che API e Scheduler la ricevano.
-          EXEC=$(az containerapp job start -n "$JOB" -g "$RG" --image "$ACR_LOGIN_SERVER/fantastiche-api:$SEMVER" --query name -o tsv)
+          # Aggiorna il template del job (env e argomenti restano) e poi lo avvia:
+          # `job start --image` sostituirebbe il container intero, senza env ne argomenti.
+          az containerapp job update -n "$JOB" -g "$RG" --image "$ACR_LOGIN_SERVER/fantastiche-api:$SEMVER" -o none
+          EXEC=$(az containerapp job start -n "$JOB" -g "$RG" --query name -o tsv)
           bash .github/scripts/wait-job.sh "$JOB" "$RG" "$EXEC"
           echo "ran=true" >> "$GITHUB_OUTPUT"
       - name: apps-be.bicep
