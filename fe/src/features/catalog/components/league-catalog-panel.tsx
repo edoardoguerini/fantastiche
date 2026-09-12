@@ -17,6 +17,9 @@ import { CatalogVersionsList, versionDate } from './catalog-versions-list'
 import { CatalogEntriesPreview } from './catalog-entries-preview'
 import '../catalog.css'
 
+// Il pannello restituisce una scheda compatta (colonna laterale della pagina
+// lega) e, quando servono, la scelta delle versioni e l'anteprima a tutta
+// larghezza. La griglia è della pagina: classi league-aside e league-full.
 export function LeagueCatalogPanel({
   leagueId,
   seasonId,
@@ -93,121 +96,138 @@ function LeagueCatalogContent({
       },
     )
   }
+  const canChoose =
+    !current.isPending &&
+    !current.isError &&
+    !current.data &&
+    permission.data?.canManage === true
+  const showPreview = !current.isError && !permission.isError && preview
   return (
-    <section
-      className="catalog-section league-catalog-panel"
-      aria-labelledby="league-catalog-title"
-    >
-      <div className="catalog-section-heading">
-        <div>
+    <>
+      <section
+        className="league-aside league-panel league-catalog-panel"
+        aria-labelledby="league-catalog-title"
+      >
+        <div className="catalog-section-heading">
           <h2 id="league-catalog-title">Listone della lega</h2>
-          <p>Stagione {seasonName}</p>
+          {current.data && <span className="league-tag">Fissato</span>}
         </div>
+        {current.isPending ? (
+          <LoadingState message="Caricamento listone della lega…" />
+        ) : current.isError ? (
+          <ErrorState
+            error={current.error}
+            retry={() => void current.refetch()}
+          />
+        ) : current.data ? (
+          <>
+            <p className="league-catalog-version">
+              <strong>{current.data.entryCount} calciatori</strong>
+              <span>Versione del {versionDate(current.data)}</span>
+            </p>
+            <p>
+              Resta lo stesso per tutta la stagione e non può essere sostituito.
+            </p>
+          </>
+        ) : permission.isPending ? (
+          <LoadingState message="Verifica dei permessi…" />
+        ) : permission.isError ? (
+          <ErrorState
+            error={permission.error}
+            retry={() => void permission.refetch()}
+          />
+        ) : !permission.data.canManage ? (
+          <p>
+            L’organizzatore deve ancora scegliere un listone per questa
+            stagione.
+          </p>
+        ) : (
+          <p>
+            Scegli una versione pubblicata per la stagione {seasonName} tra
+            quelle elencate sotto. Controlla i calciatori prima di confermare:
+            la scelta non potrà essere sostituita.
+          </p>
+        )}
+        {action.error && (
+          <p className="form-error" role="alert">
+            {action.error}
+          </p>
+        )}
         <div className="catalog-actions">
-          <Button variant="ghost" onClick={() => void refresh()}>
-            Aggiorna listoni
-          </Button>
+          {current.data && (
+            <Button
+              variant="outline"
+              onClick={() => setPreview(preview ? null : current.data)}
+            >
+              {preview ? 'Chiudi listone' : 'Consulta listone'}
+            </Button>
+          )}
           {isSuperAdmin && (
             <Button asChild variant="outline">
               <Link to="/catalogo">Gestisci listoni</Link>
             </Button>
           )}
-        </div>
-      </div>
-      {current.isPending ? (
-        <LoadingState message="Caricamento listone della lega…" />
-      ) : current.isError ? (
-        <ErrorState
-          error={current.error}
-          retry={() => void current.refetch()}
-        />
-      ) : current.data ? (
-        <>
-          <p>
-            <strong>{current.data.entryCount} calciatori</strong> · Versione del{' '}
-            {versionDate(current.data)}
-          </p>
-          <p>
-            Il listone scelto resta fissato per questa stagione e non può essere
-            sostituito.
-          </p>
-          <Button
-            variant="outline"
-            onClick={() => setPreview(preview ? null : current.data)}
-          >
-            {' '}
-            {preview ? 'Chiudi listone' : 'Consulta listone'}{' '}
+          <Button variant="ghost" onClick={() => void refresh()}>
+            Aggiorna
           </Button>
-        </>
-      ) : permission.isPending ? (
-        <LoadingState message="Verifica dei permessi…" />
-      ) : permission.isError ? (
-        <ErrorState
-          error={permission.error}
-          retry={() => void permission.refetch()}
-        />
-      ) : !permission.data.canManage ? (
-        <p>
-          L’organizzatore deve ancora scegliere un listone per questa stagione.
-        </p>
-      ) : (
-        <>
-          <p>
-            Scegli una versione pubblicata per la stagione {seasonName}.
-            Controlla i calciatori prima di confermare: la scelta non potrà
-            essere sostituita.
-          </p>
-          <CatalogVersionsList
-            userId={userId}
-            seasonName={seasonName}
-            page={page}
-            onPage={setPage}
-            onPreview={setPreview}
-            onChoose={setChoice}
-            publishedOnly
-            disabled={action.busy}
-          />
-          {choice && (
-            <div
-              className="catalog-notice"
-              role="group"
-              aria-label="Conferma listone"
-            >
-              <p>
-                Confermi il listone del {versionDate(choice)} con{' '}
-                {choice.entryCount} calciatori? Questa sarà la versione fissata
-                per la lega.
-              </p>
-              <div className="catalog-actions">
-                <Button
-                  variant="ghost"
-                  disabled={action.busy}
-                  onClick={() => setChoice(null)}
+        </div>
+      </section>
+      {(canChoose || showPreview) && (
+        <div className="league-full catalog-section league-catalog-detail">
+          {canChoose && (
+            <>
+              <h3>Versioni pubblicate per la stagione {seasonName}</h3>
+              <CatalogVersionsList
+                userId={userId}
+                seasonName={seasonName}
+                page={page}
+                onPage={setPage}
+                onPreview={setPreview}
+                onChoose={setChoice}
+                publishedOnly
+                disabled={action.busy}
+              />
+              {choice && (
+                <div
+                  className="catalog-notice"
+                  role="group"
+                  aria-label="Conferma listone"
                 >
-                  Annulla
-                </Button>
-                <Button disabled={action.busy} onClick={() => void choose()}>
-                  {action.busy
-                    ? 'Scelta in corso…'
-                    : 'Conferma scelta del listone'}
-                </Button>
-              </div>
-            </div>
+                  <p>
+                    Confermi il listone del {versionDate(choice)} con{' '}
+                    {choice.entryCount} calciatori? Questa sarà la versione
+                    fissata per la lega.
+                  </p>
+                  <div className="catalog-actions">
+                    <Button
+                      variant="ghost"
+                      disabled={action.busy}
+                      onClick={() => setChoice(null)}
+                    >
+                      Annulla
+                    </Button>
+                    <Button
+                      disabled={action.busy}
+                      onClick={() => void choose()}
+                    >
+                      {action.busy
+                        ? 'Scelta in corso…'
+                        : 'Conferma scelta del listone'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
-        </>
+          {showPreview && (
+            <CatalogEntriesPreview
+              key={preview.id}
+              userId={userId}
+              version={preview}
+            />
+          )}
+        </div>
       )}
-      {action.error && (
-        <p className="form-error" role="alert">
-          {action.error}
-        </p>
-      )}
-      {!current.isError && !permission.isError && preview && (
-        <CatalogEntriesPreview
-          key={preview.id}
-          userId={userId}
-          version={preview}
-        />
-      )}
-    </section>
+    </>
   )
 }

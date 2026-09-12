@@ -2,14 +2,8 @@ import { useId } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/components/primitives/button'
 import type { League } from '../types/leagues.types'
+import { AuctionStatus } from './auction-status'
 import { LeagueLogo } from './league-logo'
-
-const auctionLabels = {
-  NotStarted: 'Da iniziare',
-  Active: 'In corso',
-  Paused: 'In pausa',
-  Completed: 'Conclusa',
-} as const
 
 export function LeagueCard({ league }: { league: League }) {
   const headingId = useId()
@@ -22,13 +16,7 @@ export function LeagueCard({ league }: { league: League }) {
         <div className="league-card-meta">
           <p className="league-season">Stagione {league.seasonName}</p>
           {league.auctionStatus && (
-            <span
-              className="league-auction-status"
-              data-status={league.auctionStatus}
-            >
-              <span aria-hidden="true" />
-              {auctionLabels[league.auctionStatus]}
-            </span>
+            <AuctionStatus status={league.auctionStatus} />
           )}
         </div>
         <h2 id={headingId}>{league.name}</h2>
