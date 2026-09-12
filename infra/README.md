@@ -74,7 +74,7 @@ Il foundation crea role assignment: va applicato da un utente Owner o User Acces
 
 La pipeline applica **solo** `apps-be.bicep` e `apps-fe.bicep`. Tutto ciò che sta in `main.bicep` (SQL, Key Vault, storage, ACR, environment, identità, ruoli) cambia solo con `az deployment sub create` manuale: dopo un merge che tocca quei moduli, riapplicare a mano e verificare lo stato reale. `just infra az-whatif <objectId>` mostra l'anteprima.
 
-Se il job `fantastiche-migrate-prod` esiste già, la pipeline lo avvia **prima** di aggiornare le app, con la nuova immagine API (`az containerapp job start --image ...`), e attende `Succeeded` (`.github/scripts/wait-job.sh`, fino a 30 minuti): API e Scheduler ricevono la nuova immagine solo a schema già migrato. Al primo deploy il job non esiste ancora: viene creato dal Bicep e avviato subito dopo. Una migrazione fallita ferma la pipeline prima di toccare le app.
+Se il job `fantastiche-migrate-prod` esiste già, la pipeline aggiorna l'immagine del job (`az containerapp job update --image ...`, che conserva env e argomenti) e lo avvia **prima** di aggiornare le app, e attende `Succeeded` (`.github/scripts/wait-job.sh`, fino a 30 minuti): API e Scheduler ricevono la nuova immagine solo a schema già migrato. Al primo deploy il job non esiste ancora: viene creato dal Bicep e avviato subito dopo. Una migrazione fallita ferma la pipeline prima di toccare le app.
 
 ## Permessi della CI
 
