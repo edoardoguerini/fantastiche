@@ -12,7 +12,7 @@ param sqlAdministratorLogin string
 param sqlAdministratorLoginPassword string
 @description('objectId dell operatore che scrive i segreti in Key Vault e carica le immagini.')
 param operatorObjectId string
-@description('Repository GitHub (owner/repo) autorizzato via OIDC a deployare.')
+@description('Repository GitHub autorizzato via OIDC, nel formato del subject presentato da GitHub: owner@ownerId/repo@repoId.')
 param githubRepository string
 @description('Branch che rilascia l ambiente.')
 param githubBranch string = 'master'

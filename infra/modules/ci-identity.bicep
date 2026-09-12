@@ -2,7 +2,7 @@
 param name string
 param location string
 param tags object = {}
-@description('Repository GitHub nel formato owner/repo.')
+@description('Repository GitHub nel formato che GitHub presenta nel subject OIDC: owner@ownerId/repo@repoId (gli id numerici sono obbligatori).')
 param githubRepository string
 @description('Branch autorizzato a ottenere token (subject ref:refs/heads/<branch>).')
 param githubBranch string = 'master'
