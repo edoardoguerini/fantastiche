@@ -81,10 +81,21 @@ public sealed class InvitationEmailTemplateTests
     public void ExpiryIsFormattedInRomeTimeZone(string iso, string expected) =>
         Assert.Equal(expected, InvitationEmailTemplate.FormatExpiry(DateTimeOffset.Parse(iso, System.Globalization.CultureInfo.InvariantCulture)));
 
+    [Fact]
+    public void UtcFallbackIsMarkedExplicitly()
+    {
+        Assert.Equal("sabato 12 settembre alle 16:30 UTC", InvitationEmailTemplate.FormatExpiry(Expires, TimeZoneInfo.Utc));
+        Assert.False(InvitationEmailTemplate.UsesUtcFallback);
+    }
+
     [Theory]
     [InlineData("Lega Amici", "LA")]
-    [InlineData("  serie   a  ", "SA")]
-    [InlineData("Solo", "S")]
+    [InlineData("  serie \t a  ", "SA")]
+    [InlineData("Serie Amici 2026/27", "SA")]
+    [InlineData("Solo", "SO")]
+    [InlineData("x", "X")]
+    [InlineData("", "")]
+    [InlineData("   ", "")]
     [InlineData("Una Lega Con Tante Parole", "UL")]
-    public void InitialsUseFirstTwoWords(string name, string expected) => Assert.Equal(expected, InvitationEmailTemplate.Initials(name));
+    public void InitialsFollowTheFrontendRule(string name, string expected) => Assert.Equal(expected, InvitationEmailTemplate.Initials(name));
 }

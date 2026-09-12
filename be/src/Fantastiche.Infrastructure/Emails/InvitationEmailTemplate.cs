@@ -69,17 +69,25 @@ public static class InvitationEmailTemplate
         return sb.ToString();
     }
 
+    // Stessa regola di fe/src/lib/utils/initials.ts: una parola sola usa le prime due lettere.
     public static string Initials(string leagueName)
     {
-        var words = leagueName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Take(2);
-        return string.Concat(words.Select(w => char.ToUpperInvariant(w[0])));
+        var words = leagueName.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0) return "";
+        var letters = words.Length == 1 ? words[0][..Math.Min(2, words[0].Length)] : string.Concat(words[0][0], words[1][0]);
+        return letters.ToUpperInvariant();
     }
 
+    // Vero quando il sistema non conosce Europe/Rome: gli orari vengono esposti come UTC.
+    public static bool UsesUtcFallback => ReferenceEquals(Rome, TimeZoneInfo.Utc);
+
     // Data assoluta nel fuso italiano: chi legge l’email non conosce il fuso in cui è stata generata.
-    public static string FormatExpiry(DateTimeOffset expiresAt)
+    public static string FormatExpiry(DateTimeOffset expiresAt, TimeZoneInfo? zone = null)
     {
-        var local = TimeZoneInfo.ConvertTime(expiresAt, Rome);
-        return $"{local.ToString("dddd d MMMM", Italian)} alle {local:HH:mm}".ToLower(Italian);
+        zone ??= Rome;
+        var local = TimeZoneInfo.ConvertTime(expiresAt, zone);
+        var text = $"{local.ToString("dddd d MMMM", Italian)} alle {local.ToString("HH:mm", Italian)}".ToLower(Italian);
+        return ReferenceEquals(zone, TimeZoneInfo.Utc) ? text + " UTC" : text;
     }
 
     private static TimeZoneInfo FindRome()
