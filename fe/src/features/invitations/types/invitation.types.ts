@@ -2,6 +2,9 @@ import { z } from 'zod'
 
 export const invitationPreviewSchema = z.object({
   leagueName: z.string(),
+  leagueLogoUrl: z.string().nullable(),
+  invitedBy: z.string(),
+  recipientEmailHint: z.string(),
   expiresAt: z.string(),
   requiresLogin: z.boolean(),
   requiresTeam: z.boolean(),
@@ -10,6 +13,8 @@ export const acceptanceSchema = z.object({
   leagueId: z.string(),
   leagueSeasonId: z.string(),
   teamId: z.string().nullable(),
+  email: z.string(),
+  teamName: z.string().nullable(),
 })
 export const invitationDetailsSchema = z.object({
   id: z.string(),

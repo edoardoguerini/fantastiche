@@ -107,4 +107,38 @@ describe('login', () => {
     await waitFor(() => expect(onSuccess).toHaveBeenCalledOnce())
     expect(client.getQueryData(['leagues', 'old-user'])).toBeUndefined()
   })
+
+  it('precompila e blocca l’email quando la pagina la conosce già', async () => {
+    let body: Record<string, unknown> | undefined
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/Antiforgery')) return response({ token: 'csrf' })
+      body = JSON.parse(String(init?.body)) as Record<string, unknown>
+      return response(account)
+    })
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const onSuccess = vi.fn()
+    render(
+      <QueryClientProvider client={client}>
+        <LoginForm
+          onSuccess={onSuccess}
+          initialEmail={account.email}
+          lockEmail
+        />
+      </QueryClientProvider>,
+    )
+    const email = screen.getByLabelText('Email')
+    expect(email).toHaveValue(account.email)
+    expect(email).toHaveAttribute('readonly')
+    expect(screen.getByLabelText('Password', { exact: true })).toHaveFocus()
+    const user = userEvent.setup()
+    await user.keyboard('una-password')
+    await user.click(screen.getByRole('button', { name: 'Accedi' }))
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledOnce())
+    expect(body).toMatchObject({ email: account.email })
+  })
 })

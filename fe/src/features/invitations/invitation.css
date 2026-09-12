@@ -158,7 +158,7 @@
   min-width: 3.5rem;
   text-align: right;
   font-size: 0.75rem;
-  color: #8cdbac;
+  color: var(--success);
 }
 .invitation-history {
   margin-top: 2rem;
@@ -231,5 +231,393 @@
   }
   .invitation-actions {
     width: 100%;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Pagina invito pubblica: stessa scena della login, pannello leggermente
+   più largo perché ospita la carta della lega e il form. Le regole qui sotto
+   prevalgono su quelle legacy condivise con il pannello partecipanti. */
+.invitation-container {
+  width: min(100%, 460px);
+}
+.invitation-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.invitation-panel .invitation-hint,
+.invitation-panel .invitation-expiry {
+  margin: 0;
+}
+.invitation-eyebrow {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* Carta della lega */
+.invitation-league {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+.invitation-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent-surface);
+  border: 1px solid var(--border);
+  color: var(--primary);
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  object-fit: cover;
+}
+.invitation-league h1 {
+  font-size: 25px;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.7px;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.invitation-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.invitation-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.invitation-panel .invitation-expiry {
+  font-size: 12px;
+}
+.invitation-intro,
+.invitation-panel .invitation-hint {
+  color: var(--muted-foreground);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+.invitation-intro strong,
+.invitation-hint strong {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+/* Passi */
+.invitation-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.invitation-steps li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--border);
+  color: var(--muted-foreground);
+  font-size: 12.5px;
+}
+.invitation-steps li > i {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-hover);
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+}
+.invitation-steps li[data-state='current'],
+.invitation-steps li[data-state='done'] {
+  color: var(--foreground);
+  border-bottom-color: var(--primary);
+}
+.invitation-steps li[data-state='current'] > i {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+}
+.invitation-steps li[data-state='done'] > i {
+  background: var(--accent-surface);
+  border-color: transparent;
+  color: var(--primary);
+  font-size: 10px;
+}
+
+/* Identità con cui si accetta */
+.invitation-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgb(255 255 255 / 3%);
+}
+.invitation-identity p {
+  flex: 1;
+  min-width: 0;
+  color: var(--muted-foreground);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.invitation-identity p strong {
+  display: block;
+  color: var(--foreground);
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.invitation-avatar {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.invitation-switch {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.invitation-switch button {
+  min-height: 36px;
+  padding-inline: 10px;
+  color: var(--primary);
+  font-size: 12.5px;
+}
+.invitation-switch button:hover {
+  color: var(--primary);
+}
+.invitation-switch .field-error {
+  text-align: right;
+}
+.invitation-notice .invitation-switch {
+  align-items: flex-start;
+}
+.invitation-notice .invitation-switch .field-error {
+  text-align: left;
+}
+
+/* Form */
+.invitation-panel .invitation-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.invitation-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.invitation-group-title {
+  padding: 0;
+  margin-bottom: 12px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.invitation-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 28px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.invitation-preview strong {
+  color: var(--foreground);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.invitation-preview-badge {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent-surface);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 650;
+}
+.password-rules {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 14px;
+  color: var(--muted-foreground);
+  font-size: 12.5px;
+}
+.password-rules li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: color 120ms ease;
+}
+.password-rules li > i {
+  width: 14px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--success);
+}
+.password-rule-dot {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.password-rule-dot::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgb(170 170 179 / 45%);
+}
+.password-rules li[data-satisfied='true'] {
+  color: var(--foreground);
+}
+.invitation-submit {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 2px;
+  font-size: 15px;
+}
+.invitation-form-error {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.invitation-form-error button {
+  align-self: flex-start;
+}
+
+/* Esiti e avvisi */
+.invitation-outcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding-top: 6px;
+  text-align: center;
+}
+.invitation-outcome h1 {
+  font-size: 23px;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.6px;
+  text-wrap: balance;
+}
+.invitation-outcome p {
+  max-width: 32ch;
+  color: var(--muted-foreground);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+.invitation-outcome p strong {
+  color: var(--foreground);
+  font-weight: 600;
+}
+.invitation-outcome-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent-surface);
+  color: var(--primary);
+  font-size: 22px;
+}
+.invitation-outcome--error .invitation-outcome-mark {
+  background: color-mix(in srgb, var(--destructive) 14%, var(--surface));
+  color: var(--destructive);
+}
+.invitation-panel > .invitation-outcome + button,
+.invitation-panel > .invitation-outcome + a {
+  align-self: center;
+}
+.invitation-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgb(255 255 255 / 3%);
+  color: var(--muted-foreground);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.invitation-notice strong {
+  color: var(--foreground);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.invitation-footer {
+  margin-top: auto;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.invitation-footer .back-link {
+  color: var(--foreground);
+  font-weight: 550;
+}
+
+@media (min-width: 1024px) {
+  .invitation-page {
+    padding-block: 4rem;
+  }
+}
+@media (max-width: 360px) {
+  .password-rules,
+  .invitation-steps {
+    grid-template-columns: 1fr;
+  }
+  .invitation-identity {
+    flex-wrap: wrap;
   }
 }

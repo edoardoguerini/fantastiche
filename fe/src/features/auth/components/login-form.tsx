@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useHydrated } from '@tanstack/react-router'
@@ -11,17 +11,28 @@ import { replaceSession } from '../actions/auth.cache'
 
 export function LoginForm({
   onSuccess,
+  initialEmail = '',
+  lockEmail = false,
 }: {
   onSuccess: () => void | Promise<void>
+  // La pagina invito conosce già l'email del destinatario: la precompila e
+  // porta il focus sulla password.
+  initialEmail?: string
+  lockEmail?: boolean
 }) {
   const hydrated = useHydrated()
   const [showPassword, setShowPassword] = useState(false)
+  const passwordRef = useRef<HTMLInputElement>(null)
+  // Il campo è disabilitato finché non c'è idratazione: il focus va dato dopo.
+  useEffect(() => {
+    if (hydrated && lockEmail) passwordRef.current?.focus()
+  }, [hydrated, lockEmail])
   const [submitError, setSubmitError] = useState<unknown>(null)
   const submitting = useRef(false)
   const client = useQueryClient()
   const login = useMutation(loginMutationOptions())
   const form = useForm({
-    defaultValues: { email: '', password: '' },
+    defaultValues: { email: initialEmail, password: '' },
     validators: { onSubmit: loginSchema },
     onSubmit: async ({ value }) => {
       if (submitting.current) return
@@ -67,6 +78,7 @@ export function LoginForm({
                 autoComplete="username"
                 autoCapitalize="none"
                 spellCheck={false}
+                readOnly={lockEmail}
                 placeholder="nome@esempio.it"
                 value={field.state.value}
                 onChange={(event) => field.handleChange(event.target.value)}
@@ -98,6 +110,7 @@ export function LoginForm({
                   disabled={!hydrated}
                   name="password"
                   type={showPassword ? 'text' : 'password'}
+                  ref={passwordRef}
                   autoComplete="current-password"
                   placeholder="La tua password"
                   value={field.state.value}

@@ -2,26 +2,45 @@ import { useRef, useState } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { Button } from '@/components/primitives/button'
 import { Input } from '@/components/primitives/input'
+import { Icon } from '@/components/common/icon'
 import { ApiError, errorMessage } from '@/lib/api/error'
+import { initials } from '@/lib/utils/initials'
 import { acceptInvitation } from '../actions/invitation.commands'
-import { acceptanceFormSchema } from '../validations/invitation.validations'
+import {
+  acceptanceFormSchema,
+  passwordRules,
+  passwordRuleStatus,
+} from '../validations/invitation.validations'
 import type { Acceptance, InvitationPreview } from '../types/invitation.types'
+
+function submitLabel(invitation: InvitationPreview) {
+  if (invitation.requiresLogin)
+    return invitation.requiresTeam
+      ? `Entra in ${invitation.leagueName}`
+      : 'Accetta invito'
+  return invitation.requiresTeam
+    ? 'Attiva account e partecipa'
+    : 'Attiva account e organizza'
+}
 
 export function AcceptInvitationForm({
   token,
   invitation,
   onAccepted,
   onUnavailable,
+  onSwitchAccount,
 }: {
   token: string
   invitation: InvitationPreview
   onAccepted: (value: Acceptance) => void | Promise<void>
   onUnavailable: () => void
+  onSwitchAccount?: () => void
 }) {
   const [error, setError] = useState<unknown>(null)
+  const [showPassword, setShowPassword] = useState(false)
   const lock = useRef(false)
   const form = useForm({
-    defaultValues: { teamName: '', password: '', confirmPassword: '' },
+    defaultValues: { teamName: '', password: '' },
     validators: {
       onSubmit: acceptanceFormSchema(
         invitation.requiresTeam,
@@ -47,6 +66,10 @@ export function AcceptInvitationForm({
       }
     },
   })
+  const wrongAccount = error instanceof ApiError && error.status === 403
+  const uncertain =
+    error instanceof ApiError &&
+    (error.status === 0 || error.status >= 500 || error.status === 410)
   return (
     <form
       className="invitation-form"
@@ -57,110 +80,169 @@ export function AcceptInvitationForm({
       }}
     >
       {invitation.requiresTeam && (
-        <form.Field name="teamName">
-          {(field) => (
-            <div className="form-field">
-              <label htmlFor="invite-team">Nome squadra</label>
-              <Input
-                id="invite-team"
-                value={field.state.value}
-                autoComplete="off"
-                maxLength={100}
-                onChange={(event) => field.handleChange(event.target.value)}
-                onBlur={field.handleBlur}
-                aria-invalid={field.state.meta.errors.length > 0}
-                aria-describedby={
-                  field.state.meta.errors.length
-                    ? 'invite-team-error'
-                    : undefined
-                }
-              />
-              {field.state.meta.errors[0] && (
-                <p id="invite-team-error" className="field-error" role="alert">
-                  {field.state.meta.errors[0].message}
-                </p>
-              )}
-            </div>
-          )}
-        </form.Field>
-      )}
-      {!invitation.requiresLogin && (
-        <>
-          <p className="invitation-hint">
-            Scegli una password di almeno 12 caratteri con maiuscole, minuscole,
-            un numero e un simbolo.
-          </p>
-          {(['password', 'confirmPassword'] as const).map((name) => (
-            <form.Field name={name} key={name}>
-              {(field) => (
+        <fieldset className="invitation-group">
+          <legend className="invitation-group-title">La tua squadra</legend>
+          <form.Field name="teamName">
+            {(field) => {
+              const invalid = field.state.meta.errors.length > 0
+              const name = field.state.value.trim()
+              return (
                 <div className="form-field">
-                  <label htmlFor={`invite-${name}`}>
-                    {name === 'password'
-                      ? 'Nuova password'
-                      : 'Conferma password'}
-                  </label>
+                  <label htmlFor="invite-team">Nome squadra</label>
                   <Input
-                    id={`invite-${name}`}
-                    type="password"
-                    autoComplete="new-password"
+                    id="invite-team"
                     value={field.state.value}
+                    autoFocus
+                    autoComplete="off"
+                    maxLength={100}
+                    placeholder="Es. Atletico Divano"
                     onChange={(event) => field.handleChange(event.target.value)}
                     onBlur={field.handleBlur}
-                    aria-invalid={field.state.meta.errors.length > 0}
+                    aria-invalid={invalid}
                     aria-describedby={
-                      field.state.meta.errors.length
-                        ? `${name}-error`
-                        : undefined
+                      invalid ? 'invite-team-error' : 'invite-team-preview'
                     }
                   />
-                  {field.state.meta.errors[0] && (
+                  {invalid ? (
                     <p
-                      id={`${name}-error`}
+                      id="invite-team-error"
                       className="field-error"
                       role="alert"
                     >
-                      {field.state.meta.errors[0].message}
+                      {field.state.meta.errors[0]?.message}
+                    </p>
+                  ) : (
+                    <p id="invite-team-preview" className="invitation-preview">
+                      {name ? (
+                        <>
+                          <span
+                            className="invitation-preview-badge"
+                            aria-hidden="true"
+                          >
+                            {initials(name)}
+                          </span>
+                          <span>
+                            In lega apparirai come <strong>{name}</strong>
+                          </span>
+                        </>
+                      ) : (
+                        <span>Potrai cambiarlo fino all’inizio dell’asta.</span>
+                      )}
                     </p>
                   )}
                 </div>
-              )}
-            </form.Field>
-          ))}
-        </>
+              )
+            }}
+          </form.Field>
+        </fieldset>
+      )}
+      {!invitation.requiresLogin && (
+        <fieldset className="invitation-group">
+          <legend className="invitation-group-title">Il tuo account</legend>
+          <form.Field name="password">
+            {(field) => {
+              const invalid = field.state.meta.errors.length > 0
+              const status = passwordRuleStatus(field.state.value)
+              return (
+                <div className="form-field">
+                  <label htmlFor="invite-password">Password</label>
+                  <div className="password-input">
+                    <Input
+                      id="invite-password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      value={field.state.value}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      onBlur={field.handleBlur}
+                      aria-invalid={invalid}
+                      aria-describedby={
+                        invalid
+                          ? 'invite-password-error'
+                          : 'invite-password-rules'
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      aria-label={
+                        showPassword ? 'Nascondi password' : 'Mostra password'
+                      }
+                      aria-pressed={showPassword}
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? 'Nascondi' : 'Mostra'}
+                    </button>
+                  </div>
+                  {invalid && (
+                    <p
+                      id="invite-password-error"
+                      className="field-error"
+                      role="alert"
+                    >
+                      {field.state.meta.errors[0]?.message}
+                    </p>
+                  )}
+                  <ul
+                    id="invite-password-rules"
+                    className="password-rules"
+                    aria-label="Requisiti della password"
+                  >
+                    {passwordRules.map((rule) => (
+                      <li key={rule.id} data-satisfied={status[rule.id]}>
+                        {status[rule.id] ? (
+                          <Icon name="check" />
+                        ) : (
+                          <span className="password-rule-dot" aria-hidden />
+                        )}
+                        <span>{rule.label}</span>
+                        <span className="sr-only">
+                          {status[rule.id] ? ': soddisfatto' : ': mancante'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            }}
+          </form.Field>
+        </fieldset>
       )}
       {error !== null && (
-        <div className="form-error" role="alert">
+        <div className="form-error invitation-form-error" role="alert">
           <p>
-            {error instanceof ApiError && error.status === 403
-              ? 'Accedi con l’account destinatario dell’invito. Puoi cambiare account qui sotto.'
+            {wrongAccount
+              ? 'L’invito è per un altro destinatario. Accedi con l’account a cui è stata inviata l’email.'
               : errorMessage(error)}
           </p>
-          {error instanceof ApiError &&
-            (error.status === 0 ||
-              error.status >= 500 ||
-              error.status === 410) && (
-              <>
-                <p>
-                  Verifica lo stato dell’invito prima di riprovare. Se l’account
-                  è stato attivato, puoi accedere.
-                </p>
-                <Button variant="outline" onClick={onUnavailable}>
-                  Verifica invito
-                </Button>
-              </>
-            )}
+          {wrongAccount && onSwitchAccount && (
+            <Button variant="outline" onClick={onSwitchAccount}>
+              Cambia account
+            </Button>
+          )}
+          {uncertain && (
+            <>
+              <p>
+                Verifica lo stato dell’invito prima di riprovare. Se l’account è
+                stato attivato, puoi accedere.
+              </p>
+              <Button variant="outline" onClick={onUnavailable}>
+                Verifica invito
+              </Button>
+            </>
+          )}
         </div>
       )}
       <form.Subscribe selector={(state) => state.isSubmitting}>
         {(busy) => (
-          <Button type="submit" disabled={busy} aria-busy={busy}>
-            {busy
-              ? 'Adesione in corso…'
-              : invitation.requiresLogin
-                ? 'Accetta invito'
-                : invitation.requiresTeam
-                  ? 'Attiva account e partecipa'
-                  : 'Attiva account e organizza'}
+          <Button
+            type="submit"
+            className="invitation-submit"
+            disabled={busy}
+            aria-busy={busy}
+          >
+            {busy ? 'Adesione in corso…' : submitLabel(invitation)}
           </Button>
         )}
       </form.Subscribe>

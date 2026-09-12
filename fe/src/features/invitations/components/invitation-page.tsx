@@ -8,13 +8,17 @@ import {
   replaceSession,
 } from '@/features/auth'
 import { Brand } from '@/components/common/brand'
+import { Icon } from '@/components/common/icon'
 import { LoadingState } from '@/components/common/page-state'
 import { Button } from '@/components/primitives/button'
-import { ApiError, errorMessage } from '@/lib/api/error'
+import { errorMessage } from '@/lib/api/error'
 import { previewInvitation } from '../actions/invitation.queries'
 import { readInvitationToken } from '../validations/invitation.validations'
+import { invitationErrorCopy } from '../utils/invitation-copy'
 import type { Acceptance, InvitationPreview } from '../types/invitation.types'
 import { AcceptInvitationForm } from './accept-invitation-form'
+import { InvitationHeader } from './invitation-header'
+import { InvitationSteps } from './invitation-steps'
 import '../invitation.css'
 
 export function InvitationPage() {
@@ -27,7 +31,9 @@ export function InvitationPage() {
   const [error, setError] = useState<unknown>(null)
   const [attempt, setAttempt] = useState(0)
   const [accepted, setAccepted] = useState<Acceptance | null>(null)
+  const [entering, setEntering] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [logoutError, setLogoutError] = useState<unknown>(null)
   const session = useQuery(authQueryOptions())
   const logoutMutation = useMutation(logoutMutationOptions())
   const client = useQueryClient()
@@ -74,138 +80,235 @@ export function InvitationPage() {
   const logout = async () => {
     if (loggingOut) return
     setLoggingOut(true)
+    setLogoutError(null)
     try {
       await logoutMutation.mutateAsync()
       await replaceSession(client, null)
     } catch (failure) {
-      setError(failure)
+      setLogoutError(failure)
     } finally {
       setLoggingOut(false)
     }
   }
-  const unavailable =
-    error instanceof ApiError && [404, 410].includes(error.status)
+  const signedIn = Boolean(session.data)
+  const footer = (
+    <div className="invitation-footer">
+      {signedIn ? (
+        <Link to="/leghe" className="back-link">
+          Vai alle tue leghe
+        </Link>
+      ) : (
+        <>
+          Hai già un account?{' '}
+          <Link to="/login" className="back-link">
+            Vai al login
+          </Link>
+        </>
+      )}
+    </div>
+  )
+  const switchAccount = (
+    <div className="invitation-switch">
+      <Button
+        variant="ghost"
+        disabled={loggingOut}
+        onClick={() => void logout()}
+      >
+        {loggingOut ? 'Uscita in corso…' : 'Cambia account'}
+      </Button>
+      {logoutError !== null && (
+        <p className="field-error" role="alert">
+          {errorMessage(logoutError)}
+        </p>
+      )}
+    </div>
+  )
+  // Titolo di riserva per gli stati senza carta della lega: la sezione resta
+  // nominata per gli screen reader.
+  const hiddenTitle = (
+    <h1 id="invitation-title" className="sr-only">
+      Il tuo invito
+    </h1>
+  )
+  let content: React.ReactNode
+  // Negli esiti definitivi l'azione principale sostituisce il piè di pagina.
+  let showFooter = true
+  if (entering) {
+    showFooter = false
+    content = (
+      <>
+        {hiddenTitle}
+        <LoadingState message="Entriamo in lega…" />
+      </>
+    )
+  } else if (accepted && invitation) {
+    showFooter = false
+    content = (
+      <>
+        <div className="invitation-outcome">
+          <span className="invitation-outcome-mark" aria-hidden="true">
+            <Icon name="check" />
+          </span>
+          <h1 id="invitation-title">Sei in {invitation.leagueName}.</h1>
+          <p>
+            {accepted.teamName ? (
+              <>
+                <strong>{accepted.teamName}</strong> è pronta.{' '}
+              </>
+            ) : (
+              'Il tuo account è attivo. '
+            )}
+            Accedi con la password appena scelta per entrare in lega.
+          </p>
+        </div>
+        <LoginForm
+          onSuccess={() => enter(accepted)}
+          initialEmail={accepted.email}
+          lockEmail
+        />
+      </>
+    )
+  } else if (!token) {
+    content = (
+      <div className="invitation-outcome invitation-outcome--error">
+        <span className="invitation-outcome-mark" aria-hidden="true">
+          <Icon name="clock" />
+        </span>
+        <h1 id="invitation-title">Apri il link completo.</h1>
+        <p role="alert">
+          Per proteggere il tuo invito, il collegamento viene rimosso dalla
+          barra degli indirizzi: riaprilo dall’email che hai ricevuto.
+        </p>
+      </div>
+    )
+  } else if (error !== null) {
+    const copy = invitationErrorCopy(error)
+    showFooter = copy.retryable
+    content = (
+      <>
+        <div
+          className="invitation-outcome invitation-outcome--error"
+          role="alert"
+        >
+          <span className="invitation-outcome-mark" aria-hidden="true">
+            <Icon name="clock" />
+          </span>
+          <h1 id="invitation-title">{copy.title}</h1>
+          <p>{copy.hint}</p>
+        </div>
+        {copy.retryable ? (
+          <Button variant="outline" onClick={retry}>
+            Riprova
+          </Button>
+        ) : signedIn ? (
+          <Button asChild variant="outline">
+            <Link to="/leghe">Vai alle tue leghe</Link>
+          </Button>
+        ) : (
+          <Button asChild variant="outline">
+            <Link to="/login">Hai già un account? Accedi</Link>
+          </Button>
+        )}
+      </>
+    )
+  } else if (!invitation || session.isPending) {
+    content = (
+      <>
+        {hiddenTitle}
+        <LoadingState message="Verifica dell’invito…" />
+      </>
+    )
+  } else if (session.isError) {
+    content = (
+      <>
+        {hiddenTitle}
+        <div className="invitation-notice" role="alert">
+          <p>{errorMessage(session.error)}</p>
+          <Button variant="outline" onClick={() => void session.refetch()}>
+            Riprova
+          </Button>
+        </div>
+      </>
+    )
+  } else {
+    const stepLabels: [string, string] = [
+      'Accedi',
+      invitation.requiresTeam ? 'Conferma squadra' : 'Conferma',
+    ]
+    content = (
+      <>
+        <InvitationHeader invitation={invitation} />
+        {invitation.requiresLogin && !signedIn ? (
+          <>
+            <InvitationSteps labels={stepLabels} current={1} />
+            <p className="invitation-hint">
+              Hai già un account Fantastiche. Accedi con{' '}
+              <strong>{invitation.recipientEmailHint}</strong> per continuare.
+            </p>
+            <LoginForm onSuccess={() => {}} />
+          </>
+        ) : invitation.requiresLogin && session.data ? (
+          <>
+            <InvitationSteps labels={stepLabels} current={2} />
+            <div className="invitation-identity">
+              <span className="invitation-avatar" aria-hidden="true">
+                {session.data.email.slice(0, 2).toUpperCase()}
+              </span>
+              <p>
+                Stai accettando come <strong>{session.data.email}</strong>
+              </p>
+              {switchAccount}
+            </div>
+            <AcceptInvitationForm
+              key={`${session.data.id}:${attempt}`}
+              token={token}
+              invitation={invitation}
+              onUnavailable={retry}
+              onSwitchAccount={() => void logout()}
+              onAccepted={async (value) => {
+                // Account già autenticato: si entra in lega senza mostrare
+                // né l'esito né un secondo login.
+                setToken(null)
+                setEntering(true)
+                await client.invalidateQueries({ queryKey: ['leagues'] })
+                await enter(value)
+              }}
+            />
+          </>
+        ) : session.data ? (
+          <div className="invitation-notice" role="status">
+            <p>
+              Questo invito attiva un nuovo account, ma sei collegato come{' '}
+              <strong>{session.data.email}</strong>. Esci per continuare.
+            </p>
+            {switchAccount}
+          </div>
+        ) : (
+          <AcceptInvitationForm
+            key={`new:${attempt}`}
+            token={token}
+            invitation={invitation}
+            onUnavailable={retry}
+            onAccepted={async (value) => {
+              setToken(null)
+              setAccepted(value)
+              await client.invalidateQueries({ queryKey: ['leagues'] })
+            }}
+          />
+        )}
+      </>
+    )
+  }
   return (
     <main className="login-page invitation-page" id="main-content">
-      <div className="login-container">
+      <div className="login-container invitation-container">
         <Brand />
         <section
           className="login-panel invitation-panel"
           aria-labelledby="invitation-title"
         >
-          <header className="login-heading">
-            <p>IL TUO INVITO</p>
-            <h1 id="invitation-title">
-              {accepted
-                ? 'Benvenuto in lega.'
-                : (invitation?.leagueName ?? 'Entriamo in campo.')}
-            </h1>
-          </header>
-          {accepted ? (
-            <>
-              <p className="invitation-success">
-                {session.data ? 'Invito accettato.' : 'Account attivato.'}
-              </p>
-              <p className="invitation-hint">
-                Accedi con l’email a cui hai ricevuto l’invito e la tua password
-                per entrare nella lega.
-              </p>
-              <LoginForm onSuccess={() => enter(accepted)} />
-            </>
-          ) : !token ? (
-            <div className="invitation-message" role="alert">
-              <p>Apri il link completo ricevuto via email.</p>
-              <p>
-                Per proteggere il tuo invito, il collegamento viene rimosso
-                dalla barra degli indirizzi: dopo un aggiornamento della pagina
-                riaprilo dall’email.
-              </p>
-            </div>
-          ) : error !== null ? (
-            <div className="invitation-message" role="alert">
-              <p>{errorMessage(error)}</p>
-              <p>
-                {unavailable
-                  ? 'Se hai già accettato, accedi al tuo account. Altrimenti chiedi all’organizzatore un nuovo invito.'
-                  : 'Controlla la connessione e riprova.'}
-              </p>
-              {!unavailable && (
-                <Button onClick={retry} variant="outline">
-                  Riprova
-                </Button>
-              )}
-            </div>
-          ) : !invitation || session.isPending ? (
-            <LoadingState message="Verifica dell’invito…" />
-          ) : session.isError ? (
-            <div className="invitation-message" role="alert">
-              <p>{errorMessage(session.error)}</p>
-              <Button variant="outline" onClick={() => void session.refetch()}>
-                Riprova
-              </Button>
-            </div>
-          ) : (
-            <>
-              <p className="invitation-hint">
-                {invitation.requiresTeam
-                  ? 'Scegli il nome della tua squadra e partecipa alla stagione.'
-                  : 'Questo invito ti permette di organizzare la lega.'}
-              </p>
-              <p className="invitation-expiry">
-                Valido fino al{' '}
-                {new Date(invitation.expiresAt).toLocaleString('it-IT', {
-                  dateStyle: 'medium',
-                  timeStyle: 'short',
-                })}
-              </p>
-              {invitation.requiresLogin && !session.data ? (
-                <>
-                  <p className="invitation-hint">
-                    Hai già un account: accedi con l’email destinataria
-                    dell’invito.
-                  </p>
-                  <LoginForm onSuccess={() => {}} />
-                </>
-              ) : !invitation.requiresLogin && session.data ? (
-                <p className="invitation-message">
-                  Questo invito attiva un nuovo account. Esci dall’account
-                  corrente prima di continuare.
-                </p>
-              ) : (
-                <AcceptInvitationForm
-                  key={`${session.data?.id ?? 'new'}:${attempt}`}
-                  token={token}
-                  invitation={invitation}
-                  onUnavailable={retry}
-                  onAccepted={async (value) => {
-                    setToken(null)
-                    setAccepted(value)
-                    await client.invalidateQueries({ queryKey: ['leagues'] })
-                    if (session.data) await enter(value)
-                  }}
-                />
-              )}
-              {session.data && (
-                <div className="invitation-account">
-                  <p>
-                    Accesso come <strong>{session.data.email}</strong>
-                  </p>
-                  <Button
-                    variant="ghost"
-                    disabled={loggingOut}
-                    onClick={() => void logout()}
-                  >
-                    {loggingOut ? 'Uscita in corso…' : 'Cambia account'}
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
-          <div className="login-invitation">
-            <Link to={session.data ? '/leghe' : '/login'} className="back-link">
-              {session.data ? 'Vai alle tue leghe' : 'Vai al login'}
-            </Link>
-          </div>
+          {content}
+          {showFooter && footer}
         </section>
       </div>
     </main>
