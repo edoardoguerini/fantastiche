@@ -43,11 +43,17 @@ Il foundation crea role assignment: va applicato da un utente Owner o User Acces
    Al primo giro il vault è vuoto: scegliere `2) nuovo segreto` per ciascuno dei tre segreti. Se `az keyvault secret set` risponde 403 subito dopo il foundation, il ruolo Secrets Officer non è ancora propagato: attendere un paio di minuti e riprovare.
 6. Nel workflow `build-deploy.yml` sostituire `CHANGE_ME` in `MAILGUN_DOMAIN`, `MAILGUN_FROM`, `BOOTSTRAP_EMAIL` (non sono segreti) e committare.
 7. Push su `master` (o `workflow_dispatch`): la pipeline builda le tre immagini; se il job `fantastiche-migrate-prod` esiste già lo avvia con la nuova immagine API e attende l'esito prima di applicare `apps-be.bicep`, altrimenti applica prima `apps-be.bicep` (che lo crea) e lo avvia subito dopo; poi applica `apps-fe.bicep` e crea il tag `vX.Y.Z`.
-8. Bootstrap SuperAdmin (una volta; la forma `--args=` è obbligatoria perché il valore inizia con `--`): il job gira di default con `--migrate` (avviato dalla pipeline); `--bootstrap-superadmin` è un'esecuzione distinta dello stesso job, con argomenti diversi, e non parte mai da sola.
+8. Bootstrap SuperAdmin (una volta): il job gira di default con `--migrate` (avviato dalla pipeline); `--bootstrap-superadmin` è un'esecuzione distinta dello stesso job e non parte mai da sola. Gli override di `az containerapp job start` non vanno usati: `--args` da solo viene ignorato (l'esecuzione parte con `--migrate`) e `--image` sostituisce il container intero perdendo env e segreti. Si cambiano gli argomenti del template, si avvia, poi si ripristina `--migrate` (la forma `--args=` è obbligatoria perché il valore inizia con `--`):
 
    ```bash
-   az containerapp job start -n fantastiche-migrate-prod -g rg-fantastiche-prod --args="--bootstrap-superadmin"
+   J=fantastiche-migrate-prod; RG=rg-fantastiche-prod
+   az containerapp job update -n $J -g $RG --args="--bootstrap-superadmin" -o none
+   EXEC=$(az containerapp job start -n $J -g $RG --query name -o tsv)
+   bash .github/scripts/wait-job.sh $J $RG "$EXEC"
+   az containerapp job update -n $J -g $RG --args="--migrate" -o none
    ```
+
+   Verifica: `az containerapp job execution show -n $J -g $RG --job-execution-name "$EXEC" --query properties.template.containers[0].args` deve mostrare `--bootstrap-superadmin`. Il ripristino è necessario perché la pipeline avvia il job prima di riapplicare il Bicep.
 
 9. Card e stemmi, dalle cartelle locali già scaricate (vedi `be/docs/getting-started/local-storage.md`):
 
