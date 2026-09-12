@@ -65,7 +65,7 @@ Taglie: ogni container 0.25 vCPU e 0.5 GiB, come ACKSD. API `maxReplicas=1` perc
 FE e API su origin diverse romperebbero il cookie `Fantastiche.Auth` con `SameSite=Lax`, perché `azurecontainerapps.io` è un suffisso pubblico e le due app risulterebbero siti diversi. Quindi:
 
 - Solo il FE ha ingress esterno. È l'unico URL pubblico.
-- L'API ha ingress interno con `allowInsecure=true`: raggiungibile solo dentro l'environment, in HTTP, all'FQDN `fantastiche-api-prod.internal.<defaultDomain>`.
+- L'API ha ingress interno, solo HTTPS: raggiungibile solo dentro l'environment all'FQDN `fantastiche-api-prod.internal.<defaultDomain>`. nginx vi si collega in TLS con SNI; in HTTP l'ingress riscriverebbe `X-Forwarded-Proto` a `http` e l'antiforgery rifiuterebbe i POST.
 - nginx nel container FE inoltra `/api/` e `/hubs/` all'API, con header di upgrade WebSocket per SignalR e `X-Forwarded-Proto=https`. Tutto il resto serve gli asset statici con cache lunga e ricade su `_shell.html`.
 - Il FE è buildato con `VITE_API_BASE_URL` vuoto: stessa origin, come già previsto dalla guida frontend.
 - `Cors__AllowedOrigins__0` e `Invitations__PublicBaseUrl` valgono l'URL pubblico del FE: il primo serve alla verifica dell'Origin sul WebSocket, il secondo ai link negli inviti.

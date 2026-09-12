@@ -5,7 +5,7 @@ param environmentId string
 param identityId string
 param acrLoginServer string
 param feImage string
-@description('URL interno dell API usato dal proxy nginx, es. http://fantastiche-api-prod.internal.<defaultDomain>.')
+@description('URL interno dell API usato dal proxy nginx, es. https://fantastiche-api-prod.internal.<defaultDomain> (HTTPS: l ingress interno riscrive X-Forwarded-Proto con lo schema usato da nginx).')
 param apiUpstream string
 @description('Repliche minime del FE: 1 = sempre acceso; 0 = scale-to-zero.')
 @minValue(0)
