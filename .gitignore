@@ -39,3 +39,6 @@ artifacts/
 # Output SDK isolato nei container e scratch skill
 **/.artifacts/
 .superpowers/
+
+# Worktree locali di Claude Code
+.claude/worktrees/
