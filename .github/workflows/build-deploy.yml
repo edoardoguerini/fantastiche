@@ -205,7 +205,7 @@ jobs:
             --parameters environmentName="$ENV_NAME" environmentId="$ENVID" identityId="$MIID" \
                          acrLoginServer="$ACR_LOGIN_SERVER" \
                          feImage="$ACR_LOGIN_SERVER/fantastiche-fe:$SEMVER" \
-                         apiUpstream="http://fantastiche-api-$ENV_NAME.internal.$DOMAIN"
+                         apiUpstream="https://fantastiche-api-$ENV_NAME.internal.$DOMAIN"
           echo "FE: https://fantastiche-fe-$ENV_NAME.$DOMAIN"
 
   release-tag:

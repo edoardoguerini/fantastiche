@@ -95,9 +95,11 @@ module api 'modules/container-app.bicep' = {
     acrLoginServer: acrLoginServer
     image: apiImage
     ingressEnabled: true
-    // Solo il FE e pubblico: nginx inoltra /api e /hubs all FQDN interno in HTTP.
+    // Solo il FE e pubblico: nginx inoltra /api e /hubs all FQDN interno in HTTPS.
+    // Niente HTTP: l ingress riscriverebbe X-Forwarded-Proto a http e l antiforgery
+    // (cookie Secure) rifiuterebbe ogni POST.
     external: false
-    allowInsecure: true
+    allowInsecure: false
     targetPort: 8080
     minReplicas: apiMinReplicas
     // max 1: SignalR in memoria e nessuna migrazione concorrente.
