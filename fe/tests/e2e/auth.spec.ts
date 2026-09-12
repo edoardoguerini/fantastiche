@@ -89,7 +89,7 @@ test('accesso, elenco, dettaglio e logout cancellano i contenuti privati', async
   expect(state.loginCount).toBe(1)
   await page.getByRole('link', { name: /Lega del mercoledì/ }).click()
   await expect(
-    page.getByRole('heading', { name: 'Configurazione della rosa' }),
+    page.getByRole('term').filter({ hasText: 'Budget iniziale' }),
   ).toBeVisible()
   await expect(page.getByText('500')).toBeVisible()
   await page.getByRole('button', { name: 'Apri menu profilo' }).click()
@@ -388,7 +388,7 @@ for (const width of [320, 1440]) {
         })
         .click()
       await expect(
-        page.getByRole('heading', { name: 'Configurazione della rosa' }),
+        page.getByRole('term').filter({ hasText: 'Budget iniziale' }),
       ).toBeVisible()
     })
   }

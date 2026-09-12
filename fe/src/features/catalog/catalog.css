@@ -3,6 +3,32 @@
   padding-block: 1.5rem;
   border-top: 1px solid var(--border);
 }
+/* Nella pagina lega la scheda del listone segue lo stile league-panel. */
+.league-catalog-panel .catalog-section-heading {
+  margin-bottom: 0;
+}
+.league-catalog-panel .page-state {
+  min-height: 0;
+  padding: 0.5rem 0;
+  align-items: flex-start;
+  text-align: left;
+}
+.league-catalog-version {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.league-catalog-version > strong {
+  color: var(--foreground);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+.league-catalog-panel .catalog-actions {
+  margin-top: 0.25rem;
+}
+.league-catalog-detail {
+  margin-top: 1rem;
+}
 .catalog-section h2,
 .catalog-selected > .catalog-section-heading h2 {
   font-size: 1.2rem;
