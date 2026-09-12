@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Fantastiche.Core.Auth;
 using Fantastiche.Core.Exceptions;
 using Fantastiche.Infrastructure.Common.Authentication;
@@ -33,11 +34,12 @@ public sealed class OnboardingTests(SqlFixture fixture) : IClassFixture<SqlFixtu
     {
         var email = await p.GetRequiredService<FantasticheDbContext>().EmailMessages.SingleAsync(x => x.InvitationId == id);
         var text = p.GetRequiredService<EmailPayloadProtector>().Unprotect(email.ProtectedPayload).TextBody!;
-        return text.Split("#token=")[1];
+        return Regex.Match(text, "#token=([0-9a-fA-F]{64})").Groups[1].Value;
     }
     private async Task<RequestContext> ActivateOrganizer((LeagueDetails League, Guid UserId, string Token) setup)
     {
-        await Workflow(w => w.AcceptInvitationAsync(new(Anonymous, setup.Token, Password, null), default));
+        var result = await Workflow(w => w.AcceptInvitationAsync(new(Anonymous, setup.Token, Password, null), default));
+        Assert.Null(result.TeamId); Assert.Null(result.TeamName); Assert.EndsWith("@example.test", result.Email);
         return new RequestContext(setup.UserId, false, "integration");
     }
     [Fact]
@@ -52,9 +54,12 @@ public sealed class OnboardingTests(SqlFixture fixture) : IClassFixture<SqlFixtu
         var s = await CreateLeague();
         var preview = await Workflow(w => w.GetInvitationAsync(new(Anonymous, s.Token), default));
         Assert.False(preview.RequiresLogin); Assert.False(preview.RequiresTeam);
+        Assert.Equal("Lega test", preview.LeagueName); Assert.Null(preview.LeagueLogoUrl); Assert.Equal("Admin", preview.InvitedBy);
         await Run(async p =>
         {
             var db = p.GetRequiredService<FantasticheDbContext>();
+            var recipient = (await db.Users.FindAsync(s.UserId))!.Email!;
+            Assert.Equal(EmailMasking.Mask(recipient), preview.RecipientEmailHint); Assert.DoesNotContain(recipient, preview.RecipientEmailHint);
             Assert.Null((await db.LeagueInvitations.SingleAsync(x => x.LeagueId == s.League.Id)).AcceptedAt);
             Assert.False(await p.GetRequiredService<UserManager<ApplicationUser>>().HasPasswordAsync((await db.Users.FindAsync(s.UserId))!));
             var queued = await db.EmailMessages.SingleAsync(x => db.LeagueInvitations.Where(i => i.LeagueId == s.League.Id).Select(i => i.Id).Contains(x.InvitationId));
@@ -73,11 +78,14 @@ public sealed class OnboardingTests(SqlFixture fixture) : IClassFixture<SqlFixtu
     [Fact]
     public async Task NewParticipantAcceptsAtomicallyAndAuthenticatedReplayDoesNotDuplicateTeam()
     {
-        var s = await CreateLeague(); var organizer = await ActivateOrganizer(s);
-        var invitation = await Workflow(w => w.InviteMemberAsync(new(organizer, s.League.Id, s.League.LeagueSeasonId, Guid.NewGuid() + "@example.test", "Partecipante"), default));
+        var s = await CreateLeague(); var organizer = await ActivateOrganizer(s); var email = Guid.NewGuid() + "@example.test";
+        var invitation = await Workflow(w => w.InviteMemberAsync(new(organizer, s.League.Id, s.League.LeagueSeasonId, email, "Partecipante"), default));
         var token = await Run(p => Token(p, invitation.Id));
+        var preview = await Workflow(w => w.GetInvitationAsync(new(Anonymous, token), default));
+        Assert.True(preview.RequiresTeam); Assert.False(preview.RequiresLogin); Assert.Equal("Organizzatore", preview.InvitedBy);
+        Assert.Equal(EmailMasking.Mask(email), preview.RecipientEmailHint);
         var result = await Workflow(w => w.AcceptInvitationAsync(new(Anonymous, token, Password, "Squadra uno"), default));
-        Assert.NotNull(result.TeamId);
+        Assert.NotNull(result.TeamId); Assert.Equal("Squadra uno", result.TeamName); Assert.Equal(email, result.Email);
         var id = await Run(async p => (await p.GetRequiredService<FantasticheDbContext>().LeagueInvitations.FindAsync(invitation.Id))!.UserId);
         var replay = await Workflow(w => w.AcceptInvitationAsync(new(new(id, false, "replay"), token, null, "Altro nome"), default));
         Assert.Equal(result, replay);
