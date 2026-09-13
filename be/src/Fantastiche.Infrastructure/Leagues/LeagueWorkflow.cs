@@ -24,7 +24,7 @@ public sealed class LeagueWorkflow(FantasticheDbContext db, UserManager<Applicat
         await using var tx = await BeginAsync(ct);
         var admin = await users.FindByIdAsync(r.Context.UserId.Value.ToString());
         if (admin is null || !await users.IsInRoleAsync(admin, "SuperAdmin")) throw Forbidden();
-        var user = await GetOrCreateUserAsync(r.OrganizerEmail, r.OrganizerName);
+        var user = await GetOrCreateUserAsync(r.OrganizerEmail);
         var league = new League { Name = Required(r.Name, 100), CreatedAt = clock.GetUtcNow() };
         var season = new LeagueSeason
         {
@@ -81,7 +81,7 @@ public sealed class LeagueWorkflow(FantasticheDbContext db, UserManager<Applicat
         await RequireMemberAsync(r.Context, r.LeagueId, true, ct);
         var league = await db.Leagues.SingleAsync(x => x.Id == r.LeagueId, ct);
         if (!await db.LeagueSeasons.AnyAsync(x => x.Id == r.LeagueSeasonId && x.LeagueId == r.LeagueId, ct)) throw NotFound();
-        var user = await GetOrCreateUserAsync(r.Email, r.DisplayName);
+        var user = await GetOrCreateUserAsync(r.Email);
         if (await db.TeamMembers.AnyAsync(x => x.LeagueSeasonId == r.LeagueSeasonId && x.UserId == user.Id, ct))
             throw new DomainException("team.already_member", "L’utente partecipa già alla stagione.", 409);
         if (await db.LeagueInvitations.AnyAsync(x => x.LeagueSeasonId == r.LeagueSeasonId && x.UserId == user.Id
@@ -129,6 +129,8 @@ public sealed class LeagueWorkflow(FantasticheDbContext db, UserManager<Applicat
         else
         {
             if (string.IsNullOrEmpty(r.Password)) throw new DomainException("invitation.password_required", "Imposta una password.");
+            if (string.IsNullOrWhiteSpace(r.DisplayName)) throw new DomainException("invitation.name_required", "Inserisci il tuo nome.");
+            user.DisplayName = Required(r.DisplayName, 150);
             EnsureIdentity(await users.AddPasswordAsync(user, r.Password));
             user.EmailConfirmed = true;
             EnsureIdentity(await users.UpdateAsync(user));
@@ -200,8 +202,9 @@ public sealed class LeagueWorkflow(FantasticheDbContext db, UserManager<Applicat
         // Lo stemma della piattaforma è un asset pubblico del frontend, sulla stessa origin del link.
         var brandLogo = baseUrl.TrimEnd('/') + "/brand/fantastiche-logo-email.png";
         var season = await db.LeagueSeasons.AsNoTracking().SingleAsync(x => x.Id == seasonId, ct);
-        var email = InvitationEmailTemplate.Render(user.DisplayName, user.Email!, await InviterNameAsync(senderId), league.Name, logos.Url(league.LogoBlobName),
-         season.Name, season.Budget, kind, invitation.ExpiresAt, link, brandLogo);
+        var requiresActivation = !await users.HasPasswordAsync(user);
+        var email = InvitationEmailTemplate.Render(requiresActivation ? null : user.DisplayName, user.Email!, await InviterNameAsync(senderId), league.Name, logos.Url(league.LogoBlobName),
+         season.Name, season.Budget, kind, invitation.ExpiresAt, link, brandLogo, requiresActivation);
         db.LeagueInvitations.Add(invitation);
         db.EmailMessages.Add(new EmailMessage
         {
@@ -215,14 +218,14 @@ public sealed class LeagueWorkflow(FantasticheDbContext db, UserManager<Applicat
         return new InvitationDetails(invitation.Id, league.Id, invitation.ExpiresAt);
     }
     private async Task<string> InviterNameAsync(Guid userId) => (await users.FindByIdAsync(userId.ToString()))?.DisplayName ?? "Fantastiche";
-    private async Task<ApplicationUser> GetOrCreateUserAsync(string email, string displayName)
+    private async Task<ApplicationUser> GetOrCreateUserAsync(string email)
     {
         email = Required(email, 256);
         if (!System.Net.Mail.MailAddress.TryCreate(email, out var parsed) || parsed.Address != email)
             throw new DomainException("validation.email", "Indirizzo email non valido.");
         var user = await users.FindByEmailAsync(email);
         if (user is not null) return user;
-        user = new ApplicationUser { UserName = email, Email = email, DisplayName = Required(displayName, 150), LockoutEnabled = true };
+        user = new ApplicationUser { UserName = email, Email = email, LockoutEnabled = true };
         EnsureIdentity(await users.CreateAsync(user)); return user;
     }
     private async Task RequireMemberAsync(RequestContext context, Guid leagueId, bool organizer, CancellationToken ct)

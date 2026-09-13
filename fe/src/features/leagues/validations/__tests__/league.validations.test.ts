@@ -4,7 +4,6 @@ import { createLeagueSchema } from '../league.validations'
 const valid = {
   name: 'Lega amici',
   seasonName: '2026/27',
-  organizerName: 'Giulia',
   organizerEmail: 'giulia@example.test',
   budget: 500,
   goalkeepers: 3,

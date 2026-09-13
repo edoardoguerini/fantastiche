@@ -16,7 +16,6 @@ export const createLeagueSchema = z
   .object({
     name: requiredText(100),
     seasonName: requiredText(50),
-    organizerName: requiredText(150),
     organizerEmail: requiredText(256).email('Inserisci un’email valida.'),
     budget: z
       .number('Inserisci un numero.')

@@ -10,7 +10,6 @@ const admin = {
 const values = {
   name: 'Lega degli amici',
   seasonName: '2026/27',
-  organizerName: 'Giulia Rossi',
   organizerEmail: 'giulia@example.test',
   budget: 500,
   goalkeepers: 3,
@@ -93,9 +92,9 @@ async function fillForm(page: Page) {
     .getByLabel('Nome della lega', { exact: true })
     .fill(` ${values.name} `)
   await page.getByLabel('Stagione', { exact: true }).fill(values.seasonName)
-  await page
-    .getByLabel('Nome dell’organizzatore', { exact: true })
-    .fill(values.organizerName)
+  await expect(
+    page.getByLabel('Nome dell’organizzatore', { exact: true }),
+  ).toHaveCount(0)
   await page
     .getByLabel('Email dell’organizzatore', { exact: true })
     .fill(values.organizerEmail)

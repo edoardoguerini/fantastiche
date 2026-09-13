@@ -39,13 +39,6 @@ const textSections = [
       'La persona che gestirà la lega riceverà un invito a questo indirizzo.',
     fields: [
       {
-        name: 'organizerName',
-        label: 'Nome dell’organizzatore',
-        placeholder: 'Nome e cognome',
-        max: 150,
-        type: 'text',
-      },
-      {
         name: 'organizerEmail',
         label: 'Email dell’organizzatore',
         placeholder: 'nome@esempio.it',
@@ -82,7 +75,6 @@ export function CreateLeagueForm({
     defaultValues: {
       name: '',
       seasonName: '',
-      organizerName: '',
       organizerEmail: '',
       budget: 500,
       goalkeepers: 3,

@@ -35,7 +35,7 @@ public sealed class LeaguesModule : IRegistrableModule
     private static async Task<IResult> Create(CreateLeagueRequest r, HttpContext context, IValidator<CreateLeagueRequest> validator, IRequestPublisher publisher, CancellationToken ct)
     {
         await validator.ValidateAndThrowAsync(r, ct);
-        var result = await publisher.SendAsync<CreateLeagueCommand, LeagueDetails>(new(context.CreateRequestContext(), r.Name, r.SeasonName, r.OrganizerEmail, r.OrganizerName, r.Budget, r.Goalkeepers, r.Defenders, r.Midfielders, r.Forwards, r.Logo), ct);
+        var result = await publisher.SendAsync<CreateLeagueCommand, LeagueDetails>(new(context.CreateRequestContext(), r.Name, r.SeasonName, r.OrganizerEmail, r.Budget, r.Goalkeepers, r.Defenders, r.Midfielders, r.Forwards, r.Logo), ct);
         return ApiResults.Created($"/api/Leagues/{result.Id}", result);
     }
     private static async Task<IResult> Get(Guid leagueId, HttpContext context, IRequestPublisher publisher, CancellationToken ct)
@@ -43,7 +43,7 @@ public sealed class LeaguesModule : IRegistrableModule
     private static async Task<IResult> Invite(Guid leagueId, InviteMemberRequest r, HttpContext context, IValidator<InviteMemberRequest> validator, IRequestPublisher publisher, CancellationToken ct)
     {
         await validator.ValidateAndThrowAsync(r, ct);
-        var result = await publisher.SendAsync<InviteMemberCommand, InvitationDetails>(new(context.CreateRequestContext(), leagueId, r.LeagueSeasonId, r.Email, r.DisplayName), ct);
+        var result = await publisher.SendAsync<InviteMemberCommand, InvitationDetails>(new(context.CreateRequestContext(), leagueId, r.LeagueSeasonId, r.Email), ct);
         return ApiResults.Created($"/api/Leagues/{leagueId}/Invitations/{result.Id}", result);
     }
     private static async Task<IResult> Revoke(Guid leagueId, Guid invitationId, HttpContext context, IRequestPublisher publisher, CancellationToken ct)

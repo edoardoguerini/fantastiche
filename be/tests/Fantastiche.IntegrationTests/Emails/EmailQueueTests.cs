@@ -25,7 +25,7 @@ public sealed class EmailQueueTests : IAsyncLifetime
     private async Task<Guid> Queue()
     {
         await using var scope = fixture.Services.CreateAsyncScope();
-        await scope.ServiceProvider.GetRequiredService<LeagueWorkflow>().CreateLeagueAsync(new(fixture.Admin, "Lega", "2026", Guid.NewGuid() + "@example.test", "User"), default);
+        await scope.ServiceProvider.GetRequiredService<LeagueWorkflow>().CreateLeagueAsync(new(fixture.Admin, "Lega", "2026", Guid.NewGuid() + "@example.test"), default);
         return (await scope.ServiceProvider.GetRequiredService<FantasticheDbContext>().EmailMessages.SingleAsync()).Id;
     }
     private async Task<bool> Dispatch(IEmailSender sender)

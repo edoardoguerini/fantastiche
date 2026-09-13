@@ -8,10 +8,12 @@ export async function acceptInvitation(
   token: string,
   teamName?: string,
   password?: string,
+  displayName?: string,
 ) {
   return acceptanceSchema.parse(
     await api.post('/Invitations/Accept', {
       token,
+      ...(displayName !== undefined ? { displayName } : {}),
       ...(teamName !== undefined ? { teamName } : {}),
       ...(password !== undefined ? { password } : {}),
     }),
@@ -20,13 +22,11 @@ export async function acceptInvitation(
 export async function inviteParticipant(
   leagueId: string,
   leagueSeasonId: string,
-  displayName: string,
   email: string,
 ) {
   return invitationDetailsSchema.parse(
     await api.post(`/Leagues/${leagueId}/Invitations`, {
       leagueSeasonId,
-      displayName,
       email,
     }),
   )

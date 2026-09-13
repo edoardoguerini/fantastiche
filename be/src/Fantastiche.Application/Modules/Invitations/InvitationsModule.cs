@@ -24,6 +24,6 @@ public sealed class InvitationsModule : IRegistrableModule
     private static async Task<IResult> Accept(AcceptInvitationRequest r, HttpContext context, IValidator<AcceptInvitationRequest> validator, IRequestPublisher publisher, CancellationToken ct)
     {
         await validator.ValidateAndThrowAsync(r, ct);
-        return ApiResults.Ok(await publisher.SendAsync<AcceptInvitationCommand, AcceptanceDetails>(new(context.CreateRequestContext(), r.Token, r.Password, r.TeamName), ct));
+        return ApiResults.Ok(await publisher.SendAsync<AcceptInvitationCommand, AcceptanceDetails>(new(context.CreateRequestContext(), r.Token, r.Password, r.TeamName, r.DisplayName), ct));
     }
 }

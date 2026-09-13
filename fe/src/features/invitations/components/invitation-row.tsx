@@ -27,6 +27,7 @@ export function InvitationRow({
   onCancel: () => void
   onConfirm: () => void
 }) {
+  const title = invite.displayName.trim() || invite.email
   const cancel = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (confirming) cancel.current?.focus()
@@ -34,11 +35,11 @@ export function InvitationRow({
   return (
     <li className="people-row">
       <span className="participant-avatar" aria-hidden="true">
-        {invite.displayName.trim().slice(0, 1).toLocaleUpperCase('it')}
+        {title.slice(0, 1).toLocaleUpperCase('it')}
       </span>
       <div className="people-identity invitation-recipient">
-        <strong>{invite.displayName}</strong>
-        <p>{invite.email}</p>
+        <strong>{title}</strong>
+        {title !== invite.email && <p>{invite.email}</p>}
         <small>
           {invite.status === 'Expired' ? 'Scaduto il' : 'Scade il'}{' '}
           {new Date(invite.expiresAt).toLocaleDateString('it-IT')}
@@ -58,7 +59,7 @@ export function InvitationRow({
       </div>
       {(invite.status === 'Pending' || invite.status === 'Expired') && (
         <InvitationActionsMenu
-          name={invite.displayName}
+          name={title}
           disabled={busy}
           onResend={onResend}
           onRevoke={onRevoke}
@@ -68,7 +69,7 @@ export function InvitationRow({
         <div
           className="invitation-revoke"
           role="group"
-          aria-label={`Revoca invito ${invite.displayName}`}
+          aria-label={`Revoca invito ${title}`}
         >
           <p>
             Revocare questo invito? Il link non permetterà più di entrare nella

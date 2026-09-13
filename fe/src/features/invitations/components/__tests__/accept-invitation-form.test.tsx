@@ -69,7 +69,8 @@ describe('adesione con account nuovo', () => {
     vi.mocked(api.post).mockResolvedValue(accepted)
     const { user, onAccepted } = setup()
     const team = screen.getByLabelText('Nome squadra', { exact: true })
-    expect(team).toHaveFocus()
+    expect(screen.getByLabelText('Il tuo nome')).toHaveFocus()
+    await user.type(screen.getByLabelText('Il tuo nome'), ' Giulia ')
     await user.type(team, 'Le Fenici')
     expect(screen.getByText(/apparirai come/)).toHaveTextContent('Le Fenici')
     await user.type(
@@ -82,6 +83,7 @@ describe('adesione con account nuovo', () => {
     await waitFor(() => expect(onAccepted).toHaveBeenCalledWith(accepted))
     expect(api.post).toHaveBeenCalledWith('/Invitations/Accept', {
       token,
+      displayName: 'Giulia',
       teamName: 'Le Fenici',
       password: 'Invited-User-123!',
     })
@@ -89,6 +91,7 @@ describe('adesione con account nuovo', () => {
 
   it('blocca una password debole senza chiamare il server', async () => {
     const { user } = setup({ requiresTeam: false })
+    await user.type(screen.getByLabelText('Il tuo nome'), 'Giulia')
     await user.type(
       screen.getByLabelText('Password', { exact: true }),
       'tuttominuscolo123',
@@ -108,6 +111,8 @@ describe('adesione con account esistente', () => {
     vi.mocked(api.post).mockResolvedValue(accepted)
     const { user, onAccepted } = setup({ requiresLogin: true })
     expect(screen.queryByLabelText('Password', { exact: true })).toBeNull()
+    expect(screen.queryByLabelText('Il tuo nome')).toBeNull()
+    expect(screen.getByLabelText('Nome squadra', { exact: true })).toHaveFocus()
     await user.type(
       screen.getByLabelText('Nome squadra', { exact: true }),
       'Le Fenici',
@@ -148,4 +153,20 @@ describe('adesione con account esistente', () => {
     await user.click(screen.getByRole('button', { name: 'Cambia account' }))
     expect(onSwitchAccount).toHaveBeenCalledOnce()
   })
+})
+
+it('richiede il nome prima di attivare un account organizzatore', async () => {
+  const { user } = setup({ requiresTeam: false })
+  expect(screen.getByLabelText('Il tuo nome')).toHaveFocus()
+  await user.type(
+    screen.getByLabelText('Password', { exact: true }),
+    'Invited-User-123!',
+  )
+  await user.click(
+    screen.getByRole('button', { name: 'Attiva account e organizza' }),
+  )
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'Inserisci il nome.',
+  )
+  expect(api.post).not.toHaveBeenCalled()
 })

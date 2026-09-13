@@ -105,6 +105,8 @@ async function setup(
       const body = request.postDataJSON() as Record<string, unknown>
       state.accepts.push(body)
       expect(body.token).toBe(token)
+      if (options.existing) expect(body).not.toHaveProperty('displayName')
+      else expect(body.displayName).toBe('Giulia')
       if (options.wrongAccount)
         return respond(
           null,
@@ -146,12 +148,17 @@ async function setup(
       return respond({ canManage: false })
     if (url.pathname.endsWith('/Invitations')) {
       const body = request.postDataJSON() as {
-        displayName: string
+        leagueSeasonId: string
         email: string
       }
+      expect(body).toEqual({
+        leagueSeasonId: league.leagueSeasonId,
+        email: 'luca@example.test',
+      })
       state.sent++
       state.invites.unshift({
         ...body,
+        displayName: '',
         id: `invite-${state.sent}`,
         status: 'Pending',
         kind: 'Participant',
@@ -201,6 +208,8 @@ test('nuovo account: attivazione, nome squadra e login senza token in URL o stor
   ).toBeVisible()
   await expect(page).toHaveURL(/\/invito$/)
   await expect(page.getByText('Marco Bianchi')).toBeVisible()
+  await expect(page.getByLabel('Il tuo nome')).toBeFocused()
+  await page.getByLabel('Il tuo nome').fill(' Giulia ')
   await page.getByLabel('Nome squadra', { exact: true }).fill('Le Fenici')
   await expect(page.getByText(/apparirai come/)).toContainText('Le Fenici')
   await page.getByLabel('Password', { exact: true }).fill('Invited-User-123!')
@@ -209,7 +218,12 @@ test('nuovo account: attivazione, nome squadra e login senza token in URL o stor
     page.getByRole('heading', { name: `Sei in ${league.name}.` }),
   ).toBeVisible()
   expect(state.accepts).toEqual([
-    { token, password: 'Invited-User-123!', teamName: 'Le Fenici' },
+    {
+      token,
+      displayName: 'Giulia',
+      password: 'Invited-User-123!',
+      teamName: 'Le Fenici',
+    },
   ])
   await expect(page.getByLabel('Email', { exact: true })).toHaveValue(
     user.email,
@@ -236,6 +250,7 @@ test('account esistente: login in pagina e accettazione senza password nel paylo
   await page.getByLabel('Password', { exact: true }).fill('Invited-User-123!')
   await page.getByRole('button', { name: 'Accedi', exact: true }).click()
   await expect(page.getByText(/Stai accettando come/)).toContainText(user.email)
+  await expect(page.getByLabel('Il tuo nome')).toHaveCount(0)
   await expect(page.locator('li[aria-current="step"]')).toHaveText(
     /Conferma squadra/,
   )
@@ -279,22 +294,26 @@ test('organizzatore invita, reinvia e revoca dal dettaglio lega', async ({
 }) => {
   const state = await setup(page, { authenticated: true, canManage: true })
   await page.goto(`/leghe/${league.id}`)
-  await page.getByLabel('Nome partecipante').fill('Luca')
+  await expect(page.getByLabel('Nome partecipante')).toHaveCount(0)
   await page.getByLabel('Email partecipante').fill('luca@example.test')
   await page.getByRole('button', { name: 'Invia invito', exact: true }).click()
   await expect(page.getByText('luca@example.test')).toBeVisible()
   expect(state.sent).toBe(1)
-  await page.getByRole('button', { name: 'Azioni invito Luca' }).click()
+  await page
+    .getByRole('button', { name: 'Azioni invito luca@example.test' })
+    .click()
   await page
     .getByRole('button', { name: 'Reinvia invito', exact: true })
     .click()
   await page.getByText('Storico inviti', { exact: true }).click()
   await expect(page.getByText('Revocato', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Azioni invito Luca' }).click()
+  await page
+    .getByRole('button', { name: 'Azioni invito luca@example.test' })
+    .click()
   await page.getByRole('button', { name: 'Revoca invito', exact: true }).click()
   await page.getByRole('button', { name: 'Conferma revoca' }).click()
   await expect(
-    page.getByRole('button', { name: 'Azioni invito Luca' }),
+    page.getByRole('button', { name: 'Azioni invito luca@example.test' }),
   ).toHaveCount(0)
 })
 
@@ -314,12 +333,18 @@ test('invito organizzatore attiva account senza creare squadra', async ({
   await page.goto(`/invito#token=${token}`)
   await expect(page.getByLabel('Nome squadra', { exact: true })).toHaveCount(0)
   await expect(page.getByText('Organizzatore', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('Il tuo nome')).toBeFocused()
+  await page.getByLabel('Il tuo nome').fill('Giulia')
   await page.getByLabel('Password', { exact: true }).fill('Invited-User-123!')
   await page.getByRole('button', { name: 'Attiva account e organizza' }).click()
   await expect(
     page.getByRole('heading', { name: `Sei in ${league.name}.` }),
   ).toBeVisible()
-  expect(state.accepts[0]).toEqual({ token, password: 'Invited-User-123!' })
+  expect(state.accepts[0]).toEqual({
+    token,
+    displayName: 'Giulia',
+    password: 'Invited-User-123!',
+  })
 })
 
 test('una password debole blocca la richiesta e la checklist lo mostra', async ({
@@ -328,6 +353,7 @@ test('una password debole blocca la richiesta e la checklist lo mostra', async (
   const state = await setup(page)
   await page.goto(`/invito#token=${token}`)
   await page.getByLabel('Nome squadra', { exact: true }).fill('Le Fenici')
+  await page.getByLabel('Il tuo nome').fill('Giulia')
   await page.getByLabel('Password', { exact: true }).fill('tuttominuscolo123')
   const rules = page.getByRole('list', { name: 'Requisiti della password' })
   await expect(rules.getByText('Un numero')).toBeVisible()
@@ -358,12 +384,7 @@ for (const width of [320, 390, 1280])
     state.invites.push(
       ...['Pending', 'Expired', 'Accepted', 'Revoked'].map((status, index) => ({
         id: `layout-${index}`,
-        displayName: [
-          'Edoardo Guerini',
-          'Sara Moretti',
-          'Luca Ferri',
-          'Andrea Galli',
-        ][index]!,
+        displayName: ['', 'Sara Moretti', 'Luca Ferri', 'Andrea Galli'][index]!,
         email:
           index === 0
             ? 'edoardo.guerini@example.test'
@@ -374,7 +395,7 @@ for (const width of [320, 390, 1280])
       })),
     )
     await page.goto(`/leghe/${league.id}`)
-    await expect(page.getByLabel('Nome partecipante')).toBeVisible()
+    await expect(page.getByLabel('Email partecipante')).toBeVisible()
     await expect(
       page.locator('.participant-list .people-badge--organizer'),
     ).toBeVisible()
@@ -388,7 +409,9 @@ for (const width of [320, 390, 1280])
       await invitationsTitle.evaluate((el) => getComputedStyle(el).fontSize),
     )
     await page
-      .getByRole('button', { name: 'Azioni invito Edoardo Guerini' })
+      .getByRole('button', {
+        name: 'Azioni invito edoardo.guerini@example.test',
+      })
       .click()
     await expect(
       page.getByRole('button', { name: 'Reinvia invito' }),

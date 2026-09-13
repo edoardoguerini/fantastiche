@@ -26,7 +26,7 @@ Priorità corrente: frontend. L’utente ha approvato solo dark mode, palette gl
 
 - Azure SQL con modello DTU, ASP.NET Core Identity, EF Core e Dapper.
 - Solo il SuperAdmin crea leghe. Il permesso di organizzatore appartiene a LeagueMembers; la partecipazione con una squadra passa da TeamMembers. Lo stesso utente può organizzare e giocare nella stessa lega.
-- L’organizzatore inserisce nome/email e predispone account senza password se nuovo, membership Pending e invito personale. Il form consente attivazione o login dell’account esistente e scelta nome squadra. Logo per lega su Blob. Creazione e accodamento email atomici; lo Scheduler invia tramite Mailgun. Token casuale nell’email, hash per la verifica nel database. [Flusso](be/docs/domains/invitations-email.md).
+- L’organizzatore invita tramite la sola email; per i nuovi utenti vengono predisposti account senza nome/password, membership Pending e invito personale. Il destinatario sceglie il proprio nome all’attivazione; un account esistente accede mantenendo il profilo. I partecipanti scelgono anche il nome squadra. Logo per lega su Blob. Creazione e accodamento email atomici; lo Scheduler invia tramite Mailgun. Token casuale nell’email, hash per la verifica nel database. [Flusso](be/docs/domains/invitations-email.md).
 - Teams sono le squadre della lega, Clubs le squadre reali; nessun prefisso Fantasy. Budget e rose configurabili per lega stagionale, default 500 crediti e 25 giocatori (3 P, 8 D, 8 C, 6 A).
 - EF Core gestisce schema/migrazioni, Identity e configurazione ordinaria; Dapper letture delle schermate e transazioni critiche dell’asta.
 - Un solo percorso di scrittura per operazione; SignalR pubblica dopo il commit.
