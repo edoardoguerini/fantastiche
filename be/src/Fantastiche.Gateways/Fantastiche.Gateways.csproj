@@ -5,4 +5,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Fantastiche.Core\Fantastiche.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Azure.Storage.Blobs" />
+    <PackageReference Include="Azure.Identity" />
+  </ItemGroup>
 </Project>

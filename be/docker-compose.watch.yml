@@ -8,6 +8,7 @@ x-app-environment: &app-environment
   Email__EnableExternalDelivery: "false"
   Storage__PlayerPhotos__PublicBaseUrl: 'http://localhost:${AZURITE_BLOB_PORT:-10010}/fantastiche/player-photos'
   Storage__ClubLogos__PublicBaseUrl: 'http://localhost:${AZURITE_BLOB_PORT:-10010}/fantastiche/club-logos'
+  Storage__LeagueLogos__ConnectionString: 'DefaultEndpointsProtocol=http;AccountName=fantastiche;AccountKey=${AZURITE_ACCOUNT_KEY};BlobEndpoint=http://azurite:10000/fantastiche;'
   Storage__LeagueLogos__PublicBaseUrl: 'http://localhost:${AZURITE_BLOB_PORT:-10010}/fantastiche/league-logos'
 services:
   migrate:

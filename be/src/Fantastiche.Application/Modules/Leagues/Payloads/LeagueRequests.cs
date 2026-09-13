@@ -12,7 +12,7 @@ public sealed class LeagueListRequestValidator : AbstractValidator<LeagueListReq
 }
 
 public sealed record CreateLeagueRequest(string Name, string SeasonName, string OrganizerEmail, string OrganizerName,
- int Budget = 500, int Goalkeepers = 3, int Defenders = 8, int Midfielders = 8, int Forwards = 6);
+ int Budget = 500, int Goalkeepers = 3, int Defenders = 8, int Midfielders = 8, int Forwards = 6, byte[]? Logo = null);
 public sealed class CreateLeagueRequestValidator : AbstractValidator<CreateLeagueRequest>
 {
     public CreateLeagueRequestValidator()

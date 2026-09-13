@@ -7,6 +7,7 @@
 - [Sala d’asta](architecture/auction-room.md).
 - [Inviti e partecipanti](architecture/invitations.md).
 - [Catalogo e listoni](architecture/catalog.md).
+- [Logo della lega](architecture/league-logo.md).
 - [PWA e realtime](architecture/pwa-realtime.md).
 - [Feature e naming](conventions/feature-structure.md).
 - [Icone Font Awesome](conventions/icons.md).

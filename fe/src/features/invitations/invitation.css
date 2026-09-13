@@ -245,17 +245,11 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+  margin-top: 0;
 }
 .invitation-panel .invitation-hint,
 .invitation-panel .invitation-expiry {
   margin: 0;
-}
-.invitation-eyebrow {
-  color: var(--muted-foreground);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
 }
 
 /* Carta della lega */
@@ -442,15 +436,6 @@
   padding: 0;
   border: 0;
   min-width: 0;
-}
-.invitation-group-title {
-  padding: 0;
-  margin-bottom: 12px;
-  color: var(--muted-foreground);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 .invitation-preview {
   display: flex;

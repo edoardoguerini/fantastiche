@@ -7,7 +7,6 @@ import {
   logoutMutationOptions,
   replaceSession,
 } from '@/features/auth'
-import { Brand } from '@/components/common/brand'
 import { Icon } from '@/components/common/icon'
 import { LoadingState } from '@/components/common/page-state'
 import { Button } from '@/components/primitives/button'
@@ -302,7 +301,6 @@ export function InvitationPage() {
   return (
     <main className="login-page invitation-page" id="main-content">
       <div className="login-container invitation-container">
-        <Brand />
         <section
           className="login-panel invitation-panel"
           aria-labelledby="invitation-title"

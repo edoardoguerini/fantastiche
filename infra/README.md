@@ -126,3 +126,9 @@ entrambi i processi, senza richiedere una sessione o interrogare il database. La
 risposta HTML e i redirect sono `private, no-store`; gli asset con hash restano
 immutabili. Le variabili e la porta del Bicep FE restano compatibili con questa
 immagine. Non distribuire più il solo `dist/client`: serve anche `dist/server`.
+
+## Logo della lega
+
+Il caricamento durante la creazione richiede il container `league-logos` con accesso pubblico `Blob` e `Storage__LeagueLogos__PublicBaseUrl` su API/Scheduler. La Managed Identity ha già Storage Blob Data Contributor sullo storage. Il modulo `modules/storage.bicep` include il container e `apps-be.bicep` include l’URL.
+
+Per un ambiente già provisionato, applicare il foundation aggiornato prima di distribuire questa funzionalità: il solo deploy della pipeline non crea il nuovo container. Non servono migrazioni SQL né chiavi storage; l’app usa Managed Identity. Finché lo storage non è disponibile, una creazione con logo restituisce un errore senza salvare lega o invito; resta disponibile la creazione senza logo.

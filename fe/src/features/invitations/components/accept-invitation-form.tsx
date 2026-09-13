@@ -81,7 +81,7 @@ export function AcceptInvitationForm({
     >
       {invitation.requiresTeam && (
         <fieldset className="invitation-group">
-          <legend className="invitation-group-title">La tua squadra</legend>
+          <legend className="sr-only">La tua squadra</legend>
           <form.Field name="teamName">
             {(field) => {
               const invalid = field.state.meta.errors.length > 0
@@ -138,7 +138,7 @@ export function AcceptInvitationForm({
       )}
       {!invitation.requiresLogin && (
         <fieldset className="invitation-group">
-          <legend className="invitation-group-title">Il tuo account</legend>
+          <legend className="sr-only">Il tuo account</legend>
           <form.Field name="password">
             {(field) => {
               const invalid = field.state.meta.errors.length > 0
@@ -172,7 +172,7 @@ export function AcceptInvitationForm({
                       aria-pressed={showPassword}
                       onClick={() => setShowPassword(!showPassword)}
                     >
-                      {showPassword ? 'Nascondi' : 'Mostra'}
+                      <Icon name={showPassword ? 'eye-slash' : 'eye'} />
                     </button>
                   </div>
                   {invalid && (

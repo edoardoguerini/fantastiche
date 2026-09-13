@@ -1,4 +1,6 @@
 using System.Data;
+using Fantastiche.Core.Storage;
+using Microsoft.Extensions.Logging;
 using Fantastiche.Core.Auth;
 using Fantastiche.Core.Exceptions;
 using Fantastiche.Infrastructure.Common.Authentication;
@@ -12,13 +14,16 @@ using Microsoft.Extensions.Configuration;
 namespace Fantastiche.Infrastructure.Leagues;
 
 public sealed class LeagueWorkflow(FantasticheDbContext db, UserManager<ApplicationUser> users,
- EmailPayloadProtector protector, TimeProvider clock, IConfiguration configuration, LeagueLogoStorage logos)
+ EmailPayloadProtector protector, TimeProvider clock, IConfiguration configuration, LeagueLogoStorage logos, ILeagueLogoStore logoStore, ILogger<LeagueWorkflow> logger)
 {
     public async Task<LeagueDetails> CreateLeagueAsync(CreateLeagueCommand r, CancellationToken ct)
     {
         if (!r.Context.IsSuperAdmin || r.Context.UserId is null) throw Forbidden();
         ValidateRules(r);
+        var image = r.Logo is null ? ((string ContentType, string Extension)?)null : LeagueLogoImage.Identify(r.Logo);
         await using var tx = await BeginAsync(ct);
+        var admin = await users.FindByIdAsync(r.Context.UserId.Value.ToString());
+        if (admin is null || !await users.IsInRoleAsync(admin, "SuperAdmin")) throw Forbidden();
         var user = await GetOrCreateUserAsync(r.OrganizerEmail, r.OrganizerName);
         var league = new League { Name = Required(r.Name, 100), CreatedAt = clock.GetUtcNow() };
         var season = new LeagueSeason
@@ -33,9 +38,35 @@ public sealed class LeagueWorkflow(FantasticheDbContext db, UserManager<Applicat
         };
         db.AddRange(league, season, new LeagueMember { LeagueId = league.Id, UserId = user.Id });
         await db.SaveChangesAsync(ct);
-        await QueueInvitationAsync(league, season.Id, user, r.Context.UserId.Value, InvitationKind.Organizer, ct);
-        await tx.CommitAsync(ct);
-        return Details(league, season);
+        string? blobName = null;
+        var commitStarted = false;
+        try
+        {
+            if (image is { } format)
+            {
+                if (logos.Url("probe") is null)
+                    throw new DomainException("league.logo_unavailable", "Il caricamento del logo non è disponibile. Riprova più tardi.", 503);
+                blobName = $"{league.Id:D}/{Guid.NewGuid():N}.{format.Extension}";
+                await logoStore.UploadAsync(blobName, r.Logo!, format.ContentType, ct);
+                league.LogoBlobName = blobName;
+                await db.SaveChangesAsync(ct);
+            }
+            await QueueInvitationAsync(league, season.Id, user, r.Context.UserId.Value, InvitationKind.Organizer, ct);
+            commitStarted = true;
+            await tx.CommitAsync(ct);
+            return Details(league, season);
+        }
+        catch
+        {
+            // Un commit dall'esito incerto può essere riuscito: in quel caso si conserva il blob.
+            if (blobName is not null && !commitStarted)
+            {
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                try { await logoStore.DeleteAsync(blobName, cleanup.Token); }
+                catch { logger.LogWarning("Pulizia del logo non completata per la lega {LeagueId}.", league.Id); }
+            }
+            throw;
+        }
     }
     public async Task<LeagueDetails> GetLeagueAsync(GetLeagueQuery r, CancellationToken ct)
     {
@@ -166,9 +197,11 @@ public sealed class LeagueWorkflow(FantasticheDbContext db, UserManager<Applicat
         };
         var baseUrl = configuration["Invitations:PublicBaseUrl"] ?? "http://localhost:6061";
         var link = baseUrl.TrimEnd('/') + "/invito#token=" + token;
+        // Lo stemma della piattaforma è un asset pubblico del frontend, sulla stessa origin del link.
+        var brandLogo = baseUrl.TrimEnd('/') + "/brand/fantastiche-logo-email.png";
         var season = await db.LeagueSeasons.AsNoTracking().SingleAsync(x => x.Id == seasonId, ct);
         var email = InvitationEmailTemplate.Render(user.DisplayName, user.Email!, await InviterNameAsync(senderId), league.Name, logos.Url(league.LogoBlobName),
-         season.Name, season.Budget, kind, invitation.ExpiresAt, link);
+         season.Name, season.Budget, kind, invitation.ExpiresAt, link, brandLogo);
         db.LeagueInvitations.Add(invitation);
         db.EmailMessages.Add(new EmailMessage
         {

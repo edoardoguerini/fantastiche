@@ -168,15 +168,16 @@
   position: relative;
 }
 .password-input input {
-  padding-right: 88px;
+  padding-right: 52px;
 }
 .password-toggle {
   position: absolute;
   right: 4px;
   top: 2px;
+  width: 44px;
   height: 44px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: 18px;
   color: var(--muted-foreground);
   border-radius: 5px;
 }
