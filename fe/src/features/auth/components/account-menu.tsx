@@ -3,11 +3,24 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useHydrated, useNavigate } from '@tanstack/react-router'
 import { Button } from '@/components/primitives/button'
 import { Icon } from '@/components/common/icon'
+import { PwaInstallGuide } from '@/components/common/pwa-install-guide'
 import { ApiError, errorMessage } from '@/lib/api/error'
+import { promptInstall } from '@/lib/pwa/pwa-store'
+import { usePwa } from '@/lib/pwa/use-pwa'
 import { authQueryOptions } from '../actions/auth.queries'
 import { logoutMutationOptions } from '../actions/auth.mutations'
 import { replaceSession } from '../actions/auth.cache'
 import '../account-menu.css'
+
+function menuItems(menu: HTMLElement | null) {
+  return Array.from(
+    menu?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [],
+  )
+}
+function focusItem(menu: HTMLElement | null, index: number) {
+  const all = menuItems(menu)
+  all.at(index % all.length)?.focus()
+}
 
 export function AccountMenu() {
   const hydrated = useHydrated()
@@ -15,31 +28,39 @@ export function AccountMenu() {
   const client = useQueryClient()
   const navigate = useNavigate()
   const logout = useMutation(logoutMutationOptions())
+  const pwa = usePwa()
   const [error, setError] = useState<unknown>(null)
   const [open, setOpen] = useState(false)
+  const [guide, setGuide] = useState(false)
   const container = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
-  const logoutItem = useRef<HTMLButtonElement>(null)
+  const menu = useRef<HTMLDivElement>(null)
   const menuId = useId()
+  const canInstall = pwa.enabled && !pwa.standalone
   const initials = user?.displayName.trim().split(/\s+/).filter(Boolean)
   const avatar = initials?.length
     ? `${initials[0]?.[0] ?? ''}${initials.length > 1 ? (initials.at(-1)?.[0] ?? '') : ''}`.toUpperCase()
     : '?'
 
+  function close() {
+    setOpen(false)
+    setGuide(false)
+  }
+
   useEffect(() => {
     if (!open) return
-    logoutItem.current?.focus()
+    focusItem(menu.current, 0)
     function dismiss(event: PointerEvent) {
       if (
         event.target instanceof Node &&
         !container.current?.contains(event.target)
       )
-        setOpen(false)
+        close()
     }
     function escape(event: KeyboardEvent) {
       if (event.key !== 'Escape') return
       event.preventDefault()
-      setOpen(false)
+      close()
       trigger.current?.focus()
     }
     document.addEventListener('pointerdown', dismiss)
@@ -49,6 +70,15 @@ export function AccountMenu() {
       document.removeEventListener('keydown', escape)
     }
   }, [open])
+  async function install() {
+    if (!pwa.canPrompt) {
+      setGuide((current) => !current)
+      return
+    }
+    const outcome = await promptInstall()
+    if (outcome === 'accepted') close()
+    else if (outcome === 'unavailable') setGuide(true)
+  }
   async function signOut() {
     if (logout.isPending) return
     setError(null)
@@ -72,7 +102,7 @@ export function AccountMenu() {
           event.relatedTarget &&
           !event.currentTarget.contains(event.relatedTarget)
         )
-          setOpen(false)
+          close()
       }}
     >
       <button
@@ -84,7 +114,7 @@ export function AccountMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        onClick={() => setOpen(!open)}
+        onClick={() => (open ? close() : setOpen(true))}
         onKeyDown={(event) => {
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault()
@@ -107,11 +137,19 @@ export function AccountMenu() {
           role="menu"
           aria-label="Menu profilo"
           className="account-dropdown"
+          ref={menu}
           onKeyDown={(event) => {
-            if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-              event.preventDefault()
-              logoutItem.current?.focus()
-            }
+            const all = menuItems(menu.current)
+            const current = all.indexOf(document.activeElement as HTMLElement)
+            const next = {
+              ArrowDown: current + 1,
+              ArrowUp: current - 1 + all.length,
+              Home: 0,
+              End: all.length - 1,
+            }[event.key]
+            if (next === undefined) return
+            event.preventDefault()
+            focusItem(menu.current, next)
           }}
         >
           <div
@@ -121,11 +159,29 @@ export function AccountMenu() {
             <strong>{user?.displayName}</strong>
             <span>{user?.email}</span>
           </div>
+          {canInstall && (
+            <>
+              <Button
+                role="menuitem"
+                variant="ghost"
+                className="account-menu-item"
+                aria-expanded={pwa.canPrompt ? undefined : guide}
+                onClick={() => void install()}
+              >
+                <Icon name="cloud-arrow-down" />
+                Installa app
+              </Button>
+              {guide && (
+                <div className="account-install-guide">
+                  <PwaInstallGuide />
+                </div>
+              )}
+            </>
+          )}
           <Button
-            ref={logoutItem}
             role="menuitem"
             variant="ghost"
-            className="account-logout"
+            className="account-menu-item"
             onClick={() => void signOut()}
             disabled={logout.isPending}
           >
