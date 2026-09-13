@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Fantastiche.Infrastructure.Common.Persistence;
 using Fantastiche.Infrastructure.Emails;
 using Microsoft.AspNetCore.Hosting;
@@ -47,7 +48,8 @@ public sealed partial class HttpFlowTests(SqlFixture fixture) : IClassFixture<Sq
     {
         await using var scope = fixture.Services.CreateAsyncScope();
         var email = await scope.ServiceProvider.GetRequiredService<FantasticheDbContext>().EmailMessages.SingleAsync(x => x.InvitationId == invitationId);
-        return scope.ServiceProvider.GetRequiredService<EmailPayloadProtector>().Unprotect(email.ProtectedPayload).TextBody!.Split("#token=")[1];
+        var text = scope.ServiceProvider.GetRequiredService<EmailPayloadProtector>().Unprotect(email.ProtectedPayload).TextBody!;
+        return Regex.Match(text, "#token=([0-9a-fA-F]{64})").Groups[1].Value;
     }
     private static async Task<JsonElement> Data(HttpResponseMessage result, HttpStatusCode status)
     {
@@ -69,6 +71,10 @@ public sealed partial class HttpFlowTests(SqlFixture fixture) : IClassFixture<Sq
         {
             preview.Headers.Add("X-Invitation-Token", token);
             var json = await Data(await organizer.SendAsync(preview), HttpStatusCode.OK); Assert.False(json.GetProperty("requiresTeam").GetBoolean());
+            Assert.Equal("Lega HTTP", json.GetProperty("leagueName").GetString()); Assert.Equal("Admin", json.GetProperty("invitedBy").GetString());
+            Assert.Equal(JsonValueKind.Null, json.GetProperty("leagueLogoUrl").ValueKind);
+            var hint = json.GetProperty("recipientEmailHint").GetString()!;
+            Assert.StartsWith(organizerEmail[..1] + "•••", hint); Assert.EndsWith("@example.test", hint); Assert.DoesNotContain(organizerEmail, hint);
         }
         await RefreshCsrf(organizer);
         await Data(await organizer.PostAsJsonAsync("/api/Invitations/Accept", new { token, password = Password }), HttpStatusCode.OK);
@@ -79,6 +85,7 @@ public sealed partial class HttpFlowTests(SqlFixture fixture) : IClassFixture<Sq
         await RefreshCsrf(participant);
         var acceptance = await Data(await participant.PostAsJsonAsync("/api/Invitations/Accept", new { token, password = Password, teamName = "Squadra HTTP" }), HttpStatusCode.OK);
         Assert.NotEqual(Guid.Empty, acceptance.GetProperty("teamId").GetGuid());
+        Assert.Equal("Squadra HTTP", acceptance.GetProperty("teamName").GetString()); Assert.Equal(email, acceptance.GetProperty("email").GetString());
         await Login(participant, email, Password);
         var detail = await Data(await participant.GetAsync($"/api/Leagues/{leagueId}"), HttpStatusCode.OK); Assert.Equal(500, detail.GetProperty("budget").GetInt32());
         var denied = await participant.PostAsJsonAsync("/api/Leagues/", new { name = "Vietata" }); Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);

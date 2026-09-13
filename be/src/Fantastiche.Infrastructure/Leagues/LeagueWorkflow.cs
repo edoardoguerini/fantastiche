@@ -1,7 +1,5 @@
 using System.Data;
-using System.Net;
 using Fantastiche.Core.Auth;
-using Fantastiche.Core.Email;
 using Fantastiche.Core.Exceptions;
 using Fantastiche.Infrastructure.Common.Authentication;
 using Fantastiche.Infrastructure.Common.Persistence;
@@ -73,7 +71,8 @@ public sealed class LeagueWorkflow(FantasticheDbContext db, UserManager<Applicat
         if (invitation.AcceptedAt is not null) throw new DomainException("invitation.consumed", "Invito già accettato.", 410);
         var league = await db.Leagues.AsNoTracking().SingleAsync(x => x.Id == invitation.LeagueId, ct);
         var user = await users.FindByIdAsync(invitation.UserId.ToString()) ?? throw NotFound();
-        return new InvitationPreview(league.Name, invitation.ExpiresAt, await users.HasPasswordAsync(user), invitation.Kind == InvitationKind.Participant);
+        return new InvitationPreview(league.Name, logos.Url(league.LogoBlobName), await InviterNameAsync(invitation.InvitedByUserId), EmailMasking.Mask(user.Email!),
+         invitation.ExpiresAt, await users.HasPasswordAsync(user), invitation.Kind == InvitationKind.Participant);
     }
     public async Task<AcceptanceDetails> AcceptInvitationAsync(AcceptInvitationCommand r, CancellationToken ct)
     {
@@ -85,7 +84,9 @@ public sealed class LeagueWorkflow(FantasticheDbContext db, UserManager<Applicat
         if (invitation.AcceptedAt is not null)
         {
             if (r.Context.UserId != user.Id) throw Forbidden();
-            return new AcceptanceDetails(invitation.LeagueId, invitation.LeagueSeasonId, invitation.AcceptedTeamId);
+            var acceptedTeam = invitation.AcceptedTeamId is { } teamId
+             ? await db.Teams.AsNoTracking().Where(x => x.Id == teamId).Select(x => x.Name).SingleOrDefaultAsync(ct) : null;
+            return new AcceptanceDetails(invitation.LeagueId, invitation.LeagueSeasonId, invitation.AcceptedTeamId, user.Email!, acceptedTeam);
         }
         ValidateAvailable(invitation);
         if (r.Context.UserId is not null && r.Context.UserId != user.Id) throw Forbidden();
@@ -103,6 +104,7 @@ public sealed class LeagueWorkflow(FantasticheDbContext db, UserManager<Applicat
         }
         var member = await db.LeagueMembers.SingleAsync(x => x.LeagueId == invitation.LeagueId && x.UserId == user.Id, ct);
         member.Status = MembershipStatus.Active;
+        string? teamName = null;
         if (invitation.Kind == InvitationKind.Organizer) member.IsOrganizer = true;
         else
         {
@@ -116,13 +118,13 @@ public sealed class LeagueWorkflow(FantasticheDbContext db, UserManager<Applicat
             var team = new Team { LeagueId = invitation.LeagueId, LeagueSeasonId = season.Id, Name = name, NormalizedName = normalized, Budget = season.Budget };
             db.Teams.Add(team);
             db.TeamMembers.Add(new TeamMember { TeamId = team.Id, LeagueId = invitation.LeagueId, LeagueSeasonId = season.Id, UserId = user.Id });
-            invitation.AcceptedTeamId = team.Id;
+            invitation.AcceptedTeamId = team.Id; teamName = team.Name;
         }
         invitation.AcceptedAt = clock.GetUtcNow();
         await CancelEmailsAsync(invitation.Id, ct);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
-        return new AcceptanceDetails(invitation.LeagueId, invitation.LeagueSeasonId, invitation.AcceptedTeamId);
+        return new AcceptanceDetails(invitation.LeagueId, invitation.LeagueSeasonId, invitation.AcceptedTeamId, user.Email!, teamName);
     }
     public async Task<bool> RevokeInvitationAsync(RevokeInvitationCommand r, CancellationToken ct)
     {
@@ -164,10 +166,9 @@ public sealed class LeagueWorkflow(FantasticheDbContext db, UserManager<Applicat
         };
         var baseUrl = configuration["Invitations:PublicBaseUrl"] ?? "http://localhost:6061";
         var link = baseUrl.TrimEnd('/') + "/invito#token=" + token;
-        var safeName = WebUtility.HtmlEncode(league.Name); var safeLink = WebUtility.HtmlEncode(link);
-        var email = new RenderedEmail(user.Email!, user.DisplayName, "Invito a " + league.Name,
-         $"<p>Sei stato invitato alla lega {safeName}.</p><p><a href=\"{safeLink}\">Accetta invito</a></p><p>Il link scade tra 72 ore.</p>",
-         $"Invito alla lega {league.Name}. Accetta entro 72 ore: {link}");
+        var season = await db.LeagueSeasons.AsNoTracking().SingleAsync(x => x.Id == seasonId, ct);
+        var email = InvitationEmailTemplate.Render(user.DisplayName, user.Email!, await InviterNameAsync(senderId), league.Name, logos.Url(league.LogoBlobName),
+         season.Name, season.Budget, kind, invitation.ExpiresAt, link);
         db.LeagueInvitations.Add(invitation);
         db.EmailMessages.Add(new EmailMessage
         {
@@ -180,6 +181,7 @@ public sealed class LeagueWorkflow(FantasticheDbContext db, UserManager<Applicat
         await db.SaveChangesAsync(ct);
         return new InvitationDetails(invitation.Id, league.Id, invitation.ExpiresAt);
     }
+    private async Task<string> InviterNameAsync(Guid userId) => (await users.FindByIdAsync(userId.ToString()))?.DisplayName ?? "Fantastiche";
     private async Task<ApplicationUser> GetOrCreateUserAsync(string email, string displayName)
     {
         email = Required(email, 256);

@@ -12,7 +12,7 @@ public sealed class InvitationsModule : IRegistrableModule
     {
         var group = api.MapGroup("/Invitations").WithTags("Invitations").AllowAnonymous();
         group.MapGet("/Preview", Preview).WithName("PreviewInvitation")
-         .WithSummary("Anteprima invito").WithDescription("Mostra nome lega e requisiti del form senza consumare l’invito. Token nell’header X-Invitation-Token.");
+         .WithSummary("Anteprima invito").WithDescription("Mostra nome e logo della lega, chi invita, email mascherata del destinatario, scadenza e requisiti del form senza consumare l’invito. Token nell’header X-Invitation-Token.");
         group.MapPost("/Accept", Accept).WithName("AcceptInvitation")
          .WithSummary("Accetta invito").WithDescription("Attiva l’adesione e, per i partecipanti, crea la squadra. Un account esistente deve autenticarsi.");
     }

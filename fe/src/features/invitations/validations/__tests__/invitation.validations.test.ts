@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   acceptanceFormSchema,
   inviteSchema,
+  passwordRules,
+  passwordRuleStatus,
   readInvitationToken,
 } from '../invitation.validations'
 
@@ -17,37 +19,7 @@ describe('inviti', () => {
       inviteSchema.safeParse({ displayName: ' ', email: 'invalid' }).success,
     ).toBe(false)
   })
-  it('un nuovo partecipante richiede password conforme, conferma e nome squadra', () => {
-    const schema = acceptanceFormSchema(true, true)
-    const valid = {
-      teamName: ' Le Fenici ',
-      password: 'Invited-User-123!',
-      confirmPassword: 'Invited-User-123!',
-    }
-    expect(schema.parse(valid).teamName).toBe('Le Fenici')
-    for (const values of [
-      { ...valid, teamName: '' },
-      { ...valid, password: 'short', confirmPassword: 'short' },
-      { ...valid, confirmPassword: 'Other-Password-123!' },
-    ])
-      expect(schema.safeParse(values).success).toBe(false)
-  })
-  it('organizzatore e account esistente non richiedono i campi estranei al loro invito', () => {
-    expect(
-      acceptanceFormSchema(false, false).safeParse({
-        teamName: '',
-        password: '',
-        confirmPassword: '',
-      }).success,
-    ).toBe(true)
-    expect(
-      acceptanceFormSchema(true, false).safeParse({
-        teamName: 'Le Fenici',
-        password: '',
-        confirmPassword: '',
-      }).success,
-    ).toBe(true)
-  })
+
   it('legge il frammento e la query legacy senza accettare token arbitrari', () => {
     const token = 'a'.repeat(64)
     expect(
@@ -60,5 +32,71 @@ describe('inviti', () => {
       readInvitationToken('https://fantastiche.test/invito?token=bad'),
     ).toBeNull()
     expect(readInvitationToken('https://fantastiche.test/invito')).toBeNull()
+  })
+})
+
+describe('regole password', () => {
+  it('espone cinque regole con etichette in italiano', () => {
+    expect(passwordRules.map((rule) => rule.id)).toEqual([
+      'length',
+      'upper',
+      'lower',
+      'digit',
+      'symbol',
+    ])
+    expect(passwordRules.map((rule) => rule.label)).toEqual([
+      'Almeno 12 caratteri',
+      'Una maiuscola',
+      'Una minuscola',
+      'Un numero',
+      'Un simbolo',
+    ])
+  })
+
+  it('indica quali regole soddisfa il testo digitato', () => {
+    expect(passwordRuleStatus('Abc1')).toEqual({
+      length: false,
+      upper: true,
+      lower: true,
+      digit: true,
+      symbol: false,
+    })
+    expect(passwordRuleStatus('Invited-User-123!')).toEqual({
+      length: true,
+      upper: true,
+      lower: true,
+      digit: true,
+      symbol: true,
+    })
+  })
+})
+
+describe('schema di adesione', () => {
+  it('accetta squadra e password senza campo di conferma', () => {
+    const result = acceptanceFormSchema(true, true).safeParse({
+      teamName: ' Le Fenici ',
+      password: 'Invited-User-123!',
+    })
+    expect(result.success).toBe(true)
+    expect(result.success && result.data.teamName).toBe('Le Fenici')
+  })
+
+  it('segnala la prima regola mancante della password', () => {
+    const result = acceptanceFormSchema(false, true).safeParse({
+      teamName: '',
+      password: 'tuttominuscolo123',
+    })
+    expect(result.success).toBe(false)
+    expect(!result.success && result.error.issues[0]?.message).toBe(
+      'Aggiungi una maiuscola.',
+    )
+  })
+
+  it('ignora la password quando l’account esiste già', () => {
+    const result = acceptanceFormSchema(true, false).safeParse({
+      teamName: 'Le Fenici',
+      password: '',
+    })
+    expect(result.success).toBe(true)
   })
 })

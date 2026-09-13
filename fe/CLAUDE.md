@@ -6,7 +6,7 @@ Applica anche [CLAUDE.md root](../CLAUDE.md). Implementati login centrato solo d
 
 Palette globale approvata dall’utente: nero (#0C0C0E), superfici antracite (#18181B, #202023, #242427), testi neutri (#F4F4F5, #AAAAB3) e accento lilla (#C4A1FF) per azioni, selezioni e focus. I token condivisi sono in `src/styles/globals.css` e si applicano a login, inviti, leghe, catalogo e sala d’asta.
 
-Login centrato senza box, campi con etichette visibili e sfondo CSS a gradiente radiale viola (#30243E, #1A1125) che sfuma nel nero. Lo stesso sfondo è condiviso dalla pagina degli inviti; la texture del campo non è più utilizzata. La sala d’asta eredita la palette globale; i colori dei ruoli e degli stati conservano il significato.
+Login centrato senza box, campi con etichette visibili e sfondo CSS a gradiente radiale viola (#30243E, #1A1125) che sfuma nel nero. Lo stesso sfondo è condiviso dalla pagina degli inviti, che usa un pannello da 460 px con carta della lega, passi solo per l’account esistente e checklist password: [guida inviti](docs/architecture/invitations.md). La texture del campo non è più utilizzata. La sala d’asta eredita la palette globale; i colori dei ruoli e degli stati conservano il significato.
 
 Linee e bordi sempre minimali: token condiviso `--border`/`--input` bianco all’8% di opacità, hover discreto al 14%. Separare le sezioni soprattutto con gli spazi, evitare contorni marcati. Nei campi e nei select il focus usa un solo bordo lilla, senza anello esterno aggiuntivo. Conservare indicatori di focus da tastiera e di errore riconoscibili.
 
@@ -17,7 +17,7 @@ Header e contenuti ordinari condividono larghezza utile di 1100 px e margini lat
 TanStack Start, React, TypeScript strict, Vite, TanStack Query, Tailwind e shadcn/ui. Manteniamo da ACKS pnpm, TanStack Form + Zod per i form e TanStack Table quando serve una tabella avanzata. Versioni compatibili fissate in package.json e pnpm-lock.yaml; non aggiornare automaticamente alle versioni del riferimento.
 
 - Routes sottili in `src/routes/`, logica e UI di dominio in `src/features/`.
-- Ogni feature: `components/`, `actions/`, `validations/`, `types/`, `hooks/` e `index.ts`.
+- Ogni feature: `components/`, `actions/`, `validations/`, `types/`, `hooks/`, `utils/` per helper puri della feature e `index.ts`.
 - File kebab-case con suffisso del ruolo: `auction.queries.ts`, `auction.mutations.ts`, `auction.types.ts`.
 - Primitives shadcn in `components/primitives/`, componenti trasversali in `components/common/`, shell in `components/layout/`.
 - Helper generici e trasporti in `lib/`; semantica d’asta nella feature auctions.

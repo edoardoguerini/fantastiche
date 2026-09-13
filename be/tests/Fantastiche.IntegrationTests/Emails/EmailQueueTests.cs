@@ -110,7 +110,8 @@ public sealed class EmailQueueTests : IAsyncLifetime
         public int Deliveries => deliveries;
         public async Task<EmailSendResult> SendAsync(RenderedEmail email, CancellationToken ct = default)
         {
-            Assert.Contains("#token=", email.TextBody); Interlocked.Increment(ref deliveries);
+            Assert.Equal("Organizza Lega su Fantastiche", email.Subject);
+            Assert.Matches("#token=[0-9a-fA-F]{64}$", email.TextBody); Interlocked.Increment(ref deliveries);
             await Task.Delay(100, ct); return new("test-provider");
         }
     }
