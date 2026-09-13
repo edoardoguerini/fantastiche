@@ -229,12 +229,14 @@
   --app-gutter: 24px;
 }
 .app-header {
-  height: 88px;
+  --app-header-height: 88px;
+  height: calc(var(--app-header-height) + env(safe-area-inset-top, 0px));
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 0 max(var(--app-gutter), calc((100% - var(--app-content-width)) / 2));
+  padding: env(safe-area-inset-top, 0px)
+    max(var(--app-gutter), calc((100% - var(--app-content-width)) / 2)) 0;
   border-bottom: 1px solid var(--border);
 }
 .app-brand {
@@ -763,8 +765,8 @@ body > .page-state {
     height: 40px;
   }
   .app-header {
-    height: 76px;
-    padding: 0 var(--app-gutter);
+    --app-header-height: 76px;
+    padding-inline: var(--app-gutter);
     gap: 12px;
   }
   .app-brand {
