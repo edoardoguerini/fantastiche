@@ -43,6 +43,27 @@ public sealed class OnboardingTests(SqlFixture fixture) : IClassFixture<SqlFixtu
         return new RequestContext(setup.UserId, false, "integration");
     }
     [Fact]
+    public async Task SuperAdminClaimWithoutDatabaseRoleCannotCreateLeague()
+    {
+        var email = Guid.NewGuid() + "@example.test";
+        var userId = await Run(async p =>
+        {
+            var user = new ApplicationUser { Email = email, UserName = email, DisplayName = "Non admin" };
+            Assert.True((await p.GetRequiredService<UserManager<ApplicationUser>>().CreateAsync(user)).Succeeded);
+            return user.Id;
+        });
+        var context = new RequestContext(userId, true, "stale-claim");
+        var error = await Assert.ThrowsAsync<DomainException>(() => Workflow(w => w.CreateLeagueAsync(
+            new(context, "Lega non autorizzata", "2026/27", email, "Organizzatore"), default)));
+        Assert.Equal(403, error.StatusCode);
+        await Run(async p =>
+        {
+            Assert.False(await p.GetRequiredService<FantasticheDbContext>().LeagueMembers.AnyAsync(x => x.UserId == userId));
+            return true;
+        });
+    }
+
+    [Fact]
     public async Task OnlySuperAdminCreatesLeague()
     {
         var error = await Assert.ThrowsAsync<DomainException>(() => Workflow(w => w.CreateLeagueAsync(new(Anonymous, "Lega", "2026", "user@example.test", "Utente"), default)));

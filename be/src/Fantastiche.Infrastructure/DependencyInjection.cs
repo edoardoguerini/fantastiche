@@ -1,6 +1,8 @@
 using System.Security.Cryptography.X509Certificates;
 using Azure.Identity;
 using Fantastiche.Core.Email;
+using Fantastiche.Core.Storage;
+using Fantastiche.Gateways.AzureBlob;
 using Fantastiche.Gateways.Mailgun;
 using Fantastiche.Infrastructure.Common;
 using Fantastiche.Infrastructure.Common.Authentication;
@@ -52,6 +54,7 @@ public static class DependencyInjection
         services.AddScoped<EmailPayloadProtector>();
         services.AddScoped<LeagueWorkflow>();
         services.AddScoped<LeagueLogoStorage>();
+        services.AddScoped<ILeagueLogoStore, AzureLeagueLogoStore>();
         services.AddScoped<CatalogWorkflow>();
         services.AddScoped<PlayerMediaImporter>();
         services.AddScoped<PlayerPhotoStorage>();

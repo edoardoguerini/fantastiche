@@ -9,6 +9,8 @@ import { ApiError, errorMessage } from '@/lib/api/error'
 import { createLeagueMutationOptions } from '../actions/league.mutations'
 import { leagueQueryOptions } from '../actions/leagues.queries'
 import { createLeagueSchema } from '../validations/league.validations'
+import { LeagueLogoDropzone } from './league-logo-dropzone'
+import { leagueLogoError } from '../utils/league-logo-file'
 import type { League } from '../types/leagues.types'
 
 const textSections = [
@@ -69,6 +71,8 @@ export function CreateLeagueForm({
   onSuccess: (league: League) => void | Promise<void>
 }) {
   const hydrated = useHydrated()
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const logoError = leagueLogoError(logoFile)
   const client = useQueryClient()
   const create = useMutation(createLeagueMutationOptions())
   const submitting = useRef(false)
@@ -88,11 +92,11 @@ export function CreateLeagueForm({
     },
     validators: { onSubmit: createLeagueSchema },
     onSubmit: async ({ value }) => {
-      if (submitting.current || created) return
+      if (submitting.current || created || logoError) return
       submitting.current = true
       setSubmitError(null)
       try {
-        const league = await create.mutateAsync(value)
+        const league = await create.mutateAsync({ ...value, logoFile })
         setCreated(true)
         // Una risposta tardiva non deve ripopolare la cache di un'altra sessione.
         const currentUser = client.getQueryData(authQueryOptions().queryKey)
@@ -199,6 +203,13 @@ export function CreateLeagueForm({
                     </form.Field>
                   ))}
                 </div>
+                {section.title === 'La lega' && (
+                  <LeagueLogoDropzone
+                    file={logoFile}
+                    onChange={setLogoFile}
+                    disabled={!hydrated || isSubmitting || created}
+                  />
+                )}
               </section>
             ))}
             <section
@@ -291,7 +302,7 @@ export function CreateLeagueForm({
           {(isSubmitting) => (
             <Button
               type="submit"
-              disabled={!hydrated || isSubmitting || created}
+              disabled={!hydrated || isSubmitting || created || !!logoError}
               aria-busy={isSubmitting}
             >
               {created

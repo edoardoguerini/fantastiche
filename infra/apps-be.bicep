@@ -70,6 +70,7 @@ var sharedEnv = [
   { name: 'Mailgun__ApiKey', secretRef: 'mailgun-apikey' }
   { name: 'Storage__PlayerPhotos__PublicBaseUrl', value: '${blobEndpoint}player-photos' }
   { name: 'Storage__ClubLogos__PublicBaseUrl', value: '${blobEndpoint}club-logos' }
+  { name: 'Storage__LeagueLogos__PublicBaseUrl', value: '${blobEndpoint}league-logos' }
 ]
 
 var apiEnv = concat(sharedEnv, [

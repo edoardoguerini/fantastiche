@@ -16,4 +16,6 @@ Default Classic Light, coerente con i bordi discreti della UI. La dimensione seg
 
 La bottombar della sala d’asta usa Jelly Regular, richiesta dall’utente: `bolt`, `list`, `shirt`, `clock` e `sliders`, tutti verificati nella famiglia. Il relativo webfont e il CSS di famiglia originali provengono dagli asset locali di ACKSD; il CSS viene importato dal componente Icon. Jelly copre un sottoinsieme del catalogo: verificare il glifo prima di usarne altri con questa variante.
 
+Tutti i campi password usano `eye` per mostrare e `eye-slash` per nascondere il valore, in Classic Light. Il pulsante mantiene un’area di 44 × 44 px, il nome accessibile “Mostra password” / “Nascondi password” e lo stato `aria-pressed`.
+
 Il CSS del fornitore è escluso da Prettier per conservarlo originale. Non modificare i webfont o la licenza. Il picker di icone e le altre famiglie di ACKSD non sono necessari a questo incremento.

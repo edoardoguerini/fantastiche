@@ -24,7 +24,6 @@ export function InvitationHeader({
   const expiry = formatExpiry(invitation.expiresAt)
   return (
     <header className="invitation-league">
-      <p className="invitation-eyebrow">Il tuo invito</p>
       {invitation.leagueLogoUrl && !logoFailed ? (
         <img
           className="invitation-logo"

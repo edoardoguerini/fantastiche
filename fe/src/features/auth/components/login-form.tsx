@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useHydrated } from '@tanstack/react-router'
+import { Icon } from '@/components/common/icon'
 import { Button } from '@/components/primitives/button'
 import { Input } from '@/components/primitives/input'
 import { errorMessage } from '@/lib/api/error'
@@ -129,7 +130,7 @@ export function LoginForm({
                   aria-pressed={showPassword}
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? 'Nascondi' : 'Mostra'}
+                  <Icon name={showPassword ? 'eye-slash' : 'eye'} />
                 </button>
               </div>
               {invalid && (

@@ -250,3 +250,128 @@ for (const width of [1440, 390, 320]) {
     })
   })
 }
+
+const logoPng =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII='
+
+test('carica il logo con anteprima e lo invia insieme alla lega', async ({
+  page,
+}) => {
+  const state = await setupApi(page)
+  await page.goto('/leghe/nuova')
+  await fillForm(page)
+  await page.getByLabel('File logo della lega').setInputFiles({
+    name: 'stemma.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(logoPng, 'base64'),
+  })
+  await expect(
+    page.getByRole('img', { name: 'Anteprima del logo' }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Crea lega', exact: true }).click()
+  await expect(page).toHaveURL(/\/leghe\/league-new$/)
+  expect(state.posts).toEqual([{ ...values, logo: logoPng }])
+})
+
+test('rifiuta file non immagine e permette di rimuoverli', async ({ page }) => {
+  const state = await setupApi(page)
+  await page.goto('/leghe/nuova')
+  await fillForm(page)
+  await page.getByLabel('File logo della lega').setInputFiles({
+    name: 'logo.svg',
+    mimeType: 'image/svg+xml',
+    buffer: Buffer.from('<svg/>'),
+  })
+  await expect(page.getByRole('alert')).toContainText('PNG, JPEG o WebP')
+  await expect(
+    page.getByRole('button', { name: 'Crea lega', exact: true }),
+  ).toBeDisabled()
+  expect(state.posts).toHaveLength(0)
+  await page.getByRole('button', { name: 'Rimuovi logo' }).click()
+  await expect(
+    page.getByRole('button', { name: 'Crea lega', exact: true }),
+  ).toBeEnabled()
+})
+
+test('trascinamento e sostituzione del logo funzionano anche su mobile', async ({
+  page,
+}) => {
+  await setupApi(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/leghe/nuova')
+  await expect(
+    page.getByRole('button', { name: 'Scegli logo della lega' }),
+  ).toBeEnabled()
+  const transfer = await page.evaluateHandle((base64) => {
+    const data = new DataTransfer()
+    data.items.add(
+      new File(
+        [Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))],
+        'logo-trascinato.png',
+        { type: 'image/png' },
+      ),
+    )
+    return data
+  }, logoPng)
+  await page
+    .locator('.league-logo-dropzone')
+    .dispatchEvent('dragover', { dataTransfer: transfer })
+  await expect(page.locator('.league-logo-dropzone')).toHaveAttribute(
+    'data-dragging',
+    'true',
+  )
+  await page
+    .locator('.league-logo-dropzone')
+    .dispatchEvent('drop', { dataTransfer: transfer })
+  await expect(page.getByText('logo-trascinato.png')).toBeVisible()
+  await expect(
+    page.getByRole('img', { name: 'Anteprima del logo' }),
+  ).toBeVisible()
+  await page.screenshot({
+    path: test.info().outputPath('logo-mobile.png'),
+    fullPage: true,
+  })
+  await page.getByRole('button', { name: 'Rimuovi logo' }).click()
+  await expect(
+    page.getByRole('img', { name: 'Anteprima del logo' }),
+  ).toHaveCount(0)
+  await page.setViewportSize({ width: 1440, height: 1100 })
+  await page.screenshot({
+    path: test.info().outputPath('logo-desktop.png'),
+    fullPage: true,
+  })
+  const button = page.getByRole('button', { name: 'Scegli logo della lega' })
+  await button.focus()
+  const chooser = page.waitForEvent('filechooser')
+  await page.keyboard.press('Enter')
+  await (
+    await chooser
+  ).setFiles({
+    name: 'altro.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(logoPng, 'base64'),
+  })
+  await expect(page.getByText('altro.png')).toBeVisible()
+  await transfer.dispose()
+})
+
+test('un logo oltre 2 MB blocca il salvataggio senza perdere gli altri campi', async ({
+  page,
+}) => {
+  const state = await setupApi(page)
+  await page.goto('/leghe/nuova')
+  await fillForm(page)
+  await page.getByLabel('File logo della lega').setInputFiles({
+    name: 'grande.png',
+    mimeType: 'image/png',
+    buffer: Buffer.alloc(2 * 1024 * 1024 + 1),
+  })
+  await expect(page.getByRole('alert')).toContainText('al massimo 2 MB')
+  await expect(
+    page.getByRole('button', { name: 'Crea lega', exact: true }),
+  ).toBeDisabled()
+  await expect(page.getByLabel('Nome della lega', { exact: true })).toHaveValue(
+    values.name,
+  )
+  expect(state.posts).toHaveLength(0)
+})

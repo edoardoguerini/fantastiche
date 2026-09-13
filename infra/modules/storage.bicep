@@ -18,7 +18,7 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   properties: {
     minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
-    // Necessario per i due container pubblici; il container dataprotection resta None.
+    // Necessario per i container pubblici; il container dataprotection resta None.
     allowBlobPublicAccess: true
     // Solo RBAC: niente account key.
     allowSharedKeyAccess: false
@@ -47,6 +47,12 @@ resource playerPhotos 'Microsoft.Storage/storageAccounts/blobServices/containers
 resource clubLogos 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
   parent: blobService
   name: 'club-logos'
+  properties: { publicAccess: 'Blob' }
+}
+
+resource leagueLogos 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'league-logos'
   properties: { publicAccess: 'Blob' }
 }
 

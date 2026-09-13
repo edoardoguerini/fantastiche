@@ -6,11 +6,11 @@ Anteprima tramite GET `/Invitations/Preview` con header `X-Invitation-Token`, ca
 
 ## Struttura della pagina
 
-La pagina condivide scena e pannello con la login (`login-page`, `login-panel`), con contenitore leggermente più largo (460 px) perché ospita la carta della lega e il form. I componenti stanno in `features/invitations/components`:
+La pagina condivide scena e pannello con la login (`login-page`, `login-panel`), con contenitore leggermente più largo (460 px) perché ospita la carta della lega e il form. L’intestazione mostra solo il logo della lega, senza il logo Fantastiche sopra il pannello. I componenti stanno in `features/invitations/components`:
 
-- `InvitationHeader`: occhiello, logo della lega o iniziali su fondo lilla scuro, nome, chip del ruolo (Partecipante/Organizzatore), scadenza assoluta in italiano e frase con chi invita.
+- `InvitationHeader`: logo della lega o iniziali su fondo lilla scuro, nome, chip del ruolo (Partecipante/Organizzatore), scadenza assoluta in italiano e frase con chi invita.
 - `InvitationSteps`: due passi (`Accedi` → `Conferma squadra`) usati solo quando il login è separato dalla conferma, cioè per un account già attivo. Lo stato corrente ha `aria-current="step"`.
-- `AcceptInvitationForm`: sezione "La tua squadra" con anteprima del nome e iniziali, sezione "Il tuo account" con password, toggle Mostra e checklist dei requisiti aggiornata a ogni tasto (`data-satisfied` per riga). Non esiste più il campo di conferma password. Le regole vivono in `validations/invitation.validations.ts` e alimentano sia la checklist sia lo schema Zod.
+- `AcceptInvitationForm`: campi con etichette visibili "Nome squadra" e "Password", senza titoli di sezione aggiuntivi; le legende dei gruppi restano disponibili agli screen reader. Include anteprima del nome e iniziali, toggle Mostra e checklist dei requisiti aggiornata a ogni tasto (`data-satisfied` per riga). Non esiste più il campo di conferma password. Le regole vivono in `validations/invitation.validations.ts` e alimentano sia la checklist sia lo schema Zod.
 - Testi di esito e scadenza in `utils/invitation-copy.ts`: gli errori sono distinti dal codice del backend (`invitation.expired`, `invitation.revoked`, `invitation.consumed`, non trovato, rete) e propongono l’azione giusta (accedi, vai alle leghe, riprova).
 
 ## Percorsi

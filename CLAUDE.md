@@ -42,7 +42,7 @@ Specifiche: [asta](docs/superpowers/specs/2026-09-09-asta-design.md), [catalogo 
 
 - Documentazione, commenti, commit e PR in italiano; codice, tabelle e campi in inglese.
 - Conventional commits, scope `be`, `fe`, `infra` o omesso. Niente firme AI o `Co-Authored-By` dell’assistente.
-- Segreti, credenziali, dump, CSV importati e immagini scaricate non vanno nel repository. Eccezione autorizzata: il logo fornito dall’utente, convertito in `fe/public/brand/fantastiche-logo.png`, è un asset del prodotto. Anche la texture di erba fornita dall’utente, compressa in `fe/src/assets/pitch-grass.webp`, è un asset autorizzato, attualmente non utilizzato.
+- Segreti, credenziali, dump, CSV importati e immagini scaricate non vanno nel repository. Eccezione autorizzata: il logo fornito dall’utente, convertito in `fe/public/brand/fantastiche-logo.png` (con le varianti `-transparent` e `-email` derivate), è un asset del prodotto. Anche la texture di erba fornita dall’utente, compressa in `fe/src/assets/pitch-grass.webp`, è un asset autorizzato, attualmente non utilizzato.
 - Prima di una modifica leggere la guida dello stack e i file pertinenti. Aggiornare i docs quando cambia una convenzione.
 - Non copiare configurazioni, identificativi Azure, dati, asset premium o dipendenze di ACKS senza necessità e verifica.
 - Lo storage locale usa Azurite dedicato sulla porta 10010 con volume persistente; card e stemmi stanno in container separati, metadati su SQL. Importatori e istruzioni in [storage locale](be/docs/getting-started/local-storage.md). Nessun download del catalogo o backup locale va in Git.
