@@ -72,9 +72,18 @@
   border-bottom: 1px solid var(--border);
   overflow-wrap: anywhere;
 }
-.account-dropdown .account-logout {
+.account-dropdown .account-menu-item {
   width: 100%;
   justify-content: flex-start;
+}
+.account-install-guide {
+  padding: 4px 12px 12px 42px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.account-install-guide p + p {
+  margin-top: 6px;
 }
 .account-dropdown .field-error {
   padding: 8px 10px;

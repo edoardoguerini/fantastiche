@@ -168,7 +168,7 @@ test(
         )
         .toBe(true)
       await expect(page.getByRole('status')).toContainText(
-        'Aggiornamento pronto',
+        'Nuova versione pronta',
       )
       await page.reload()
       assert.equal(await auction.evaluate(() => window.pwaTestMarker), 42)

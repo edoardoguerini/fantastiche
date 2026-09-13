@@ -4,7 +4,9 @@ Supporto PWA implementato: manifest, icone PNG 192/512 px dal logo autorizzato, 
 
 ## Installazione
 
-La build di produzione mostra «Installa app» fuori da asta e inviti. Su Chromium usa il prompt nativo quando disponibile; altrimenti mostra le istruzioni del browser. Su iPhone/iPad si usa Condividi → Aggiungi alla schermata Home; Safari su Mac offre File → Aggiungi al Dock. Il controllo scompare in modalità standalone e dopo l’installazione. Non ci sono prompt automatici o notifiche push.
+Lo stato PWA vive in `src/lib/pwa/pwa-store.ts`, avviato dal root solo nella build di produzione: cattura il prompt nativo (`beforeinstallprompt`), riconosce la modalità standalone e osserva il worker. Il menu account offre «Installa app» finché l’app non è installata: su Chromium apre il prompt nativo; dove manca, mostra nel menu le istruzioni del browser (iPhone/iPad: Condividi → Aggiungi alla schermata Home; Safari su Mac: File → Aggiungi al Dock).
+
+Nella login compare la card «Porta Fantastiche sulla Home», in alto a destra su desktop e come banner a tutta larghezza in cima allo schermo su mobile, con ingresso ritardato di 2,5 s. «Installa» usa il prompt nativo o apre le istruzioni nella card; «Non ora» la rimanda di 30 giorni sul dispositivo tramite localStorage. La card non compare se l’app è già installata, se è in attesa un aggiornamento o nelle pagine private. Non ci sono prompt automatici o notifiche push.
 
 `public/manifest.webmanifest` definisce identità stabile `/`, nome, colori, icone e scope `/`. Il root include manifest, icona Apple e metadati iOS. Il browser conserva l’autenticazione secondo le proprie regole: il sito continua a usare esclusivamente il cookie HttpOnly.
 
@@ -20,7 +22,7 @@ Le navigazioni richiedono sempre la rete. Se manca, compare «Torniamo in campo 
 
 Il nuovo worker rimane in attesa finché tutte le schede e finestre dell’app sono chiuse. Nessun `skipWaiting`, messaggio di attivazione forzata o reload automatico: anche due finestre contemporanee conservano la versione attiva. Il primo worker può prendere controllo della pagina aperta senza ricaricarla.
 
-Fuori dalla sala d’asta compare un avviso con le istruzioni per chiudere e riaprire l’app dopo l’asta. Al ritorno in foreground viene cercato un aggiornamento, al massimo una volta al minuto. Quando la nuova versione si attiva, elimina solo le vecchie cache `fantastiche-static-*`. Nginx e la preview servono worker e manifest con `no-cache`; gli asset con hash conservano la cache lunga.
+Fuori dalla sala d’asta e dagli inviti compare un toast «Nuova versione pronta» in basso, centrato su desktop e a tutta larghezza su mobile, con le istruzioni per chiudere e riaprire l’app dopo l’asta; la X lo nasconde fino al prossimo caricamento. Ha la precedenza sull’invito all’installazione. Al ritorno in foreground viene cercato un aggiornamento, al massimo una volta al minuto. Quando la nuova versione si attiva, elimina solo le vecchie cache `fantastiche-static-*`. Nginx e la preview servono worker e manifest con `no-cache`; gli asset con hash conservano la cache lunga.
 
 ## Realtime
 
