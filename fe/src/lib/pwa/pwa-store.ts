@@ -4,8 +4,10 @@
 export type PwaState = {
   /** Vero solo nel browser, dopo l'avvio in produzione. */
   enabled: boolean
-  /** App aperta in standalone o appena installata. */
+  /** Finestra corrente aperta come PWA. */
   standalone: boolean
+  /** Installazione rilevata durante questa apertura del browser. */
+  installed: boolean
   /** Il browser ha offerto un prompt d'installazione nativo. */
   canPrompt: boolean
   /** Un nuovo worker attende la chiusura delle finestre. */
@@ -29,6 +31,7 @@ const UPDATE_CHECK_MS = 60_000
 const initial: PwaState = {
   enabled: false,
   standalone: false,
+  installed: false,
   canPrompt: false,
   updateReady: false,
   updateDismissed: false,
@@ -144,7 +147,7 @@ export function startPwa() {
   }
   const onInstalled = () => {
     prompt = null
-    set({ standalone: true, canPrompt: false })
+    set({ installed: true, canPrompt: false })
   }
   window.addEventListener('beforeinstallprompt', onPrompt)
   window.addEventListener('appinstalled', onInstalled)
@@ -181,7 +184,7 @@ export async function promptInstall(): Promise<InstallOutcome> {
   set({ canPrompt: false })
   try {
     const { outcome } = await current.prompt()
-    if (outcome === 'accepted') set({ standalone: true })
+    if (outcome === 'accepted') set({ installed: true })
     return outcome
   } catch {
     return 'unavailable'

@@ -23,6 +23,7 @@ function state(patch: Partial<pwa.PwaState>) {
   vi.spyOn(pwa, 'getSnapshot').mockReturnValue({
     enabled: true,
     standalone: false,
+    installed: false,
     canPrompt: false,
     updateReady: false,
     updateDismissed: false,
@@ -88,10 +89,15 @@ describe('menu account', () => {
     )
   })
 
-  it('nasconde la voce quando l’app è installata o il supporto non è attivo', async () => {
-    state({ standalone: true })
-    await setup()
-    expect(screen.queryByRole('menuitem', { name: 'Installa app' })).toBeNull()
-    expect(screen.getByRole('menuitem', { name: 'Esci' })).toHaveFocus()
-  })
+  it.each([{ standalone: true }, { installed: true }, { enabled: false }])(
+    'nasconde la voce quando l’app è installata o il supporto non è attivo: %j',
+    async (patch) => {
+      state(patch)
+      await setup()
+      expect(
+        screen.queryByRole('menuitem', { name: 'Installa app' }),
+      ).toBeNull()
+      expect(screen.getByRole('menuitem', { name: 'Esci' })).toHaveFocus()
+    },
+  )
 })
