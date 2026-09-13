@@ -10,6 +10,8 @@ Nella login compare la card «Porta Fantastiche sulla Home», in alto a destra s
 
 `public/manifest.webmanifest` definisce identità stabile `/`, nome, colori, icone e scope `/`. Il root include manifest, icona Apple e metadati iOS. Il browser conserva l’autenticazione secondo le proprie regole: il sito continua a usare esclusivamente il cookie HttpOnly.
 
+Con `viewport-fit=cover` e la barra di stato iOS `black-translucent`, l’header delle pagine ordinarie aggiunge `env(safe-area-inset-top, 0px)` sia al padding superiore sia all’altezza: logo e menu restano sotto orologio e batteria, mantenendo lo spazio utile di 76 px su mobile e 88 px su desktop. La sala d’asta conserva la propria gestione della safe area. Nei browser senza inset l’header mantiene le dimensioni ordinarie.
+
 ## Cache e offline
 
 `pnpm build` genera `dist/client/sw.js` da `pwa/sw.js` con `scripts/build-pwa.mjs`, senza nuove dipendenze. La versione deriva dal contenuto di template, asset e risorse offline. Solo la build di produzione registra il worker: Vite dev ne resta privo per evitare cache del codice durante HMR.
