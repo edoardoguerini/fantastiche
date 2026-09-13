@@ -37,7 +37,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         },
       ],
       links: [
-        { rel: 'icon', type: 'image/png', href: '/brand/fantastiche-logo.png' },
+        {
+          rel: 'icon',
+          type: 'image/png',
+          href: '/brand/fantastiche-logo-favicon.png',
+        },
         { rel: 'manifest', href: '/manifest.webmanifest' },
         {
           rel: 'apple-touch-icon',
