@@ -22,7 +22,7 @@ public sealed class LoginCommandHandler(
         var result = await signInManager.PasswordSignInAsync(
             user,
             request.Password,
-            isPersistent: false,
+            isPersistent: true,
             lockoutOnFailure: true);
 
         if (result.IsLockedOut)

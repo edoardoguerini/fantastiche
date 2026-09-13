@@ -7,6 +7,7 @@
 - [CQRS e dispatch](architecture/cqrs.md).
 - [Moduli e boundary](architecture/module-pattern.md).
 - [EF Core, Identity e Dapper](architecture/persistence.md).
+- [Sessioni cookie, PWA e rinnovo](architecture/authentication.md).
 - [Naming](conventions/naming.md).
 - [Validazione, errori e log](conventions/validation-errors-logging.md).
 - [Isolamento per lega](domains/league-isolation.md).

@@ -18,7 +18,7 @@ public sealed class LoginCommandHandlerTests
         var userManager = CreateUserManager();
         var signInManager = CreateSignInManager(userManager);
         userManager.FindByEmailAsync(user.Email).Returns(user);
-        signInManager.PasswordSignInAsync(user, "password-errata", false, true)
+        signInManager.PasswordSignInAsync(user, "password-errata", true, true)
             .Returns(SignInResult.Failed);
         var handler = new LoginCommandHandler(userManager, signInManager);
 
@@ -29,7 +29,7 @@ public sealed class LoginCommandHandlerTests
         Assert.Equal("auth.invalid_credentials", error.Code);
         Assert.Equal(StatusCodes.Status401Unauthorized, error.StatusCode);
         await signInManager.Received(1)
-            .PasswordSignInAsync(user, "password-errata", false, true);
+            .PasswordSignInAsync(user, "password-errata", true, true);
     }
 
     private static UserManager<ApplicationUser> CreateUserManager()

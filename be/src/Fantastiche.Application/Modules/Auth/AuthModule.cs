@@ -26,7 +26,7 @@ public sealed class AuthModule : IRegistrableModule
             .RequireRateLimiting("authentication")
             .WithName("Login")
             .WithSummary("Accede con cookie Identity")
-            .WithDescription("Verifica le credenziali e crea una sessione cookie di otto ore.");
+            .WithDescription("Verifica le credenziali e crea una sessione cookie persistente di sette giorni, rinnovabile fino a trenta giorni dal login.");
 
         auth.MapPost("/Logout", LogoutAsync)
             .RequireAuthorization()

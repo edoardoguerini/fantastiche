@@ -55,6 +55,22 @@ describe('sessione SSR', () => {
     expect(init.redirect).toBe('error')
   })
 
+  it('propaga al browser i cookie Identity rinnovati dal backend durante SSR', async () => {
+    context.getRequestHeader.mockReturnValue('Fantastiche.Auth=previous')
+    const cookies = [
+      'Fantastiche.Auth=chunks-2; Path=/; HttpOnly; Secure; SameSite=Lax; Expires=Sun, 20 Sep 2026 12:00:00 GMT',
+      'Fantastiche.AuthC1=renewed-first; Path=/; HttpOnly; Secure',
+      'Fantastiche.AuthC2=renewed-second; Path=/; HttpOnly; Secure',
+    ]
+    const headers = new Headers()
+    for (const cookie of cookies) headers.append('Set-Cookie', cookie)
+    headers.append('Set-Cookie', 'unrelated=private; Path=/')
+    vi.stubGlobal('fetch', async () => respond(user, 200, headers))
+
+    expect(await resolveServerSession()).toEqual(user)
+    expect(context.getResponseHeaders().getSetCookie()).toEqual(cookies)
+  })
+
   it('considera il cookie scaduto anonimo e propaga la cancellazione Identity', async () => {
     context.getRequestHeader.mockReturnValue('Fantastiche.Auth=expired')
     vi.stubGlobal('fetch', async () =>
