@@ -1,6 +1,6 @@
 # PWA e realtime
 
-Supporto PWA implementato: manifest, icone PNG 192/512 px dal logo autorizzato, apple-touch-icon 180 px e apertura standalone da `/leghe`. SSR e cookie Identity restano invariati. L’installazione richiede HTTPS oppure localhost; l’IP LAN in HTTP non basta per provarla su un telefono.
+Supporto PWA implementato: manifest, icone PNG 192/512 px, apple-touch-icon 180 px e apertura standalone da `/leghe`. Le icone in `public/pwa/` derivano da `logo-pwa.png` fornito dall’utente, con sfondo a gradiente; la favicon dedicata è `public/brand/fantastiche-logo-favicon.png`, anch’essa fornita dall’utente. SSR e cookie Identity restano invariati. L’installazione richiede HTTPS oppure localhost; l’IP LAN in HTTP non basta per provarla su un telefono.
 
 ## Installazione
 
