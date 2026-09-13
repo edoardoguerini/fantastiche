@@ -12,12 +12,14 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 namespace Fantastiche.IntegrationTests.Http;
 
 public sealed partial class HttpFlowTests(SqlFixture fixture) : IClassFixture<SqlFixture>
 {
     private const string Password = "Invited-User-123!";
-    private WebApplicationFactory<Program> Factory() => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+    private WebApplicationFactory<Program> Factory(TimeProvider? clock = null) => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
     {
         builder.UseEnvironment("Development");
         builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(fixture.Settings));
@@ -29,6 +31,12 @@ public sealed partial class HttpFlowTests(SqlFixture fixture) : IClassFixture<Sq
          services.AddDbContext<FantasticheDbContext>(options => options.UseSqlServer(fixture.ConnectionString));
          services.RemoveAll<IDataProtectionProvider>();
          services.AddSingleton(fixture.Services.GetRequiredService<IDataProtectionProvider>());
+         if (clock is not null)
+         {
+             services.Configure<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme,
+                 options => options.TimeProvider = clock);
+             services.Configure<SecurityStampValidatorOptions>(options => options.TimeProvider = clock);
+         }
      });
     });
     private static HttpClient Client(WebApplicationFactory<Program> factory) => factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });

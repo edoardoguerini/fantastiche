@@ -24,6 +24,14 @@ restituisce subito una sessione anonima, senza chiamare l’API. Un 401 consente
 login; errori di rete o 5xx restano errori recuperabili. Nessuna sessione globale.
 L’integrazione Query/Router trasferisce i dati risolti durante SSR al browser.
 
+Il cookie Identity è persistente per 7 giorni e si rinnova durante l’uso, fino a
+30 giorni dal login. La query auth verifica la sessione ogni minuto quando la pagina
+è attiva e al ritorno del focus; il rinnovo è responsabilità del backend. Il resolver
+SSR propaga al browser i `Set-Cookie` Identity aggiornati, inclusi i chunk. La PWA
+riaperta usa il cookie conservato dal browser, senza token in localStorage o refresh
+nel service worker. Durate, scadenza e compatibilità delle sessioni precedenti sono
+descritte nella [guida backend](../../../be/docs/architecture/authentication.md).
+
 La login arriva già nel documento, con controlli disabilitati fino alla hydration
 per evitare invii HTML involontari o perdita dei valori digitati. Il form usa
 anche `method="post"`: le credenziali non devono mai finire nella query string.

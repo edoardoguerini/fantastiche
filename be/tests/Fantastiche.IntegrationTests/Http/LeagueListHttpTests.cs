@@ -77,7 +77,8 @@ public sealed partial class HttpFlowTests
             await db.SaveChangesAsync();
         }
         await using var factory = Factory().WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, config) =>
-            config.AddInMemoryCollection(new Dictionary<string, string?> {
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
                 ["Storage:LeagueLogos:PublicBaseUrl"] = "https://media.example.test/league-logos"
             })));
         using var client = Client(factory);

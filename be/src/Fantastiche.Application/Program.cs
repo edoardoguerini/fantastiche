@@ -45,8 +45,10 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
         ? CookieSecurePolicy.SameAsRequest
         : CookieSecurePolicy.Always;
-    options.ExpireTimeSpan = TimeSpan.FromHours(8);
-    options.SlidingExpiration = false;
+    options.ExpireTimeSpan = CookieSession.Lifetime;
+    options.SlidingExpiration = true;
+    options.Events.OnSigningIn = CookieSession.SigningInAsync;
+    options.Events.OnValidatePrincipal = CookieSession.ValidatePrincipalAsync;
     options.Events.OnRedirectToLogin = context => ApiResults.WriteErrorAsync(
         context.HttpContext,
         StatusCodes.Status401Unauthorized,
