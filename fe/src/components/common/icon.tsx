@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils/cn'
 import '@/assets/fontawesome/css/jelly.css'
 
 type IconName =
+  | 'ellipsis-vertical'
   | 'cloud-arrow-up'
   | 'eye'
   | 'eye-slash'

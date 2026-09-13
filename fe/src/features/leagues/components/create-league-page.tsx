@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { authQueryOptions } from '@/features/auth'
 import { Icon } from '@/components/common/icon'
+import { Button } from '@/components/primitives/button'
 import { CreateLeagueForm } from './create-league-form'
 
 export function CreateLeaguePage() {
@@ -11,17 +12,36 @@ export function CreateLeaguePage() {
     return (
       <div className="content-container">
         <p>La creazione delle leghe è riservata al SuperAdmin.</p>
-        <Link className="back-link" to="/leghe">
-          Torna alle leghe
-        </Link>
+        <Button
+          asChild
+          variant="outline"
+          className="league-back-link size-11 rounded-full p-0"
+        >
+          <Link
+            to="/leghe"
+            aria-label="Torna alle leghe"
+            title="Torna alle leghe"
+          >
+            <Icon name="chevron-left" />
+          </Link>
+        </Button>
       </div>
     )
   return (
     <div className="content-container create-league-container">
-      <Link className="back-link" to="/leghe">
-        <Icon name="arrow-left" />
-        Torna alle leghe
-      </Link>
+      <Button
+        asChild
+        variant="outline"
+        className="league-back-link size-11 rounded-full p-0"
+      >
+        <Link
+          to="/leghe"
+          aria-label="Torna alle leghe"
+          title="Torna alle leghe"
+        >
+          <Icon name="chevron-left" />
+        </Link>
+      </Button>
       <header className="page-heading">
         <h1>Crea una lega</h1>
         <p>Una nuova stagione, le vostre regole.</p>

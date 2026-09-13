@@ -284,12 +284,17 @@ test('organizzatore invita, reinvia e revoca dal dettaglio lega', async ({
   await page.getByRole('button', { name: 'Invia invito', exact: true }).click()
   await expect(page.getByText('luca@example.test')).toBeVisible()
   expect(state.sent).toBe(1)
-  await page.getByRole('button', { name: 'Reinvia', exact: true }).click()
+  await page.getByRole('button', { name: 'Azioni invito Luca' }).click()
+  await page
+    .getByRole('button', { name: 'Reinvia invito', exact: true })
+    .click()
+  await page.getByText('Storico inviti', { exact: true }).click()
   await expect(page.getByText('Revocato', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Revoca', exact: true }).click()
+  await page.getByRole('button', { name: 'Azioni invito Luca' }).click()
+  await page.getByRole('button', { name: 'Revoca invito', exact: true }).click()
   await page.getByRole('button', { name: 'Conferma revoca' }).click()
   await expect(
-    page.getByRole('button', { name: 'Reinvia', exact: true }),
+    page.getByRole('button', { name: 'Azioni invito Luca' }),
   ).toHaveCount(0)
 })
 
@@ -349,14 +354,45 @@ for (const width of [320, 390, 1280])
       path: test.info().outputPath(`invitation-${width}.png`),
       fullPage: true,
     })
-    await setup(page, { authenticated: true, canManage: true })
+    const state = await setup(page, { authenticated: true, canManage: true })
+    state.invites.push(
+      ...['Pending', 'Expired', 'Accepted', 'Revoked'].map((status, index) => ({
+        id: `layout-${index}`,
+        displayName: [
+          'Edoardo Guerini',
+          'Sara Moretti',
+          'Luca Ferri',
+          'Andrea Galli',
+        ][index]!,
+        email:
+          index === 0
+            ? 'edoardo.guerini@example.test'
+            : `partecipante${index}@example.test`,
+        status,
+        kind: index === 0 ? 'Organizer' : 'Participant',
+        expiresAt: '2026-09-16T10:00:00Z',
+      })),
+    )
     await page.goto(`/leghe/${league.id}`)
     await expect(page.getByLabel('Nome partecipante')).toBeVisible()
-    // Il badge del ruolo vive solo nel layout largo: verifica che il CSS del
-    // pannello partecipanti non regredisca.
-    await expect(page.locator('.participant-badge')).toBeVisible({
-      visible: width >= 700,
+    await expect(
+      page.locator('.participant-list .people-badge--organizer'),
+    ).toBeVisible()
+    const participantsTitle = page.getByRole('heading', {
+      name: /^Partecipanti/,
     })
+    const invitationsTitle = page.getByRole('heading', { name: /^Inviti/ })
+    expect(
+      await participantsTitle.evaluate((el) => getComputedStyle(el).fontSize),
+    ).toBe(
+      await invitationsTitle.evaluate((el) => getComputedStyle(el).fontSize),
+    )
+    await page
+      .getByRole('button', { name: 'Azioni invito Edoardo Guerini' })
+      .click()
+    await expect(
+      page.getByRole('button', { name: 'Reinvia invito' }),
+    ).toBeVisible()
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,

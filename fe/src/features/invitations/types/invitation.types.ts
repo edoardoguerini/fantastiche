@@ -51,3 +51,7 @@ export const participantsSchema = z.object({
 })
 export type InvitationPreview = z.infer<typeof invitationPreviewSchema>
 export type Acceptance = z.infer<typeof acceptanceSchema>
+
+export type LeagueInvitation = z.infer<
+  typeof participantsSchema
+>['invitations']['items'][number]
