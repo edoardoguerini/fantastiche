@@ -78,7 +78,22 @@ describe('pwa store', () => {
     expect(event.defaultPrevented).toBe(true)
     expect(getSnapshot().canPrompt).toBe(true)
     expect(await promptInstall()).toBe('accepted')
-    expect(getSnapshot()).toMatchObject({ canPrompt: false, standalone: true })
+    expect(getSnapshot()).toMatchObject({
+      canPrompt: false,
+      installed: true,
+      standalone: false,
+    })
+  })
+
+  it('installare dalla scheda browser non la rende standalone', () => {
+    fakeServiceWorker()
+    startPwa()
+    window.dispatchEvent(new Event('appinstalled'))
+    expect(getSnapshot()).toMatchObject({
+      installed: true,
+      standalone: false,
+      canPrompt: false,
+    })
   })
 
   it('un prompt rifiutato lascia l’app non installata', async () => {

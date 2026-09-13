@@ -36,7 +36,7 @@ export function AccountMenu() {
   const trigger = useRef<HTMLButtonElement>(null)
   const menu = useRef<HTMLDivElement>(null)
   const menuId = useId()
-  const canInstall = pwa.enabled && !pwa.standalone
+  const canInstall = pwa.enabled && !pwa.standalone && !pwa.installed
   const initials = user?.displayName.trim().split(/\s+/).filter(Boolean)
   const avatar = initials?.length
     ? `${initials[0]?.[0] ?? ''}${initials.length > 1 ? (initials.at(-1)?.[0] ?? '') : ''}`.toUpperCase()

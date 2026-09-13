@@ -29,8 +29,14 @@ export function PwaSurfaces({ pathname }: { pathname: string }) {
   // Nessun avviso sovrapposto ai comandi d'asta o all'attivazione account.
   if (/\/asta(?:\/|$)/.test(pathname) || pathname.startsWith('/invito'))
     return null
-  if (pwa.updateReady) return pwa.updateDismissed ? null : <UpdateToast />
-  if (pathname === '/login' && !pwa.standalone && !pwa.installSnoozed)
+  if (pwa.standalone && pwa.updateReady)
+    return pwa.updateDismissed ? null : <UpdateToast />
+  if (
+    pathname === '/login' &&
+    !pwa.standalone &&
+    !pwa.installed &&
+    !pwa.installSnoozed
+  )
     return <InstallCard canPrompt={pwa.canPrompt} />
   return null
 }

@@ -8,6 +8,7 @@ function state(patch: Partial<pwa.PwaState>) {
   vi.spyOn(pwa, 'getSnapshot').mockReturnValue({
     enabled: true,
     standalone: false,
+    installed: false,
     canPrompt: false,
     updateReady: false,
     updateDismissed: false,
@@ -29,7 +30,7 @@ describe('avvisi PWA', () => {
   })
 
   it('mostra il toast di aggiornamento fuori dall’asta e lo chiude con la X', async () => {
-    state({ updateReady: true })
+    state({ updateReady: true, standalone: true })
     const dismiss = vi.spyOn(pwa, 'dismissUpdate').mockImplementation(() => {})
     render(<PwaSurfaces pathname="/leghe" />)
     expect(screen.getByRole('status')).toHaveTextContent(
@@ -40,12 +41,12 @@ describe('avvisi PWA', () => {
   })
 
   it('tace in sala d’asta, sugli inviti e dopo la chiusura', () => {
-    state({ updateReady: true })
+    state({ updateReady: true, standalone: true })
     const { rerender } = render(<PwaSurfaces pathname="/leghe/1/asta" />)
     expect(screen.queryByRole('status')).toBeNull()
     rerender(<PwaSurfaces pathname="/invito" />)
     expect(screen.queryByRole('status')).toBeNull()
-    state({ updateReady: true, updateDismissed: true })
+    state({ updateReady: true, updateDismissed: true, standalone: true })
     rerender(<PwaSurfaces pathname="/leghe" />)
     expect(screen.queryByRole('status')).toBeNull()
   })
@@ -63,8 +64,8 @@ describe('avvisi PWA', () => {
     expect(snooze).toHaveBeenCalled()
   })
 
-  it('nella login l’aggiornamento ha la precedenza e l’app installata non riceve inviti', () => {
-    state({ updateReady: true })
+  it('nella login della PWA mostra l’aggiornamento senza inviti a installare', () => {
+    state({ updateReady: true, standalone: true })
     const { rerender } = render(<PwaSurfaces pathname="/login" />)
     expect(screen.getByRole('status')).toBeInTheDocument()
     expect(screen.queryByRole('region')).toBeNull()
@@ -73,6 +74,27 @@ describe('avvisi PWA', () => {
     expect(screen.queryByRole('region')).toBeNull()
     state({ installSnoozed: true })
     rerender(<PwaSurfaces pathname="/login" />)
+    expect(screen.queryByRole('region')).toBeNull()
+  })
+
+  it.each([false, true])(
+    'nel browser l’aggiornamento non nasconde l’installazione (avviso chiuso: %s)',
+    (updateDismissed) => {
+      state({ updateReady: true, updateDismissed })
+      const { rerender } = render(<PwaSurfaces pathname="/login" />)
+      expect(screen.queryByRole('status')).toBeNull()
+      expect(
+        screen.getByRole('region', { name: 'Installa Fantastiche' }),
+      ).toBeInTheDocument()
+      rerender(<PwaSurfaces pathname="/leghe" />)
+      expect(screen.queryByRole('status')).toBeNull()
+    },
+  )
+
+  it('dopo l’installazione la scheda browser non mostra né aggiornamento né invito', () => {
+    state({ installed: true, updateReady: true })
+    render(<PwaSurfaces pathname="/login" />)
+    expect(screen.queryByRole('status')).toBeNull()
     expect(screen.queryByRole('region')).toBeNull()
   })
 

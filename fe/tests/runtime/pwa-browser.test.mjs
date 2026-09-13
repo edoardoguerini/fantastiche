@@ -167,9 +167,10 @@ test(
           ),
         )
         .toBe(true)
-      await expect(page.getByRole('status')).toContainText(
-        'Nuova versione pronta',
-      )
+      await expect(page.getByRole('status')).toHaveCount(0)
+      await expect(
+        page.getByRole('region', { name: 'Installa Fantastiche' }),
+      ).toBeVisible()
       await page.reload()
       assert.equal(await auction.evaluate(() => window.pwaTestMarker), 42)
       assert(
