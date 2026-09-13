@@ -24,7 +24,7 @@ Il database iniziale non contiene account predefiniti. Per entrare con un accoun
 - `/login`: email, password, mostra/nascondi password, errori e blocco degli invii doppi.
 - `/leghe`: elenco paginato (20 elementi) delle leghe con membership Active; SuperAdmin vede tutte le leghe. Un elemento per lega con la stagione corrente, selezionata come nel dettaglio backend tramite `LeagueSeasons.Id DESC`.
 - `/leghe/$leagueId`: configurazione della stagione corrente, budget iniziale e composizione della rosa.
-- `/leghe/nuova`: form riservato al SuperAdmin, raggiungibile da “Crea lega”. Nome, stagione, organizzatore e regole configurabili. POST `/api/Leagues` con antiforgery; dopo la creazione aggiorna la cache dell’utente corrente e apre il dettaglio. Validazione client/server, blocco degli invii doppi e nessun retry automatico della creazione.
+- `/leghe/nuova`: form riservato al SuperAdmin, raggiungibile da “Crea lega”. Nome lega, stagione, email dell’organizzatore e regole configurabili. Il nome personale viene scelto dal nuovo utente all’attivazione. POST `/api/Leagues` con antiforgery; dopo la creazione aggiorna la cache dell’utente corrente e apre il dettaglio. Validazione client/server, blocco degli invii doppi e nessun retry automatico della creazione.
 
 Client HTTP in `src/lib/api`, autenticazione in `features/auth`, leghe in `features/leagues`. Le API restituiscono `ApiResponse` (`isSuccess`, `data`, `errors`). GET `/api/Leagues?page=1&pageSize=20` restituisce `data.items`, `totalCount`, `page`, `pageSize`; `pageSize` massimo 100.
 

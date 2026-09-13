@@ -43,26 +43,30 @@ public static class InvitationEmailTemplate
     // Codifica solo i caratteri significativi per HTML: gli accenti restano leggibili nel sorgente dell’email.
     private static readonly HtmlEncoder Encoder = HtmlEncoder.Create(UnicodeRanges.All);
 
-    public static RenderedEmail Render(string recipientName, string recipientEmail, string inviterName, string leagueName, string? leagueLogoUrl,
-     string seasonName, int budget, InvitationKind kind, DateTimeOffset expiresAt, string link, string? brandLogoUrl = null)
+    public static RenderedEmail Render(string? recipientName, string recipientEmail, string inviterName, string leagueName, string? leagueLogoUrl,
+     string seasonName, int budget, InvitationKind kind, DateTimeOffset expiresAt, string link, string? brandLogoUrl = null, bool requiresActivation = true)
     {
         var organizer = kind == InvitationKind.Organizer;
         var subject = organizer ? $"Organizza {leagueName} su Fantastiche" : $"{inviterName} ti ha invitato a {leagueName}";
-        var title = organizer ? $"Ciao {recipientName}, la tua lega ti aspetta." : $"Ciao {recipientName}, c'è posto per te.";
+        var greeting = string.IsNullOrWhiteSpace(recipientName) ? "Ciao" : $"Ciao {recipientName.Trim()}";
+        var title = organizer ? $"{greeting}, la tua lega ti aspetta." : $"{greeting}, c'è posto per te.";
         var intro = organizer ? $"{inviterName} ti ha affidato l'organizzazione della lega:" : $"{inviterName} ti ha invitato a partecipare come allenatore alla lega:";
         var action = organizer ? "Organizza la lega" : "Accetta l'invito";
-        var next = organizer ? "Ti verrà chiesto di scegliere una password per il tuo account."
-         : "Ti verrà chiesto di scegliere il nome della tua squadra e una password per il tuo account.";
+        var next = requiresActivation
+         ? organizer ? "Ti verrà chiesto di scegliere il tuo nome e una password per il tuo account."
+          : "Ti verrà chiesto di scegliere il tuo nome, il nome della tua squadra e una password per il tuo account."
+         : organizer ? "Accedi con il tuo account per organizzare la lega."
+          : "Accedi con il tuo account e scegli il nome della tua squadra.";
         var season = $"Stagione {seasonName} · budget {budget} crediti";
         var validity = $"Il link è personale e vale fino a {FormatExpiry(expiresAt)}";
         const string fallback = "Se il bottone non funziona, copia questo indirizzo nel browser:";
-        const string ignore = "Non aspettavi questa email? Puoi ignorarla: nessun account verrà creato senza la tua conferma.";
+        const string ignore = "Non aspettavi questa email? Puoi ignorarla: nessun account verrà attivato senza la tua conferma.";
         const string footer = "Fantastiche · Il fantacalcio, insieme.";
         var reason = $"Hai ricevuto questa email perché {inviterName} ha inserito il tuo indirizzo nella sua lega.";
         var html = Html(title, intro, leagueName, leagueLogoUrl, brandLogoUrl, season, action, next, validity, fallback, ignore, footer, reason, link);
         // Il link resta l’ultima riga del testo, senza nulla dopo: i test lo estraggono da lì.
         var text = string.Join('\n', [title, "", intro, leagueName, season, "", next, validity, "", ignore, "", footer, reason, "", $"{action}:", link]);
-        return new RenderedEmail(recipientEmail, recipientName, subject, html, text);
+        return new RenderedEmail(recipientEmail, recipientName ?? "", subject, html, text);
     }
 
     private static string Html(string title, string intro, string leagueName, string? logoUrl, string? brandLogoUrl, string season, string action, string next,

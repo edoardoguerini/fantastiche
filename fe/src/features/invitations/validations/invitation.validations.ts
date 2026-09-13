@@ -1,11 +1,6 @@
 import { z } from 'zod'
 
 export const inviteSchema = z.object({
-  displayName: z
-    .string()
-    .trim()
-    .min(1, 'Inserisci il nome.')
-    .max(150, 'Usa al massimo 150 caratteri.'),
   email: z
     .string()
     .trim()
@@ -62,7 +57,7 @@ export function passwordRuleStatus(value: string) {
 
 export function acceptanceFormSchema(
   requiresTeam: boolean,
-  requiresPassword: boolean,
+  requiresActivation: boolean,
 ) {
   const password = z
     .string()
@@ -73,6 +68,13 @@ export function acceptanceFormSchema(
           ctx.addIssue({ code: 'custom', message: rule.message })
     })
   return z.object({
+    displayName: requiresActivation
+      ? z
+          .string()
+          .trim()
+          .min(1, 'Inserisci il nome.')
+          .max(150, 'Usa al massimo 150 caratteri.')
+      : z.string(),
     teamName: requiresTeam
       ? z
           .string()
@@ -80,7 +82,7 @@ export function acceptanceFormSchema(
           .min(1, 'Scegli il nome della squadra.')
           .max(100, 'Usa al massimo 100 caratteri.')
       : z.string(),
-    password: requiresPassword ? password : z.string(),
+    password: requiresActivation ? password : z.string(),
   })
 }
 

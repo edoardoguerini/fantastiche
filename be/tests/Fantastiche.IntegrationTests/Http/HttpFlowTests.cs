@@ -62,7 +62,7 @@ public sealed partial class HttpFlowTests(SqlFixture fixture) : IClassFixture<Sq
         await using var factory = Factory(); using var admin = Client(factory); using var organizer = Client(factory); using var participant = Client(factory);
         await Login(admin, "admin@example.test", "Test-Admin-123!");
         var organizerEmail = Guid.NewGuid() + "@example.test";
-        var league = await Data(await admin.PostAsJsonAsync("/api/Leagues/", new { name = "Lega HTTP", seasonName = "2026/27", organizerEmail, organizerName = "Organizer" }), HttpStatusCode.Created);
+        var league = await Data(await admin.PostAsJsonAsync("/api/Leagues/", new { name = "Lega HTTP", seasonName = "2026/27", organizerEmail }), HttpStatusCode.Created);
         var leagueId = league.GetProperty("id").GetGuid(); var season = league.GetProperty("leagueSeasonId").GetGuid();
         Guid invitationId;
         await using (var scope = fixture.Services.CreateAsyncScope()) invitationId = (await scope.ServiceProvider.GetRequiredService<FantasticheDbContext>().LeagueInvitations.SingleAsync(x => x.LeagueId == leagueId)).Id;
@@ -77,13 +77,15 @@ public sealed partial class HttpFlowTests(SqlFixture fixture) : IClassFixture<Sq
             Assert.StartsWith(organizerEmail[..1] + "•••", hint); Assert.EndsWith("@example.test", hint); Assert.DoesNotContain(organizerEmail, hint);
         }
         await RefreshCsrf(organizer);
-        await Data(await organizer.PostAsJsonAsync("/api/Invitations/Accept", new { token, password = Password }), HttpStatusCode.OK);
+        await Data(await organizer.PostAsJsonAsync("/api/Invitations/Accept", new { token, password = Password }), HttpStatusCode.BadRequest);
+        await Data(await organizer.PostAsJsonAsync("/api/Invitations/Accept", new { token, password = Password, displayName = new string('x', 151) }), HttpStatusCode.BadRequest);
+        await Data(await organizer.PostAsJsonAsync("/api/Invitations/Accept", new { token, password = Password, displayName = "Organizer" }), HttpStatusCode.OK);
         await Login(organizer, organizerEmail, Password);
         var email = Guid.NewGuid() + "@example.test";
-        var invite = await Data(await organizer.PostAsJsonAsync($"/api/Leagues/{leagueId}/Invitations", new { leagueSeasonId = season, email, displayName = "Player" }), HttpStatusCode.Created);
+        var invite = await Data(await organizer.PostAsJsonAsync($"/api/Leagues/{leagueId}/Invitations", new { leagueSeasonId = season, email }), HttpStatusCode.Created);
         token = await Token(invite.GetProperty("id").GetGuid());
         await RefreshCsrf(participant);
-        var acceptance = await Data(await participant.PostAsJsonAsync("/api/Invitations/Accept", new { token, password = Password, teamName = "Squadra HTTP" }), HttpStatusCode.OK);
+        var acceptance = await Data(await participant.PostAsJsonAsync("/api/Invitations/Accept", new { token, password = Password, displayName = "Player", teamName = "Squadra HTTP" }), HttpStatusCode.OK);
         Assert.NotEqual(Guid.Empty, acceptance.GetProperty("teamId").GetGuid());
         Assert.Equal("Squadra HTTP", acceptance.GetProperty("teamName").GetString()); Assert.Equal(email, acceptance.GetProperty("email").GetString());
         await Login(participant, email, Password);

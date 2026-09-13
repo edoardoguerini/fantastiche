@@ -12,6 +12,27 @@ public sealed class InvitationEmailTemplateTests
     private static Core.Email.RenderedEmail Render(InvitationKind kind, string league = "Lega Amici", string? logo = null) =>
         InvitationEmailTemplate.Render("Marta", "marta@example.test", "Edoardo", league, logo, "2026/27", 500, kind, Expires, Link);
 
+    [Theory]
+    [InlineData(InvitationKind.Organizer, "Ciao, la tua lega ti aspetta.")]
+    [InlineData(InvitationKind.Participant, "Ciao, c'è posto per te.")]
+    public void UnknownRecipientUsesGenericGreeting(InvitationKind kind, string greeting)
+    {
+        var email = InvitationEmailTemplate.Render("", "new@example.test", "Edoardo", "Lega Amici", null, "2026/27", 500, kind, Expires, Link);
+        Assert.Contains(greeting, email.TextBody);
+        Assert.DoesNotContain("Ciao ,", email.HtmlBody);
+        Assert.Contains("il tuo nome", email.TextBody);
+    }
+
+    [Fact]
+    public void ExistingAccountEmailKeepsNameAndRequestsLoginInsteadOfActivation()
+    {
+        var email = InvitationEmailTemplate.Render("Marta", "marta@example.test", "Edoardo", "Lega Amici", null, "2026/27", 500, InvitationKind.Participant, Expires, Link, requiresActivation: false);
+        Assert.Contains("Ciao Marta,", email.TextBody);
+        Assert.Contains("Accedi con il tuo account", email.TextBody);
+        Assert.DoesNotContain("password", email.TextBody);
+        Assert.DoesNotContain("scegliere il tuo nome", email.TextBody);
+    }
+
     [Fact]
     public void ParticipantEmailCarriesLinkSeasonAndItalianAbsoluteDate()
     {
@@ -22,7 +43,7 @@ public sealed class InvitationEmailTemplateTests
         Assert.Contains("Edoardo ti ha invitato a partecipare come allenatore alla lega:", email.HtmlBody);
         Assert.Contains("Stagione 2026/27 · budget 500 crediti", email.HtmlBody);
         Assert.Contains("Accetta l&#x27;invito", email.HtmlBody);
-        Assert.Contains("scegliere il nome della tua squadra e una password", email.HtmlBody);
+        Assert.Contains("scegliere il tuo nome, il nome della tua squadra e una password", email.HtmlBody);
         Assert.Contains("Il link è personale e vale fino a sabato 12 settembre alle 18:30", email.HtmlBody);
         Assert.Contains($"href=\"{Link}\"", email.HtmlBody);
         Assert.Contains("background-color:#1a1125;background-image:linear-gradient(180deg, #30243e 0%, #1a1125 55%, #0c0c0e 100%)", email.HtmlBody);
@@ -68,7 +89,7 @@ public sealed class InvitationEmailTemplateTests
         Assert.Contains("Ciao Marta, la tua lega ti aspetta.", email.HtmlBody);
         Assert.Contains("Edoardo ti ha affidato l&#x27;organizzazione della lega:", email.HtmlBody);
         Assert.Contains("Organizza la lega", email.HtmlBody);
-        Assert.Contains("Ti verrà chiesto di scegliere una password per il tuo account.", email.HtmlBody);
+        Assert.Contains("Ti verrà chiesto di scegliere il tuo nome e una password per il tuo account.", email.HtmlBody);
         Assert.DoesNotContain("nome della tua squadra", email.HtmlBody);
         Assert.DoesNotContain("nome della tua squadra", email.TextBody);
     }

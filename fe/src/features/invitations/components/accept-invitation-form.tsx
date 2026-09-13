@@ -40,7 +40,7 @@ export function AcceptInvitationForm({
   const [showPassword, setShowPassword] = useState(false)
   const lock = useRef(false)
   const form = useForm({
-    defaultValues: { teamName: '', password: '' },
+    defaultValues: { displayName: '', teamName: '', password: '' },
     validators: {
       onSubmit: acceptanceFormSchema(
         invitation.requiresTeam,
@@ -56,6 +56,7 @@ export function AcceptInvitationForm({
           token,
           invitation.requiresTeam ? value.teamName.trim() : undefined,
           invitation.requiresLogin ? undefined : value.password,
+          invitation.requiresLogin ? undefined : value.displayName.trim(),
         )
         form.reset()
         await onAccepted(accepted)
@@ -79,6 +80,38 @@ export function AcceptInvitationForm({
         void form.handleSubmit()
       }}
     >
+      {!invitation.requiresLogin && (
+        <form.Field name="displayName">
+          {(field) => {
+            const invalid = field.state.meta.errors.length > 0
+            return (
+              <div className="form-field">
+                <label htmlFor="invite-name">Il tuo nome</label>
+                <Input
+                  id="invite-name"
+                  autoFocus
+                  autoComplete="name"
+                  maxLength={150}
+                  value={field.state.value}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  onBlur={field.handleBlur}
+                  aria-invalid={invalid}
+                  aria-describedby={invalid ? 'invite-name-error' : undefined}
+                />
+                {invalid && (
+                  <p
+                    id="invite-name-error"
+                    className="field-error"
+                    role="alert"
+                  >
+                    {field.state.meta.errors[0]?.message}
+                  </p>
+                )}
+              </div>
+            )
+          }}
+        </form.Field>
+      )}
       {invitation.requiresTeam && (
         <fieldset className="invitation-group">
           <legend className="sr-only">La tua squadra</legend>
@@ -92,7 +125,7 @@ export function AcceptInvitationForm({
                   <Input
                     id="invite-team"
                     value={field.state.value}
-                    autoFocus
+                    autoFocus={invitation.requiresLogin}
                     autoComplete="off"
                     maxLength={100}
                     placeholder="Es. Atletico Divano"

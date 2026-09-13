@@ -79,7 +79,8 @@ it('mostra le squadre in evidenza, il badge organizzatore e il form di invito', 
   expect(
     screen.getByRole('heading', { name: 'Invita un partecipante' }),
   ).toBeInTheDocument()
-  expect(screen.getByLabelText('Nome partecipante')).toBeInTheDocument()
+  expect(screen.queryByLabelText('Nome partecipante')).not.toBeInTheDocument()
+  expect(screen.getByLabelText('Email partecipante')).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: /^Inviti/ })).toHaveTextContent(
     '2',
   )
@@ -165,4 +166,24 @@ it('apre le azioni da tastiera, chiude con Escape e chiede conferma prima della 
   expect(api.post).not.toHaveBeenCalled()
   await user.click(screen.getByRole('button', { name: 'Conferma revoca' }))
   expect(await screen.findByText('Invito revocato.')).toBeVisible()
+})
+
+it('usa l’email una sola volta e nelle azioni per un invito senza nome', async () => {
+  vi.mocked(api.get).mockResolvedValue({
+    ...payload,
+    invitations: {
+      ...payload.invitations,
+      items: [{ ...payload.invitations.items[0], displayName: '' }],
+    },
+  })
+  render(
+    <ParticipantsPanel userId={uid} leagueId="league" seasonId="season" />,
+    { wrapper: wrapper() },
+  )
+  const trigger = await screen.findByRole('button', {
+    name: 'Azioni invito sara@example.test',
+  })
+  const row = trigger.closest('li')!
+  expect(within(row).getAllByText('sara@example.test')).toHaveLength(1)
+  expect(row.querySelector('.participant-avatar')).toHaveTextContent('S')
 })

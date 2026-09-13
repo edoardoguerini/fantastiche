@@ -8,16 +8,13 @@ import {
 } from '../invitation.validations'
 
 describe('inviti', () => {
-  it('valida email e nome normalizzati', () => {
+  it('richiede solo l’email e la normalizza', () => {
     expect(
       inviteSchema.parse({
-        displayName: ' Luca ',
         email: ' luca@example.test ',
       }),
-    ).toEqual({ displayName: 'Luca', email: 'luca@example.test' })
-    expect(
-      inviteSchema.safeParse({ displayName: ' ', email: 'invalid' }).success,
-    ).toBe(false)
+    ).toEqual({ email: 'luca@example.test' })
+    expect(inviteSchema.safeParse({ email: 'invalid' }).success).toBe(false)
   })
 
   it('legge il frammento e la query legacy senza accettare token arbitrari', () => {
@@ -74,15 +71,18 @@ describe('regole password', () => {
 describe('schema di adesione', () => {
   it('accetta squadra e password senza campo di conferma', () => {
     const result = acceptanceFormSchema(true, true).safeParse({
+      displayName: ' Giulia ',
       teamName: ' Le Fenici ',
       password: 'Invited-User-123!',
     })
     expect(result.success).toBe(true)
     expect(result.success && result.data.teamName).toBe('Le Fenici')
+    expect(result.success && result.data.displayName).toBe('Giulia')
   })
 
   it('segnala la prima regola mancante della password', () => {
     const result = acceptanceFormSchema(false, true).safeParse({
+      displayName: ' Giulia ',
       teamName: '',
       password: 'tuttominuscolo123',
     })
@@ -94,9 +94,23 @@ describe('schema di adesione', () => {
 
   it('ignora la password quando l’account esiste già', () => {
     const result = acceptanceFormSchema(true, false).safeParse({
+      displayName: ' Giulia ',
       teamName: 'Le Fenici',
       password: '',
     })
     expect(result.success).toBe(true)
   })
 })
+
+it.each(['', '   ', 'a'.repeat(151)])(
+  'rifiuta un nome non valido all’attivazione: %s',
+  (displayName) => {
+    expect(
+      acceptanceFormSchema(false, true).safeParse({
+        displayName,
+        teamName: '',
+        password: 'Invited-User-123!',
+      }).success,
+    ).toBe(false)
+  },
+)

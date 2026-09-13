@@ -217,6 +217,7 @@ describe('pagina invito', () => {
       throw new Error(`Richiesta inattesa: ${path}`)
     })
     const { user } = setup()
+    await user.type(await screen.findByLabelText('Il tuo nome'), 'Edoardo')
     await user.type(
       await screen.findByLabelText('Nome squadra', { exact: true }),
       'Le Fenici',

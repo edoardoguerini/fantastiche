@@ -19,7 +19,7 @@ export function InviteParticipantForm({
   const [sent, setSent] = useState(false)
   const lock = useRef(false)
   const form = useForm({
-    defaultValues: { displayName: '', email: '' },
+    defaultValues: { email: '' },
     validators: { onSubmit: inviteSchema },
     onSubmit: async ({ value }) => {
       if (lock.current) return
@@ -27,12 +27,7 @@ export function InviteParticipantForm({
       setError(null)
       setSent(false)
       try {
-        await inviteParticipant(
-          leagueId,
-          seasonId,
-          value.displayName.trim(),
-          value.email.trim(),
-        )
+        await inviteParticipant(leagueId, seasonId, value.email.trim())
         setSent(true)
         form.reset()
       } catch (failure) {
@@ -53,42 +48,37 @@ export function InviteParticipantForm({
       }}
     >
       <div className="invite-participant-fields">
-        {(['displayName', 'email'] as const).map((name) => (
-          <form.Field key={name} name={name}>
-            {(field) => (
-              <div className="form-field">
-                <label htmlFor={`participant-${name}`}>
-                  {name === 'displayName'
-                    ? 'Nome partecipante'
-                    : 'Email partecipante'}
-                </label>
-                <Input
-                  id={`participant-${name}`}
-                  type={name === 'email' ? 'email' : 'text'}
-                  autoComplete="off"
-                  value={field.state.value}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                  onBlur={field.handleBlur}
-                  aria-invalid={field.state.meta.errors.length > 0}
-                  aria-describedby={
-                    field.state.meta.errors.length
-                      ? `participant-${name}-error`
-                      : undefined
-                  }
-                />
-                {field.state.meta.errors[0] && (
-                  <p
-                    className="field-error"
-                    id={`participant-${name}-error`}
-                    role="alert"
-                  >
-                    {field.state.meta.errors[0].message}
-                  </p>
-                )}
-              </div>
-            )}
-          </form.Field>
-        ))}
+        <form.Field name="email">
+          {(field) => (
+            <div className="form-field">
+              <label htmlFor="participant-email">Email partecipante</label>
+              <Input
+                id="participant-email"
+                type="email"
+                autoComplete="off"
+                maxLength={256}
+                value={field.state.value}
+                onChange={(event) => field.handleChange(event.target.value)}
+                onBlur={field.handleBlur}
+                aria-invalid={field.state.meta.errors.length > 0}
+                aria-describedby={
+                  field.state.meta.errors.length
+                    ? 'participant-email-error'
+                    : undefined
+                }
+              />
+              {field.state.meta.errors[0] && (
+                <p
+                  className="field-error"
+                  id="participant-email-error"
+                  role="alert"
+                >
+                  {field.state.meta.errors[0].message}
+                </p>
+              )}
+            </div>
+          )}
+        </form.Field>
       </div>
       {error !== null && (
         <p className="form-error" role="alert">
