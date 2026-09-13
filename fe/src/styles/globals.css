@@ -540,7 +540,7 @@ body > .page-state {
 .league-page {
   padding-top: 40px;
 }
-.league-page .back-link {
+.league-back-link {
   margin-bottom: 32px;
 }
 .league-header {
@@ -820,7 +820,7 @@ body > .page-state {
   .league-page {
     padding-top: 24px;
   }
-  .league-page .back-link {
+  .league-back-link {
     margin-bottom: 24px;
   }
   .league-header {

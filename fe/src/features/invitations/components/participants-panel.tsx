@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/primitives/button'
 import { Icon } from '@/components/common/icon'
+import { InvitationRow } from './invitation-row'
 import { errorMessage } from '@/lib/api/error'
 import {
   participantsQueryOptions,
@@ -11,12 +12,6 @@ import { manageInvitation } from '../actions/invitation.commands'
 import { InviteParticipantForm } from './invite-participant-form'
 import '../invitation.css'
 
-const statusLabels = {
-  Pending: 'In attesa',
-  Accepted: 'Accettato',
-  Expired: 'Scaduto',
-  Revoked: 'Revocato',
-}
 function initials(name: string) {
   const words = name.trim().split(/\s+/).filter(Boolean)
   const letters = words.length > 1 ? [words[0], words.at(-1)] : [words[0]]
@@ -91,6 +86,24 @@ export function ParticipantsPanel({
     )
   if (!result.data.canManage) return null
   const { participants, invitations } = result.data
+  const activeInvitations = invitations.items.filter(
+    (invite) => invite.status === 'Pending' || invite.status === 'Expired',
+  )
+  const pastInvitations = invitations.items.filter(
+    (invite) => invite.status === 'Accepted' || invite.status === 'Revoked',
+  )
+  const renderInvitation = (invite: (typeof invitations.items)[number]) => (
+    <InvitationRow
+      key={invite.id}
+      invite={invite}
+      busy={busy}
+      confirming={confirm === invite.id}
+      onResend={() => void manage(invite.id, 'Resend')}
+      onRevoke={() => setConfirm(invite.id)}
+      onCancel={() => setConfirm(null)}
+      onConfirm={() => void manage(invite.id, 'Revoke')}
+    />
+  )
   return (
     <>
       <section
@@ -99,53 +112,52 @@ export function ParticipantsPanel({
       >
         <header className="participants-heading">
           <h2 id="participants-title">
-            Partecipanti <span>{participants.length}</span>
+            Partecipanti{' '}
+            <span className="people-count">{participants.length}</span>
           </h2>
-          <p>Ognuno sceglie il nome della propria squadra all’ingresso.</p>
         </header>
         {!participants.length ? (
           <p className="invitation-hint">
-            I partecipanti appariranno qui dopo aver accettato.
+            Nessun partecipante ancora. Apparirà qui chi accetta l’invito.
           </p>
         ) : (
           <ul className="participant-list">
             {participants.map((member) => {
-              const title = member.teamName ?? member.displayName
+              const title = member.displayName
               return (
-                <li key={member.userId}>
+                <li key={member.userId} className="people-row">
                   <span className="participant-avatar" aria-hidden="true">
                     {initials(title)}
                   </span>
-                  <div>
+                  <div className="people-identity">
                     <strong>{title}</strong>
-                    <p>
-                      {member.teamName
-                        ? member.displayName
-                        : 'Organizzatore senza squadra'}
-                      {member.isOrganizer && member.teamName && (
-                        <span className="participant-role-inline">
-                          {' '}
-                          · Organizzatore
-                        </span>
-                      )}
-                    </p>
+                    <p>{member.teamName ?? 'Nessuna squadra'}</p>
                   </div>
-                  {member.isOrganizer && (
-                    <span className="participant-badge">
-                      <Icon name="trophy" />
-                      Organizzatore
+                  <div className="people-badges">
+                    <span
+                      className={`people-badge ${member.isOrganizer ? 'people-badge--organizer' : ''}`}
+                    >
+                      {member.isOrganizer ? 'Organizzatore' : 'Partecipante'}
                     </span>
-                  )}
-                  <span className="participant-status">Attivo</span>
+                    <span className="people-badge people-badge--active">
+                      Attivo
+                    </span>
+                  </div>
                 </li>
               )
             })}
           </ul>
         )}
-        <div className="invitation-history">
-          <h3>
-            Inviti <span>{invitations.totalCount}</span>
-          </h3>
+        <section
+          className="invitations-section"
+          aria-labelledby="invitations-title"
+        >
+          <header className="participants-heading">
+            <h2 id="invitations-title">
+              Inviti{' '}
+              <span className="people-count">{invitations.totalCount}</span>
+            </h2>
+          </header>
           {message && (
             <p className="invitation-success" role="status">
               {message}
@@ -157,79 +169,37 @@ export function ParticipantsPanel({
               riprovare.
             </p>
           )}
-          {!invitations.items.length ? (
-            <p className="invitation-hint">
-              {page > 1
-                ? 'Nessun invito in questa pagina.'
-                : 'Non ci sono ancora inviti per questa stagione. Quando ne invii uno resta qui, così puoi reinviarlo o revocarlo.'}
-            </p>
-          ) : (
-            <ul className="invitation-list">
-              {invitations.items.map((invite) => (
-                <li key={invite.id}>
-                  <div className="invitation-recipient">
-                    <strong>{invite.displayName}</strong>
-                    <p>{invite.email}</p>
-                    <small>
-                      {invite.kind === 'Organizer'
-                        ? 'Organizzatore'
-                        : 'Partecipante'}{' '}
-                      · Scadenza{' '}
-                      {new Date(invite.expiresAt).toLocaleDateString('it-IT')}
-                    </small>
-                  </div>
-                  <span
-                    className={`invitation-status invitation-status--${invite.status.toLowerCase()}`}
-                  >
-                    {statusLabels[invite.status]}
-                  </span>
-                  {(invite.status === 'Pending' ||
-                    invite.status === 'Expired') && (
-                    <div className="invitation-actions">
-                      <Button
-                        variant="outline"
-                        disabled={busy}
-                        onClick={() => void manage(invite.id, 'Resend')}
-                      >
-                        Reinvia
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={() => setConfirm(invite.id)}
-                      >
-                        Revoca
-                      </Button>
-                    </div>
-                  )}
-                  {confirm === invite.id && (
-                    <div className="invitation-revoke" role="alert">
-                      <p>
-                        Revocare questo invito? Il link non permetterà più di
-                        entrare nella lega.
-                      </p>
-                      <div className="invitation-actions">
-                        <Button
-                          variant="ghost"
-                          disabled={busy}
-                          onClick={() => setConfirm(null)}
-                        >
-                          Annulla
-                        </Button>
-                        <Button
-                          disabled={busy}
-                          onClick={() => void manage(invite.id, 'Revoke')}
-                        >
-                          Conferma revoca
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </li>
-              ))}
+          {activeInvitations.length ? (
+            <ul className="invitation-list" aria-label="Inviti da gestire">
+              {activeInvitations.map(renderInvitation)}
             </ul>
+          ) : (
+            <p className="invitation-hint">
+              {invitations.totalCount === 0
+                ? 'Non hai ancora inviato inviti.'
+                : invitations.totalCount > invitations.pageSize
+                  ? 'Nessun invito da gestire in questa pagina.'
+                  : 'Nessun invito da gestire.'}
+            </p>
           )}
-          {(page > 1 || invitations.totalCount > 20) && (
+          {pastInvitations.length > 0 && (
+            <details className="invitation-history" key={page}>
+              <summary>
+                <Icon name="chevron-right" />
+                <span>Storico inviti</span>
+                <span className="people-count">{pastInvitations.length}</span>
+              </summary>
+              {invitations.totalCount > invitations.pageSize && (
+                <p className="invitation-hint">
+                  Inviti conclusi in questa pagina.
+                </p>
+              )}
+              <ul className="invitation-list" aria-label="Inviti conclusi">
+                {pastInvitations.map(renderInvitation)}
+              </ul>
+            </details>
+          )}
+          {(page > 1 || invitations.totalCount > invitations.pageSize) && (
             <nav
               className="invitation-pagination"
               aria-label="Pagine degli inviti"
@@ -244,14 +214,16 @@ export function ParticipantsPanel({
               <span>Pagina {page}</span>
               <Button
                 variant="ghost"
-                disabled={page * 20 >= invitations.totalCount || busy}
+                disabled={
+                  page * invitations.pageSize >= invitations.totalCount || busy
+                }
                 onClick={() => setPage(page + 1)}
               >
                 Successiva
               </Button>
             </nav>
           )}
-        </div>
+        </section>
       </section>
       <section
         className="league-aside league-panel invite-panel"

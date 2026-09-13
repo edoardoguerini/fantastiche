@@ -103,7 +103,12 @@ export function InviteParticipantForm({
       )}
       <form.Subscribe selector={(state) => state.isSubmitting}>
         {(busy) => (
-          <Button type="submit" disabled={busy} aria-busy={busy}>
+          <Button
+            type="submit"
+            variant="outline"
+            disabled={busy}
+            aria-busy={busy}
+          >
             {busy ? 'Invio in corso…' : 'Invia invito'}
           </Button>
         )}

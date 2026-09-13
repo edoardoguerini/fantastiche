@@ -25,10 +25,19 @@ export function LeaguePage({ leagueId }: { leagueId: string }) {
     : 0
   return (
     <div className="content-container league-page">
-      <Link className="back-link" to="/leghe">
-        <Icon name="arrow-left" />
-        Torna alle leghe
-      </Link>
+      <Button
+        asChild
+        variant="outline"
+        className="league-back-link size-11 rounded-full p-0"
+      >
+        <Link
+          to="/leghe"
+          aria-label="Torna alle leghe"
+          title="Torna alle leghe"
+        >
+          <Icon name="chevron-left" />
+        </Link>
+      </Button>
       {result.isPending ? (
         <LoadingState />
       ) : result.isError ? (
@@ -57,7 +66,6 @@ export function LeaguePage({ leagueId }: { leagueId: string }) {
               </div>
               <Button asChild className="league-header-action">
                 <Link to="/leghe/$leagueId/asta" params={{ leagueId }}>
-                  <Icon name="play" />
                   {league.auctionStatus === 'Completed'
                     ? 'Rivedi l’asta'
                     : 'Entra nella sala d’asta'}

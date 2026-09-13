@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
 import { render, screen, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { api } from '@/lib/api/client'
@@ -114,4 +115,54 @@ it('riassume squadre e inviti in attesa', async () => {
   expect(await screen.findByRole('term')).toHaveTextContent('Squadre')
   expect(screen.getByRole('definition')).toHaveTextContent('2')
   expect(screen.getByText('1 invito in attesa')).toBeInTheDocument()
+})
+
+it('raccoglie gli inviti conclusi nello storico e mantiene le azioni sugli inviti aperti', async () => {
+  const user = userEvent.setup()
+  vi.mocked(api.get).mockResolvedValue(payload)
+  render(
+    <ParticipantsPanel userId={uid} leagueId="league" seasonId="season" />,
+    { wrapper: wrapper() },
+  )
+  await screen.findByRole('heading', { name: /^Inviti/ })
+  expect(screen.getByText('Accettato')).not.toBeVisible()
+  expect(screen.getAllByRole('button', { name: /Azioni invito/ })).toHaveLength(
+    1,
+  )
+  await user.click(screen.getByText('Storico inviti'))
+  expect(screen.getByText('Accettato')).toBeVisible()
+  expect(
+    screen.queryByRole('button', { name: /Azioni invito Andrea/ }),
+  ).not.toBeInTheDocument()
+})
+
+it('apre le azioni da tastiera, chiude con Escape e chiede conferma prima della revoca', async () => {
+  const user = userEvent.setup()
+  vi.mocked(api.get).mockResolvedValue(payload)
+  vi.mocked(api.post).mockResolvedValue({})
+  render(
+    <ParticipantsPanel userId={uid} leagueId="league" seasonId="season" />,
+    { wrapper: wrapper() },
+  )
+  const trigger = await screen.findByRole('button', {
+    name: /Azioni invito Sara Moretti/,
+  })
+  expect(
+    screen.queryByRole('button', { name: 'Revoca invito' }),
+  ).not.toBeInTheDocument()
+  trigger.focus()
+  await user.keyboard('{Enter}')
+  await user.tab()
+  expect(screen.getByRole('button', { name: 'Reinvia invito' })).toHaveFocus()
+  await user.keyboard('{Escape}')
+  expect(trigger).toHaveFocus()
+  expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  await user.click(trigger)
+  await user.click(screen.getByRole('heading', { name: /^Partecipanti/ }))
+  expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  await user.click(trigger)
+  await user.click(screen.getByRole('button', { name: 'Revoca invito' }))
+  expect(api.post).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: 'Conferma revoca' }))
+  expect(await screen.findByText('Invito revocato.')).toBeVisible()
 })

@@ -27,6 +27,8 @@ Il backend verifica sempre che l’account corrisponda al destinatario. In caso 
 
 `ParticipantsPanel` è nel dettaglio lega, sotto il listone. Legge GET `/Leagues/{leagueId}/Seasons/{seasonId}/Participants?page=1&pageSize=20`; cache isolata per utente/lega/stagione/pagina. Solo `canManage=true` restituito dal server mostra partecipanti, email degli inviti e form di gestione. Membri ordinari non ricevono i dati di gestione. Inviti paginati con stati In attesa, Accettato, Scaduto e Revocato; reinvio e revoca usano le API esistenti, con conferma esplicita della revoca. Le azioni non chiamano direttamente il provider email e la UI descrive l’accodamento, non la consegna.
 
+Partecipanti e Inviti condividono titoli, conteggi a badge e righe con avatar. I partecipanti mostrano nome e squadra; gli inviti nome, email e scadenza. Ruolo e stato restano visibili anche su mobile. Gli inviti Pending ed Expired hanno un menu azioni a comparsa, utilizzabile con Tab, chiudibile con Escape o clic esterno. Accepted e Revoked sono raccolti nello storico richiudibile della pagina corrente; conteggio totale e paginazione continuano a includere tutti gli stati.
+
 Il client comune supporta GET con header aggiuntivi e PUT/POST con un nuovo antiforgery per ogni mutazione. `replaceSession` cancella le query private e la mutation cache mantenendo l’osservazione della sola identità, così login e cambio account funzionano anche senza cambiare route.
 
 ## Test
