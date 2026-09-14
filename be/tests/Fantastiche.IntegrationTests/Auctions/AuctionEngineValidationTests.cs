@@ -6,6 +6,26 @@ namespace Fantastiche.IntegrationTests.Auctions;
 public sealed partial class AuctionEngineTests
 {
     [Fact]
+    public async Task StartRequiresUnitIncrementAndPreservesRejectedReceipt()
+    {
+        var data = await Seed();
+        var session = await Create(data);
+        var request = new StartPlayerAuctionCommand(data.Users[0], session.Id, Guid.NewGuid(), data.Players[0], 30, [5, 10]);
+        var rejected = await Send<StartPlayerAuctionCommand, AuctionCommandResult>(request);
+        Assert.False(rejected.Accepted);
+        Assert.Equal(400, rejected.StatusCode);
+        Assert.Equal("auction.invalid_options", rejected.ErrorCode);
+        Assert.Equal(rejected, await Send<StartPlayerAuctionCommand, AuctionCommandResult>(request));
+        var unchanged = await State(data, session.Id);
+        Assert.Equal(session.Version, unchanged.Version);
+        Assert.Null(unchanged.CurrentAuction);
+
+        var accepted = await Send<StartPlayerAuctionCommand, AuctionCommandResult>(request with { RequestId = Guid.NewGuid(), Increments = [1] });
+        Assert.True(accepted.Accepted);
+        Assert.Equal(new[] { 1 }, (await State(data, session.Id)).CurrentAuction!.Increments);
+    }
+
+    [Fact]
     public async Task CreateValidatesFrozenParticipantsAndAllowsOnlyOneActiveSession()
     {
         var data = await Seed();

@@ -22,6 +22,8 @@ public sealed partial class AuctionEngine
             if (request.DurationSeconds is < 5 or > 30 || request.DurationSeconds % 5 != 0 || increments.Length is < 1 or > 10
                 || increments.Any(x => x is < 1 or > 1_000_000) || increments.Distinct().Count() != increments.Length)
                 throw Error("auction.invalid_options", "Durata o incrementi non validi.", 400);
+            if (!increments.Contains(1))
+                throw Error("auction.invalid_options", "L’incremento +1 è obbligatorio.", 400);
             if (s.Status != AuctionSessionStatus.Active) throw Error("auction.not_active", "La sessione non è attiva.");
             await RequireNoBombAsync(c, tx, s, token);
             if (await ReadOpenAsync(c, tx, s, token) is not null) throw Error("auction.player_in_progress", "Attendi la chiusura del giocatore in corso.");

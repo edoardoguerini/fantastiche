@@ -15,7 +15,7 @@ const schema = z.object({
     .refine((value) => durations.includes(value), 'Scegli una durata valida.'),
   increments: z
     .array(z.number().refine((value) => incrementOptions.includes(value)))
-    .min(1, 'Seleziona almeno un incremento.'),
+    .refine((values) => values.includes(1), 'L’incremento +1 è obbligatorio.'),
 })
 export function PlayerCallForm({
   player,
@@ -126,17 +126,16 @@ export function PlayerCallForm({
                           {incrementOptions.map((increment) => {
                             const selected =
                               field.state.value.includes(increment)
-                            const lastSelected =
-                              selected && field.state.value.length === 1
+                            const required = increment === 1
                             return (
                               <Button
                                 key={increment}
                                 variant="outline"
                                 className="call-option"
                                 aria-pressed={selected}
-                                aria-disabled={lastSelected || undefined}
+                                aria-disabled={required || undefined}
                                 onClick={() => {
-                                  if (lastSelected) return
+                                  if (required) return
                                   field.handleChange(
                                     selected
                                       ? field.state.value.filter(
@@ -154,7 +153,8 @@ export function PlayerCallForm({
                           })}
                         </div>
                         <p className="call-options-hint">
-                          Almeno un incremento attivo.
+                          +1 sempre attivo. Gli altri incrementi sono
+                          facoltativi.
                         </p>
                         {field.state.meta.errors[0] && (
                           <p className="field-error" role="alert">

@@ -22,6 +22,27 @@ const player: CatalogEntry = {
   teamId: null,
 }
 
+it('mantiene +1 obbligatorio e permette di togliere tutti gli incrementi aggiuntivi', async () => {
+  const start = vi.fn(async () => {})
+  render(
+    <PlayerCallForm
+      player={player}
+      disabled={false}
+      onCancel={vi.fn()}
+      onStart={start}
+    />,
+  )
+  const one = screen.getByRole('button', { name: '+1' })
+  fireEvent.click(one)
+  expect(one).toHaveAttribute('aria-pressed', 'true')
+  expect(one).toHaveAttribute('aria-disabled', 'true')
+  fireEvent.click(screen.getByRole('button', { name: '+5' }))
+  fireEvent.click(screen.getByRole('button', { name: '+10' }))
+  fireEvent.click(one)
+  fireEvent.click(screen.getByRole('button', { name: 'Chiama' }))
+  await waitFor(() => expect(start).toHaveBeenCalledWith(15, [1]))
+})
+
 it('blocca la Bomba già usata e mantiene disponibile la chiamata ordinaria', () => {
   const bomb = vi.fn(async () => {})
   render(

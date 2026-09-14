@@ -40,7 +40,7 @@ In caso di risposta persa, il recupero automatico legge solo `/Commands/{request
 
 ## Box della selezione
 
-`PlayerCallForm` dispone scheda e quotazioni a sinistra, timer/incrementi e azioni in un pannello a destra. La X annulla soltanto la scelta locale. «Chiama» e «Sgancia la bomba» occupano ciascuno metà della riga, riempiendo il pannello; quando sono in colonna ogni pulsante occupa tutta la larghezza. La chiamata parte da 1 credito. Il fieldset comune blocca tutti i controlli durante l’invio o quando la chiamata non è consentita. La selezione resta privata fino alla conferma.
+`PlayerCallForm` dispone scheda e quotazioni a sinistra, timer/incrementi e azioni in un pannello a destra. La X annulla soltanto la scelta locale. «Chiama» e «Sgancia la bomba» occupano ciascuno metà della riga, riempiendo il pannello; quando sono in colonna ogni pulsante occupa tutta la larghezza. La chiamata parte da 1 credito. L’incremento +1 è sempre selezionato e non disattivabile; gli altri incrementi sono facoltativi. I rilanci rapidi includono +1 anche per aste precedenti configurate senza, rispettando gli stessi blocchi di budget, turno, connessione e timer. Il fieldset comune blocca tutti i controlli durante l’invio o quando la chiamata non è consentita. La selezione resta privata fino alla conferma.
 
 Il layout si adatta alla larghezza del box con container query: sotto 760 px il pannello segue la scheda, sotto 420 px le quotazioni passano a due colonne e i pulsanti delle opzioni a tre. Il pulsante di chiamata precede la Bomba su mobile. Foto, segnaposto, nomi lunghi, ruoli P/D/C/A e quotazioni assenti condividono lo stesso componente. Il focus delle opzioni usa un solo bordo lilla.
 
