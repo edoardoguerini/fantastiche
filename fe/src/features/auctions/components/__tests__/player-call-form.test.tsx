@@ -22,6 +22,43 @@ const player: CatalogEntry = {
   teamId: null,
 }
 
+it('blocca la Bomba già usata e mantiene disponibile la chiamata ordinaria', () => {
+  const bomb = vi.fn(async () => {})
+  render(
+    <PlayerCallForm
+      player={player}
+      disabled={false}
+      bombUsed
+      onCancel={vi.fn()}
+      onStart={vi.fn(async () => {})}
+      onBomb={bomb}
+    />,
+  )
+  const button = screen.getByRole('button', { name: 'Bomba già usata' })
+  expect(button).toBeDisabled()
+  fireEvent.click(button)
+  expect(bomb).not.toHaveBeenCalled()
+  expect(screen.getByRole('button', { name: 'Chiama' })).toBeEnabled()
+})
+
+it('riabilita la Bomba quando lo snapshot restituisce la disponibilità dopo l’annullamento', () => {
+  const bomb = vi.fn(async () => {})
+  const props = {
+    player,
+    disabled: false,
+    onCancel: vi.fn(),
+    onStart: vi.fn(async () => {}),
+    onBomb: bomb,
+  }
+  const { rerender } = render(<PlayerCallForm {...props} bombUsed />)
+  expect(screen.getByRole('button', { name: 'Bomba già usata' })).toBeDisabled()
+  rerender(<PlayerCallForm {...props} bombUsed={false} />)
+  const button = screen.getByRole('button', { name: 'Sgancia la bomba' })
+  expect(button).toBeEnabled()
+  fireEvent.click(button)
+  expect(bomb).toHaveBeenCalledOnce()
+})
+
 it('chiude la selezione dalla X senza avviare una chiamata o una Bomba', () => {
   const cancel = vi.fn()
   const start = vi.fn(async () => {})

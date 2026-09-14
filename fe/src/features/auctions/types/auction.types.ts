@@ -104,6 +104,7 @@ export const sessionSchema = z.object({
   teamOrder: z.array(z.string()),
   currentAuction: playerAuctionSchema.nullable(),
   currentBomb: bombAuctionSchema.nullable().optional(),
+  usedBombTeamIds: z.array(z.string()).nullable().optional(),
   teams: z.array(teamSchema),
   serverTime: z.string(),
 })

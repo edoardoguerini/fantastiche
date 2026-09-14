@@ -8,6 +8,93 @@ namespace Fantastiche.IntegrationTests.Auctions;
 
 public sealed partial class AuctionEngineTests
 {
+    [Theory]
+    [InlineData("NoSale")]
+    [InlineData("Completed")]
+    public async Task BombCanOnlyBeStartedOncePerTeamEvenAfterItCloses(string status)
+    {
+        var data = await Seed();
+        var session = await Create(data);
+        var command = new StartBombCommand(data.Users[0], session.Id, Guid.NewGuid(), data.Players[0]);
+        var first = await Send<StartBombCommand, AuctionCommandResult>(command);
+        Assert.True(first.Accepted);
+        var id = first.AuctionId!.Value;
+        await OpenBombCollection(id);
+        if (status == "Completed") Assert.True((await BombBid(data, session.Id, id, 1, 2, user: 1)).Accepted);
+        await ExpireBomb(id);
+        await FinishBombReveal(data, session.Id, id);
+        Assert.Equal(status, (await State(data, session.Id)).CurrentBomb!.Status);
+        Assert.True((await Send<ControlAuctionSessionCommand, AuctionCommandResult>(new(data.Users[0], session.Id, Guid.NewGuid(), "GoToTurn", TargetTeamId: data.Teams[0]))).Accepted);
+        var before = await State(data, session.Id);
+        Assert.Equal(data.Teams.Take(1), before.UsedBombTeamIds);
+        var attempts = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => StartBomb(data, session.Id, player: 1, collect: false)));
+        Assert.All(attempts, result =>
+        {
+            Assert.False(result.Accepted);
+            Assert.Equal("auction.bomb_already_used", result.ErrorCode);
+        });
+        Assert.Equal(before.Version, (await State(data, session.Id)).Version);
+        Assert.Equal(first, await Send<StartBombCommand, AuctionCommandResult>(command));
+        Assert.True((await Start(data, session.Id, player: 1)).Accepted);
+        var afterClassic = await State(data, session.Id);
+        Assert.Null(afterClassic.CurrentBomb);
+        Assert.Equal(data.Teams.Take(1), afterClassic.UsedBombTeamIds);
+    }
+
+    [Fact]
+    public async Task BombAllowanceIsIndependentForEachTeamAndSession()
+    {
+        var data = await Seed();
+        var session = await Create(data);
+        Assert.Empty(session.UsedBombTeamIds!);
+        var starts = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => StartBomb(data, session.Id, collect: false)));
+        var first = Assert.Single(starts, result => result.Accepted);
+        await OpenBombCollection(first.AuctionId!.Value);
+        await ExpireBomb(first.AuctionId.Value);
+        await FinishBombReveal(data, session.Id, first.AuctionId.Value);
+        Assert.Equal(data.Teams.Take(1), (await State(data, session.Id)).UsedBombTeamIds);
+        var second = await StartBomb(data, session.Id, user: 1);
+        Assert.True(second.Accepted);
+        Assert.True((await BombBid(data, session.Id, second.AuctionId!.Value, 1, 2)).Accepted);
+        Assert.True((await Send<CancelBombCommand, AuctionCommandResult>(new(data.Users[0], session.Id, Guid.NewGuid(), second.AuctionId.Value))).Accepted);
+        Assert.True((await Send<ControlAuctionSessionCommand, AuctionCommandResult>(new(data.Users[0], session.Id, Guid.NewGuid(), "Complete"))).Accepted);
+        var nextSession = await Create(data);
+        Assert.Empty(nextSession.UsedBombTeamIds!);
+        Assert.True((await StartBomb(data, nextSession.Id, collect: false)).Accepted);
+    }
+
+    [Theory]
+    [InlineData("Waiting")]
+    [InlineData("Collecting")]
+    [InlineData("Revealing")]
+    public async Task CancelledBombRestoresAllowanceAndAllowsExactlyOneConcurrentRestart(string phase)
+    {
+        var data = await Seed();
+        var session = await Create(data);
+        var command = new StartBombCommand(data.Users[0], session.Id, Guid.NewGuid(), data.Players[0]);
+        var first = await Send<StartBombCommand, AuctionCommandResult>(command);
+        Assert.True(first.Accepted);
+        var id = first.AuctionId!.Value;
+        if (phase != "Waiting") await OpenBombCollection(id);
+        if (phase == "Revealing")
+        {
+            Assert.True((await BombBid(data, session.Id, id, 1, 2)).Accepted);
+            Assert.True((await BombBid(data, session.Id, id, 1, 3, user: 1)).Accepted);
+        }
+        var active = await State(data, session.Id);
+        Assert.Equal(phase, active.CurrentBomb!.Status);
+        Assert.Equal(data.Teams.Take(1), active.UsedBombTeamIds);
+        Assert.True((await Send<CancelBombCommand, AuctionCommandResult>(new(data.Users[0], session.Id, Guid.NewGuid(), id))).Accepted);
+        var cancelled = await State(data, session.Id);
+        Assert.Equal("Cancelled", cancelled.CurrentBomb!.Status);
+        Assert.Empty(cancelled.UsedBombTeamIds!);
+        Assert.Equal(first, await Send<StartBombCommand, AuctionCommandResult>(command));
+        Assert.Empty((await State(data, session.Id)).UsedBombTeamIds!);
+        var attempts = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => StartBomb(data, session.Id, collect: false)));
+        Assert.Single(attempts, result => result.Accepted);
+        Assert.Equal(data.Teams.Take(1), (await State(data, session.Id)).UsedBombTeamIds);
+    }
+
     [Fact]
     public async Task BombOffersStaySecretIncludingFromOrganizerUntilTheirIndividualReveal()
     {
@@ -261,7 +348,8 @@ public sealed partial class AuctionEngineTests
     {
         var data = await Seed();
         var session = await Create(data);
-        var id = (await StartBomb(data, session.Id)).AuctionId!.Value;
+        Assert.True((await Send<ControlAuctionSessionCommand, AuctionCommandResult>(new(data.Users[0], session.Id, Guid.NewGuid(), "GoToTurn", TargetTeamId: data.Teams[1]))).Accepted);
+        var id = (await StartBomb(data, session.Id, user: 1)).AuctionId!.Value;
         var confirmations = await Task.WhenAll(BombBid(data, session.Id, id, 1, 2), BombBid(data, session.Id, id, 1, 7, user: 1));
         Assert.All(confirmations, x => Assert.True(x.Accepted));
         await ProgressBombs();

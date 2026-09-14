@@ -34,6 +34,12 @@ public sealed partial class AuctionEngine
             var position = progress.FindPosition(s.CurrentPosition, false)
                 ?? throw Error("auction.rosters_complete", "Le rose sono complete.");
             if (team != progress.Turns[position].TeamId) throw Error("auction.not_caller", "Può chiamare soltanto la squadra di turno.", 403);
+            if (await c.ExecuteScalarAsync<int>(Sql("""
+                SELECT COUNT(*) FROM BombAuctions
+                WHERE SessionId = @Id AND LeagueSeasonId = @LeagueSeasonId AND LeagueId = @LeagueId AND CallerTeamId = @TeamId
+                  AND Status <> @CancelledStatus
+                """, new { s.Id, s.LeagueSeasonId, s.LeagueId, TeamId = team, CancelledStatus = BombAuctionStatus.Cancelled }, tx, token)) > 0)
+                throw Error("auction.bomb_already_used", "La tua squadra ha già usato la Bomba in questa sessione d’asta.");
             var role = await c.QuerySingleOrDefaultAsync<string>(Sql("SELECT Role FROM ListEntries WHERE ListVersionId = @ListVersionId AND PlayerId = @PlayerId", new { s.ListVersionId, request.PlayerId }, tx, token))
                 ?? throw Error("resource.not_found", "Giocatore non presente nel listone della sessione.", 404);
             if (role != progress.Role) throw Error("auction.wrong_role", "Puoi chiamare soltanto calciatori del ruolo in corso: " + progress.Role + ".");

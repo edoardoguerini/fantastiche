@@ -24,7 +24,8 @@ public sealed record AuctionSessionView(
     IReadOnlyList<AuctionTeamView> Teams,
     DateTimeOffset ServerTime,
     string? CurrentRole = null,
-    AuctionBombView? CurrentBomb = null);
+    AuctionBombView? CurrentBomb = null,
+    IReadOnlyList<Guid>? UsedBombTeamIds = null);
 
 public sealed record AuctionPlayerView(
     Guid Id,
