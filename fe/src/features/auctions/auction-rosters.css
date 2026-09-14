@@ -4,10 +4,6 @@
   flex-basis: clamp(160px, calc((100% - 108px) / 8), 210px);
   border-radius: 8px;
 }
-.team-column--compact .team-column-top {
-  min-height: 1lh;
-  margin-bottom: 6px;
-}
 .team-column--compact .team-identity {
   min-height: 36px;
 }
@@ -160,9 +156,6 @@
   .auction-teams .team-column--compact > .team-capacity {
     gap: 2px;
   }
-  .team-column--compact .team-column-top {
-    font-size: 10px;
-  }
   .team-column--compact .team-identity h3 {
     font-size: 11px;
   }
@@ -211,4 +204,13 @@
   color: var(--muted-foreground);
   font-size: 12px;
   text-align: center;
+}
+
+.team-column--compact .team-card-footer {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
 }

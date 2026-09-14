@@ -34,11 +34,6 @@ export function TeamRosterCard({
   const entries = loadedPlayers(roster.data?.pages)
   const header = (
     <>
-      <div className="team-column-top">
-        {current && (
-          <span className="team-turn team-turn--active">Di turno</span>
-        )}
-      </div>
       <div className="team-identity">
         <span className="team-monogram" aria-hidden="true">
           {team.name
@@ -165,6 +160,7 @@ export function TeamRosterCard({
           }}
         />
       </div>
+      <footer className="team-card-footer">{team.name}</footer>
     </article>
   )
 }

@@ -271,13 +271,6 @@
   font-size: 14px;
 }
 @media (max-width: 650px) {
-  .auction-room:has(
-    .auction-session[data-section='live'] .auction-side--bidding
-  ) {
-    padding-bottom: calc(
-      45dvh + var(--auction-footer-height) + 24px + env(safe-area-inset-bottom)
-    );
-  }
   .auction-room:has(.auction-mini-live) {
     padding-bottom: calc(
       var(--auction-footer-height) + 110px + env(safe-area-inset-bottom)

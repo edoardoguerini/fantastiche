@@ -402,7 +402,9 @@ function SessionView({
             tabIndex={0}
             hidden={tab !== 'live'}
           >
-            <div className="auction-live-top">
+            <div
+              className={`auction-live-top ${open ? 'auction-live-top--bidding' : ''}`}
+            >
               <div className="auction-workspace">
                 <div className="auction-main">
                   {selected ? (
@@ -435,6 +437,65 @@ function SessionView({
                       connected={connected}
                       canCall={canCall}
                       showLastPurchase={false}
+                      bidding={
+                        open && (
+                          <aside
+                            id="live-bid-controls"
+                            tabIndex={-1}
+                            className="auction-inline-bidding"
+                            aria-label="La tua partecipazione"
+                          >
+                            <BidControls
+                              key={session.currentAuction?.id ?? 'waiting'}
+                              session={session}
+                              team={team}
+                              rules={league}
+                              connected={connected}
+                              blocked={!!command.pending || command.busy}
+                              seconds={seconds}
+                              onBid={(amount) => {
+                                if (session.currentAuction)
+                                  void command.send('Bids', {
+                                    playerAuctionId: session.currentAuction.id,
+                                    amount,
+                                  })
+                              }}
+                            />
+                            {open && session.currentAuction && (
+                              <details
+                                className="auction-bid-history"
+                                key={session.currentAuction.id}
+                              >
+                                <summary>Ultimi rilanci</summary>
+                                <div className="auction-recent-bids">
+                                  {bids.isError ? (
+                                    <p>
+                                      Storico momentaneamente non disponibile.
+                                    </p>
+                                  ) : bids.data?.items.length ? (
+                                    [...bids.data.items]
+                                      .sort((a, b) => b.sequence - a.sequence)
+                                      .slice(0, 5)
+                                      .map((bid) => (
+                                        <p key={bid.id}>
+                                          <span>
+                                            {session.teams.find(
+                                              (value) =>
+                                                value.id === bid.teamId,
+                                            )?.name ?? 'Squadra'}
+                                          </span>
+                                          <strong>{bid.amount}</strong>
+                                        </p>
+                                      ))
+                                  ) : (
+                                    <p>Le offerte accettate appariranno qui.</p>
+                                  )}
+                                </div>
+                              </details>
+                            )}
+                          </aside>
+                        )
+                      }
                       onChoose={() => setSearchDialogVersion(session.version)}
                     >
                       {canCall && (
@@ -454,55 +515,6 @@ function SessionView({
                     </AuctionStage>
                   )}
                 </div>
-                {open && (
-                  <aside
-                    id="live-bid-controls"
-                    tabIndex={-1}
-                    className={`auction-side ${open ? 'auction-side--bidding' : ''}`}
-                    aria-label="La tua partecipazione"
-                  >
-                    <BidControls
-                      key={session.currentAuction?.id ?? 'waiting'}
-                      session={session}
-                      team={team}
-                      rules={league}
-                      connected={connected}
-                      blocked={!!command.pending || command.busy}
-                      seconds={seconds}
-                      onBid={(amount) => {
-                        if (session.currentAuction)
-                          void command.send('Bids', {
-                            playerAuctionId: session.currentAuction.id,
-                            amount,
-                          })
-                      }}
-                    />
-                    {open && session.currentAuction && (
-                      <div className="auction-recent-bids">
-                        <h3>Ultimi rilanci</h3>
-                        {bids.isError ? (
-                          <p>Storico momentaneamente non disponibile.</p>
-                        ) : bids.data?.items.length ? (
-                          [...bids.data.items]
-                            .sort((a, b) => b.sequence - a.sequence)
-                            .slice(0, 5)
-                            .map((bid) => (
-                              <p key={bid.id}>
-                                <span>
-                                  {session.teams.find(
-                                    (value) => value.id === bid.teamId,
-                                  )?.name ?? 'Squadra'}
-                                </span>
-                                <strong>{bid.amount}</strong>
-                              </p>
-                            ))
-                        ) : (
-                          <p>Le offerte accettate appariranno qui.</p>
-                        )}
-                      </div>
-                    )}
-                  </aside>
-                )}
               </div>
               <RecentPurchases
                 userId={userId}

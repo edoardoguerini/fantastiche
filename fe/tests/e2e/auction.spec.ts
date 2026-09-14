@@ -982,7 +982,7 @@ test('gestione: trascinamento touch dalla maniglia senza salvare automaticamente
 })
 
 for (const width of [390, 1440]) {
-  test(`la squadra in testa è in evidenza e le offerte sono sotto a ${width}px`, async ({
+  test(`la scheda compatta mantiene squadra in testa e rilanci accessibili a ${width}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 1000 })
@@ -994,10 +994,14 @@ for (const width of [390, 1440]) {
     await expect(leader).toContainText('Real Sbronzi')
     const contest = (await page.locator('.auction-contest').boundingBox())!
     const offer = (await page.locator('.auction-current-offer').boundingBox())!
-    expect(offer.y).toBeGreaterThanOrEqual(contest.y + contest.height)
+    expect(offer.y).toBeGreaterThanOrEqual(contest.y)
+    expect(offer.y + offer.height).toBeLessThanOrEqual(
+      contest.y + contest.height + 1,
+    )
     const quick = (await page.locator('.bid-quick').boundingBox())!
     const custom = (await page.locator('.bid-custom').boundingBox())!
-    expect(custom.y).toBeGreaterThanOrEqual(quick.y + quick.height)
+    if (width > 1200) expect(Math.abs(custom.y - quick.y)).toBeLessThan(2)
+    else expect(custom.y).toBeGreaterThanOrEqual(quick.y + quick.height)
     await page.screenshot({
       path: test.info().outputPath(`leader-other-${width}.png`),
       fullPage: true,
@@ -1007,8 +1011,10 @@ for (const width of [390, 1440]) {
     state.version++
     notify()
     await expect(leader).toContainText('Atletico Spritz')
-    await expect(leader).toContainText('Sta vincendo:')
-    await expect(page.getByText('La tua squadra è in testa.')).toHaveCount(0)
+    await expect(leader).toContainText('Sta vincendo')
+    await expect(page.locator('.bid-context')).toContainText(
+      'La tua squadra è in testa.',
+    )
     await expect(
       page.getByRole('button', { name: 'Offri 27 crediti, più 1' }),
     ).toBeDisabled()
@@ -1046,10 +1052,21 @@ for (const width of [390, 900]) {
     ).toBeLessThanOrEqual(1)
     await page.keyboard.press('Home')
     expect(await board.evaluate((element) => element.scrollLeft)).toBe(0)
-    await page.keyboard.press('ArrowRight')
-    await expect
-      .poll(() => board.evaluate((element) => element.scrollLeft))
-      .toBeGreaterThan(0)
+    // Aspetta la fine dello scroll animato nativo prima di cambiare gesto.
+    await Promise.all([
+      board.evaluate(
+        (element) =>
+          new Promise<void>((resolve) => {
+            element.addEventListener('scrollend', () => resolve(), {
+              once: true,
+            })
+          }),
+      ),
+      page.keyboard.press('ArrowRight'),
+    ])
+    expect(
+      await board.evaluate((element) => element.scrollLeft),
+    ).toBeGreaterThan(0)
     await page.keyboard.press('Home')
     const bounds = (await board.boundingBox())!
     await page.mouse.move(bounds.x + 80, Math.max(10, bounds.y) + 100)
@@ -1296,13 +1313,11 @@ for (const width of [1920, 1440, 768, 390, 320]) {
       ),
     ).toBe(true)
     if (width < 650) {
-      await page.evaluate(() => window.scrollTo(0, 500))
-      const box = await page.locator('.auction-side--bidding').boundingBox()
-      expect(box!.y).toBeGreaterThan(0)
-      expect(box!.y + box!.height).toBeLessThanOrEqual(
-        (await page.evaluate(() => innerHeight)) + 1,
-      )
+      await button.scrollIntoViewIfNeeded()
       await expect(button).toBeInViewport()
+      const box = (await button.boundingBox())!
+      const tabs = (await page.getByRole('tablist').boundingBox())!
+      expect(box.y + box.height).toBeLessThanOrEqual(tabs.y)
     }
     await page.screenshot({ path: test.info().outputPath(`live-${width}.png`) })
     await page.getByRole('tab', { name: 'Listone' }).focus()
@@ -1330,7 +1345,9 @@ test('i rilanci non rileggono le rose, una nuova aggiudicazione le aggiorna', as
   ).toHaveCount(12)
   const reads = control.rosterReads
   await page.getByRole('button', { name: 'Offri 21 crediti, più 1' }).click()
-  await expect(page.getByText('La tua squadra è in testa.')).toHaveCount(0)
+  await expect(page.locator('.bid-context')).toContainText(
+    'La tua squadra è in testa.',
+  )
   await expect(
     page.getByRole('region', { name: 'Squadra in testa', exact: true }),
   ).toContainText('Atletico Spritz')
@@ -1381,7 +1398,7 @@ test('una risposta persa si recupera dalla ricevuta senza duplicare il rilancio'
   await expect(
     page.getByRole('button', { name: 'Verifica esito' }),
   ).toHaveCount(0)
-  await expect(page.locator('.auction-leader')).toContainText('Sta vincendo:')
+  await expect(page.locator('.auction-leader')).toContainText('Sta vincendo')
   expect(control.commands).toHaveLength(1)
   expect(control.receiptReads).toBeGreaterThan(0)
 })
@@ -1659,16 +1676,15 @@ test('su mobile navigazione, riepilogo e rilanci restano separati e raggiungibil
   await setupRoom(page)
   const tabs = page.getByRole('tablist', { name: 'Sezioni della sala d’asta' })
   await expect(tabs).toBeInViewport()
-  const budgetBox = (await page
-    .getByRole('region', { name: 'Il tuo budget', exact: true })
-    .boundingBox())!
-  const bidBox = (await page.locator('.auction-side--bidding').boundingBox())!
-  expect(bidBox.y + bidBox.height).toBeLessThanOrEqual(budgetBox.y + 1)
+  const tabsBox = (await tabs.boundingBox())!
+  await page.locator('#live-bid-controls').scrollIntoViewIfNeeded()
+  const bidBox = (await page.locator('#live-bid-controls').boundingBox())!
+  expect(bidBox.y + bidBox.height).toBeLessThanOrEqual(tabsBox.y + 1)
   await page.getByRole('tab', { name: 'Listone' }).click()
   const summary = page.getByRole('region', { name: 'Riepilogo asta in corso' })
   await expect(summary).toBeInViewport()
   const summaryBox = (await summary.boundingBox())!
-  expect(summaryBox.y + summaryBox.height).toBeLessThanOrEqual(budgetBox.y + 1)
+  expect(summaryBox.y + summaryBox.height).toBeLessThanOrEqual(tabsBox.y + 1)
   await page.getByRole('button', { name: 'Torna ai rilanci' }).click()
   await expect(
     page.getByRole('button', { name: 'Offri 21 crediti, più 1' }),
@@ -2602,4 +2618,78 @@ test('ultimi acquisti richiudibili su mobile e sempre visibili su desktop', asyn
   await expect(showAll).toBeVisible()
   await showAll.click()
   await expect(page.getByRole('tabpanel', { name: 'Storico' })).toBeVisible()
+})
+
+for (const width of [1024, 1180, 1440, 1920]) {
+  test(`durante il timer i saldi delle dieci squadre sono visibili a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 768 })
+    await setupRoom(page, { teamCount: 10 })
+    const finances = page.locator('#panel-live .team-finances')
+    await expect(finances).toHaveCount(10)
+    const tabs = (await page.getByRole('tablist').boundingBox())!
+    for (const card of await finances.all()) {
+      const box = (await card.boundingBox())!
+      expect(box.y).toBeGreaterThan(0)
+      expect(box.y + box.height).toBeLessThan(tabs.y)
+    }
+    await expect(page.locator('.auction-bid-history')).not.toHaveAttribute(
+      'open',
+      '',
+    )
+    await page.getByText('Ultimi rilanci', { exact: true }).click()
+    await expect(page.locator('.auction-recent-bids')).toBeVisible()
+    await page.getByText('Ultimi rilanci', { exact: true }).click()
+    await page.screenshot({
+      path: test.info().outputPath(`compact-${width}.png`),
+    })
+  })
+}
+
+test('le card ripetono il nome nel footer senza etichetta del turno', async ({
+  page,
+}) => {
+  await setupRoom(page, { waiting: true, teamCount: 10 })
+  await expect(page.locator('.team-column-top')).toHaveCount(0)
+  await expect(page.locator('#panel-live .team-card-footer')).toHaveText([
+    'Atletico Spritz',
+    'Real Sbronzi',
+    'Dinamo Divano',
+    'Sporting Aperitivo',
+    'Bayern Leverdure',
+    'Borussia Porcelli',
+    'AC Picchia',
+    'FC Mai una Gioia',
+    'Paris San Gennaro',
+    'AS Intomatici',
+  ])
+  await page.getByRole('tab', { name: 'Rose', exact: true }).click()
+  const footer = page
+    .getByRole('article', { name: 'Rosa Atletico Spritz', exact: true })
+    .locator('footer')
+  await footer.scrollIntoViewIfNeeded()
+  await expect(footer).toHaveText('Atletico Spritz')
+})
+
+test('sei incrementi e nomi lunghi non allargano la scheda mobile', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 568 })
+  const { state, notify } = await setupRoom(page)
+  state.currentAuction!.increments = [1, 2, 5, 10, 20, 50]
+  state.currentAuction!.name = 'Un nome del calciatore particolarmente lungo'
+  state.teams[1]!.name = 'Una squadra dal nome particolarmente lungo'
+  state.version++
+  notify()
+  await expect(page.locator('.bid-quick button')).toHaveCount(6)
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true)
+  await page.screenshot({
+    path: test.info().outputPath('compact-six-mobile.png'),
+    fullPage: true,
+  })
 })

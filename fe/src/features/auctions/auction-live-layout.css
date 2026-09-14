@@ -245,3 +245,117 @@
     display: none;
   }
 }
+
+/* Scheda durante il timer: offerta e rilanci riuniti nello stesso pannello. */
+.auction-console .auction-stage--live {
+  min-height: 0;
+}
+.auction-inline-bidding {
+  margin-top: 18px;
+  scroll-margin-block: 100px calc(var(--auction-footer-height) + 24px);
+}
+.auction-console .auction-bid-controls {
+  display: grid;
+  grid-template-columns: auto minmax(140px, 1fr);
+  align-items: start;
+  gap: 10px;
+}
+.auction-console .bid-quick {
+  grid-auto-columns: minmax(44px, 1fr);
+  gap: 6px;
+  overflow: visible;
+}
+.auction-console .bid-quick button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 12px;
+}
+.auction-console .bid-quick span {
+  font-size: 16px;
+}
+.auction-console .bid-custom {
+  margin: 0;
+}
+.auction-console .bid-custom input,
+.auction-console .bid-custom button {
+  height: 44px;
+  min-height: 44px;
+}
+.auction-console .bid-context {
+  display: block;
+  grid-column: 1 / -1;
+  margin: 0;
+  line-height: 1.5;
+}
+.auction-bid-history {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.auction-bid-history summary {
+  width: fit-content;
+  padding-block: 6px;
+  cursor: pointer;
+}
+.auction-bid-history summary:focus-visible {
+  outline: 1px solid var(--primary);
+  outline-offset: 2px;
+}
+.auction-console .auction-bid-history .auction-recent-bids {
+  padding-top: 6px;
+}
+@media (min-width: 1024px) {
+  .auction-live-top--bidding .auction-recent-purchases header {
+    margin-bottom: 10px;
+  }
+  .auction-live-top--bidding .auction-recent-purchases li {
+    padding-block: 7px;
+  }
+  .auction-live-top--bidding .auction-recent-purchases li p {
+    margin-top: 3px;
+  }
+}
+@media (max-width: 1200px) {
+  .auction-console .auction-bid-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 650px) {
+  .auction-contest {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .auction-current-offer {
+    justify-content: space-between;
+  }
+  .auction-console .auction-current-offer .auction-price {
+    flex-direction: row;
+    align-items: baseline;
+    font-size: 28px;
+    gap: 8px;
+  }
+  .auction-countdown {
+    border: 0;
+    padding: 0;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .auction-console .auction-current-offer .auction-timer {
+    font-size: 28px;
+  }
+  .auction-console .bid-quick button {
+    padding-inline: 4px;
+    min-width: 0;
+  }
+  .auction-console .bid-quick {
+    grid-auto-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 400px) {
+  .auction-console .bid-quick {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

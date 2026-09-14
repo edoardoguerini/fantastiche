@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/primitives/button'
 import { Input } from '@/components/primitives/input'
-import { Icon } from '@/components/common/icon'
 import {
   canBuyRole,
   emptySlots,
@@ -55,30 +54,19 @@ export function BidControls({
       ? 'Verifica dell’operazione in corso…'
       : !team
         ? 'Stai seguendo l’asta come spettatore.'
-        : ownLead
-          ? null
-          : !eligible
-            ? 'Non hai posti disponibili per questo ruolo.'
-            : seconds === 0
-              ? 'In attesa dell’esito…'
-              : max <= auction.currentAmount
-                ? 'Il prezzo supera la tua offerta massima.'
-                : `Puoi offrire fino a ${max} crediti.`
+        : seconds === 0
+          ? 'Attendi la conferma dell’aggiudicazione…'
+          : session.status !== 'Active'
+            ? 'Asta in pausa.'
+            : ownLead
+              ? 'La tua squadra è in testa.'
+              : !eligible
+                ? 'Non hai posti disponibili per questo ruolo.'
+                : max <= auction.currentAmount
+                  ? 'Il prezzo supera la tua offerta massima.'
+                  : `Puoi offrire fino a ${max} crediti.`
   return (
     <section className="auction-bid-controls" aria-label="Rilancia">
-      <div className="bid-mobile-summary">
-        <span>{auction.name}</span>
-        <strong>{auction.currentAmount} cr</strong>
-        <span className={seconds <= 5 ? 'bid-time-urgent' : ''}>
-          <Icon name="stopwatch" variant="jelly" /> {seconds}s
-        </span>
-      </div>
-      {reason && (
-        <p className="bid-context">
-          <Icon name="money-bill" variant="jelly" />
-          <span>{reason}</span>
-        </p>
-      )}
       <div className="bid-quick">
         {auction.increments.map((increment) => {
           const total = offerTotal(auction.currentAmount, increment)
@@ -91,7 +79,6 @@ export function BidControls({
               aria-label={`Offri ${total} crediti, più ${increment}`}
             >
               <span>+{increment}</span>
-              <small>{total} crediti</small>
             </Button>
           )
         })}
@@ -121,14 +108,18 @@ export function BidControls({
           onChange={(event) => setCustom(event.target.value)}
           disabled={disabled}
         />
-        <Button
-          variant="outline"
-          type="submit"
-          disabled={disabled || !customValid}
-        >
+        <Button type="submit" disabled={disabled || !customValid}>
           Offri{customValid ? ` ${amount}` : ''}
         </Button>
       </form>
+      <p className="bid-context" aria-live="polite">
+        {reason}
+        {connected &&
+          !blocked &&
+          seconds > 0 &&
+          session.status === 'Active' &&
+          ` · Ogni rilancio riavvia i ${auction.durationSeconds} secondi.`}
+      </p>
     </section>
   )
 }
