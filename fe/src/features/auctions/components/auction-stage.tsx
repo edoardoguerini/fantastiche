@@ -1,4 +1,4 @@
-import { PlayerValuation } from './player-valuation'
+import type { ReactNode } from 'react'
 import { Icon } from '@/components/common/icon'
 import { Button } from '@/components/primitives/button'
 import { roles, type TimedSession } from '../types/auction.types'
@@ -12,6 +12,9 @@ export function AuctionStage({
   connected,
   canCall,
   onChoose,
+  children,
+  bidding,
+  showLastPurchase = true,
 }: {
   session: TimedSession
   seconds: number
@@ -19,6 +22,9 @@ export function AuctionStage({
   connected: boolean
   canCall: boolean
   onChoose: () => void
+  children?: ReactNode
+  bidding?: ReactNode
+  showLastPurchase?: boolean
 }) {
   const auction = session.currentAuction
   const caller = session.teams.find((team) => team.id === session.currentTeamId)
@@ -65,48 +71,39 @@ export function AuctionStage({
                   />
                 </p>
                 <h2>{auction.name}</h2>
-                <PlayerValuation player={auction} />
+                <section
+                  className={`auction-leader ${winner?.id === myTeamId ? 'auction-leader--mine' : ''}`}
+                  aria-label="Squadra in testa"
+                  aria-live="polite"
+                >
+                  <span>Sta vincendo</span>{' '}
+                  <strong>{winner?.name ?? '—'}</strong>
+                </section>
               </div>
             </div>
-            <section
-              className={`auction-leader ${winner?.id === myTeamId ? 'auction-leader--mine' : ''}`}
-              aria-label="Squadra in testa"
-              aria-live="polite"
+            <div
+              className="auction-current-offer"
+              role="group"
+              aria-label="Offerta e tempo rimanente"
             >
-              <p className="auction-leader-label">Sta vincendo:</p>
-              <div className="auction-leader-identity">
-                <span className="auction-leader-avatar" aria-hidden="true">
-                  {winner?.name
-                    .split(/\s+/)
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .map((word) => word[0])
-                    .join('')
-                    .toUpperCase() ?? '—'}
+              <p className="auction-price">
+                {auction.currentAmount}
+                <small>
+                  {auction.currentAmount === 1 ? 'credito' : 'crediti'}
+                </small>
+              </p>
+              <div className="auction-countdown">
+                <span
+                  className={`auction-timer ${seconds <= 5 ? 'auction-timer--urgent' : ''}`}
+                  role="timer"
+                  aria-label={`${seconds} secondi rimasti`}
+                >
+                  {seconds}
+                  <small>s</small>
                 </span>
-                <h3>{winner?.name ?? '—'}</h3>
+                <span className="auction-countdown-label">rimanenti</span>
               </div>
-            </section>
-          </div>
-          <div
-            className="auction-current-offer"
-            role="group"
-            aria-label="Offerta e tempo rimanente"
-          >
-            <p className="auction-price">
-              {auction.currentAmount}
-              <small>
-                {auction.currentAmount === 1 ? 'credito' : 'crediti'}
-              </small>
-            </p>
-            <span
-              className={`auction-timer ${seconds <= 5 ? 'auction-timer--urgent' : ''}`}
-              role="timer"
-              aria-label={`${seconds} secondi rimasti`}
-            >
-              {seconds}
-              <small>s</small>
-            </span>
+            </div>
           </div>
           <div className="auction-time-track">
             <div
@@ -115,13 +112,15 @@ export function AuctionStage({
               }}
             />
           </div>
-          <p className="auction-stage-note" aria-live="polite">
-            {!connected
-              ? 'Riconnessione in corso. I rilanci sono temporaneamente sospesi.'
-              : seconds === 0
-                ? 'Attendi la conferma dell’aggiudicazione…'
-                : `Ogni rilancio accettato riavvia i ${auction.durationSeconds} secondi.`}
-          </p>
+          {bidding ?? (
+            <p className="auction-stage-note" aria-live="polite">
+              {!connected
+                ? 'Riconnessione in corso. I rilanci sono temporaneamente sospesi.'
+                : seconds === 0
+                  ? 'Attendi la conferma dell’aggiudicazione…'
+                  : `Ogni rilancio accettato riavvia i ${auction.durationSeconds} secondi.`}
+            </p>
+          )}
         </>
       ) : (
         <div className="auction-waiting">
@@ -164,7 +163,7 @@ export function AuctionStage({
               Scegli dal listone
             </Button>
           )}
-          {auction && (
+          {auction && showLastPurchase && (
             <div className="auction-last-purchase" data-role={auction.role}>
               <PlayerPhoto url={auction.photoUrl} role={auction.role} />
               <div>
@@ -222,6 +221,7 @@ export function AuctionStage({
           )}
         </div>
       )}
+      {!open && children}
     </section>
   )
 }

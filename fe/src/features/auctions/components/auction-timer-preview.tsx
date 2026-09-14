@@ -81,30 +81,35 @@ export function AuctionTimerPreview({
               connected
               canCall={false}
               onChoose={() => {}}
+              bidding={
+                <aside
+                  className="auction-inline-bidding"
+                  aria-label="La tua partecipazione"
+                >
+                  <BidControls
+                    session={snapshot}
+                    team={team}
+                    rules={league}
+                    connected
+                    blocked={false}
+                    seconds={20}
+                    onBid={(amount) => {
+                      if (!team) return
+                      setSnapshot((current) => ({
+                        ...current,
+                        currentAuction: current.currentAuction
+                          ? {
+                              ...current.currentAuction,
+                              currentAmount: amount,
+                              winningTeamId: team.id,
+                            }
+                          : null,
+                      }))
+                    }}
+                  />
+                </aside>
+              }
             />
-            <aside className="auction-side" aria-label="La tua partecipazione">
-              <BidControls
-                session={snapshot}
-                team={team}
-                rules={league}
-                connected
-                blocked={false}
-                seconds={20}
-                onBid={(amount) => {
-                  if (!team) return
-                  setSnapshot((current) => ({
-                    ...current,
-                    currentAuction: current.currentAuction
-                      ? {
-                          ...current.currentAuction,
-                          currentAmount: amount,
-                          winningTeamId: team.id,
-                        }
-                      : null,
-                  }))
-                }}
-              />
-            </aside>
           </div>
         </div>
       ) : (

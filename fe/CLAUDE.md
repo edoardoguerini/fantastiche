@@ -10,7 +10,7 @@ Login centrato senza box, campi con etichette visibili e sfondo CSS a gradiente 
 
 Linee e bordi sempre minimali: token condiviso `--border`/`--input` bianco all’8% di opacità, hover discreto al 14%. Separare le sezioni soprattutto con gli spazi, evitare contorni marcati. Nei campi e nei select il focus usa un solo bordo lilla, senza anello esterno aggiuntivo. Conservare indicatori di focus da tastiera e di errore riconoscibili.
 
-Tipografia: Sora per tutta l’interfaccia, inclusi titoli, marchio, testi, form e controlli. Font variabile self-hosted tramite Fontsource; nessuna richiesta a Google Fonts.
+Tipografia: Inter per tutta l’interfaccia, inclusi titoli, marchio, testi, form e controlli. Font variabile self-hosted tramite Fontsource; nessuna richiesta a Google Fonts.
 
 Header e contenuti ordinari condividono larghezza utile di 1100 px e margini laterali minimi di 24 px (20 px su mobile), definiti dai token della shell. Il titolo dell’elenco leghe misura 26–32 px e dista 4 px dal sottotitolo.
 

@@ -5,6 +5,25 @@ import { Brand } from '@/components/common/brand'
 
 const HeaderSlot = createContext<HTMLDivElement | null>(null)
 const BrandSlot = createContext<HTMLSpanElement | null>(null)
+const AccountSlot = createContext<HTMLSpanElement | null>(null)
+const AccountSlotRef = createContext<
+  ((target: HTMLSpanElement | null) => void) | undefined
+>(undefined)
+
+export function AppAccountContent({ children }: { children: ReactNode }) {
+  const target = useContext(AccountSlot)
+  return target ? createPortal(children, target) : null
+}
+
+export function AppAccountDetail({ children }: { children: ReactNode }) {
+  const setTarget = useContext(AccountSlotRef)
+  return (
+    <span className="app-account-detail">
+      <span className="app-account-detail-slot" ref={setTarget} />
+      <span className="app-account-detail-fallback">{children}</span>
+    </span>
+  )
+}
 
 export function AppBrandContent({ children }: { children: ReactNode }) {
   const target = useContext(BrandSlot)
@@ -25,33 +44,38 @@ export function AppShell({
 }) {
   const [headerSlot, setHeaderSlot] = useState<HTMLDivElement | null>(null)
   const [brandSlot, setBrandSlot] = useState<HTMLSpanElement | null>(null)
+  const [accountSlot, setAccountSlot] = useState<HTMLSpanElement | null>(null)
   return (
     <HeaderSlot.Provider value={headerSlot}>
       <BrandSlot.Provider value={brandSlot}>
-        <div className="app-shell">
-          <a className="skip-link" href="#main-content">
-            Vai al contenuto
-          </a>
-          <header className="app-header">
-            <Link
-              to="/leghe"
-              className="app-brand"
-              aria-label="Fantastiche, le leghe"
-              aria-describedby="app-brand-context"
-            >
-              <Brand compact />
-              <span>Fantastiche</span>
-              <span
-                id="app-brand-context"
-                className="app-brand-context"
-                ref={setBrandSlot}
-              />
-            </Link>
-            {account}
-            <div className="app-header-slot" ref={setHeaderSlot} />
-          </header>
-          <main id="main-content">{children}</main>
-        </div>
+        <AccountSlot.Provider value={accountSlot}>
+          <AccountSlotRef.Provider value={setAccountSlot}>
+            <div className="app-shell">
+              <a className="skip-link" href="#main-content">
+                Vai al contenuto
+              </a>
+              <header className="app-header">
+                <Link
+                  to="/leghe"
+                  className="app-brand"
+                  aria-label="Fantastiche, le leghe"
+                  aria-describedby="app-brand-context"
+                >
+                  <Brand compact />
+                  <span>Fantastiche</span>
+                  <span
+                    id="app-brand-context"
+                    className="app-brand-context"
+                    ref={setBrandSlot}
+                  />
+                </Link>
+                {account}
+                <div className="app-header-slot" ref={setHeaderSlot} />
+              </header>
+              <main id="main-content">{children}</main>
+            </div>
+          </AccountSlotRef.Provider>
+        </AccountSlot.Provider>
       </BrandSlot.Provider>
     </HeaderSlot.Provider>
   )

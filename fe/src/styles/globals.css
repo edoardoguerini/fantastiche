@@ -11,8 +11,8 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-destructive: var(--destructive);
-  --font-sans: 'Sora Variable', 'Segoe UI', sans-serif;
-  --font-heading: 'Sora Variable', 'Segoe UI', sans-serif;
+  --font-sans: 'Inter Variable', 'Segoe UI', sans-serif;
+  --font-heading: 'Inter Variable', 'Segoe UI', sans-serif;
 }
 
 :root {
@@ -901,4 +901,9 @@ body > .page-state {
   .login-heading h1 {
     font-size: 22px;
   }
+}
+
+.app-account-detail:has(> .app-account-detail-slot:not(:empty))
+  > .app-account-detail-fallback {
+  display: none;
 }

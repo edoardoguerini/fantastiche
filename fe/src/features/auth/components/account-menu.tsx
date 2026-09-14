@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useHydrated, useNavigate } from '@tanstack/react-router'
 import { Button } from '@/components/primitives/button'
 import { Icon } from '@/components/common/icon'
+import { AppAccountDetail } from '@/components/layout/app-shell'
 import { PwaInstallGuide } from '@/components/common/pwa-install-guide'
 import { ApiError, errorMessage } from '@/lib/api/error'
 import { promptInstall } from '@/lib/pwa/pwa-store'
@@ -127,7 +128,7 @@ export function AccountMenu() {
         </span>
         <span className="account-identity">
           <strong>{user?.displayName}</strong>
-          <span>{user?.email}</span>
+          <AppAccountDetail>{user?.email}</AppAccountDetail>
         </span>
         <Icon name="chevron-down" className="account-chevron" />
       </button>

@@ -647,7 +647,9 @@ for (const width of [320, 1440]) {
         r.url().includes('/Catalog?') &&
         new URL(r.url()).searchParams.get('search') === 'Fabbri',
     )
-    await page.getByLabel('Cerca calciatore').fill('Fabbri')
+    await page
+      .getByRole('textbox', { name: 'Cerca calciatore', exact: true })
+      .fill('Fabbri')
     await searchRequest
     const nextRequest = page.waitForRequest(
       (r) =>
@@ -684,7 +686,9 @@ for (const width of [320, 1440]) {
     await expect(
       page.getByRole('combobox', { name: 'Ordina il listone' }),
     ).toHaveText('Ordina: Nome')
-    await expect(page.getByLabel('Cerca calciatore')).toHaveValue('Fabbri')
+    await expect(
+      page.getByRole('textbox', { name: 'Cerca calciatore', exact: true }),
+    ).toHaveValue('Fabbri')
     await expect(
       page.getByRole('button', { name: 'Precedente', exact: true }),
     ).toHaveCount(0)
@@ -703,63 +707,145 @@ for (const width of [320, 1440]) {
   })
 }
 
-test('il Live desktop affianca il listone e dispone le squadre sotto il giocatore', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1440, height: 1000 })
-  await setupRoom(page)
-  await expect(page.getByLabel('Cerca calciatore')).toBeVisible()
-  const player = (await page
-    .getByRole('region', { name: 'Asta corrente', exact: true })
-    .boundingBox())!
-  const catalog = (await page.getByLabel('Cerca calciatore').boundingBox())!
-  const board = (await page
-    .getByRole('region', { name: 'Tabellone delle squadre' })
-    .boundingBox())!
-  expect(catalog.x).toBeGreaterThan(player.x + player.width)
-  expect(board.y).toBeGreaterThan(player.y + player.height)
-})
+for (const width of [390, 1024, 1440]) {
+  test(`Live: ricerca nel turno, ultimi acquisti e squadre a tutta larghezza a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    const { control } = await setupRoom(page, {
+      waiting: true,
+      teamCount: 8,
+      rosterRoles: ['A', 'P', 'C', 'D', 'A'],
+    })
+    const stage = page.getByRole('region', {
+      name: 'Asta corrente',
+      exact: true,
+    })
+    const history = page.getByRole('complementary', { name: 'Ultimi acquisti' })
+    await expect(history.getByRole('listitem')).toHaveCount(3)
+    await expect(history.getByRole('heading', { level: 3 })).toHaveText([
+      'Calciatore 1',
+      'Calciatore 2',
+      'Calciatore 3',
+    ])
+    const player = (await stage.boundingBox())!
+    const recent = (await history.boundingBox())!
+    const board = (await page
+      .getByRole('region', { name: 'Tabellone delle squadre' })
+      .boundingBox())!
+    expect(Math.abs(board.x - player.x)).toBeLessThanOrEqual(1)
+    if (width >= 1024) {
+      expect(Math.abs(player.width / recent.width - 7 / 3)).toBeLessThan(0.02)
+      expect(Math.abs(player.y - recent.y)).toBeLessThanOrEqual(1)
+      expect(Math.abs(player.height - recent.height)).toBeLessThanOrEqual(1)
+      expect(recent.x).toBeGreaterThan(player.x + player.width)
+      expect(
+        Math.abs(board.x + board.width - recent.x - recent.width),
+      ).toBeLessThanOrEqual(1)
+    } else {
+      expect(recent.y).toBeGreaterThanOrEqual(player.y + player.height)
+    }
+    expect(board.y).toBeGreaterThanOrEqual(recent.y + recent.height)
+    await expect(page.locator('.auction-catalog-slot')).toHaveCount(0)
+    const trigger = stage.getByRole('button', {
+      name: 'Apri ricerca calciatore',
+      exact: true,
+    })
+    await expect(trigger).toBeVisible()
+    await page.screenshot({
+      path: test.info().outputPath(`live-layout-${width}.png`),
+      fullPage: true,
+    })
+    await trigger.click()
+    const dialog = page.getByRole('dialog', { name: 'Scegli un calciatore' })
+    await expect(dialog).toBeVisible()
+    const search = dialog.getByRole('textbox', {
+      name: 'Cerca calciatore',
+      exact: true,
+    })
+    await expect(search).toBeFocused()
+    const bounds = (await dialog.boundingBox())!
+    expect(bounds.x).toBe(0)
+    expect(bounds.y).toBe(0)
+    expect(bounds.width).toBe(width)
+    expect(bounds.height).toBe(1000)
+    await dialog.getByRole('combobox', { name: 'Ordina il listone' }).click()
+    await page.getByRole('option', { name: 'Ordina: FVM ↓' }).click()
+    await search.fill('Fabbri')
+    await page.screenshot({
+      path: test.info().outputPath(`search-dialog-${width}.png`),
+    })
+    await dialog
+      .getByRole('button', { name: 'Seleziona Alessandro Fabbri' })
+      .click()
+    await expect(
+      page.getByRole('button', { name: 'Chiama', exact: true }),
+    ).toBeVisible()
+    expect(control.commands).toHaveLength(0)
+    await expect(dialog).toHaveCount(0)
+    await expect(history).toBeVisible()
+    if (width >= 1024) {
+      const selection = (await page.locator('.player-call-form').boundingBox())!
+      const purchases = (await history.boundingBox())!
+      expect(Math.abs(selection.y - purchases.y)).toBeLessThanOrEqual(1)
+      expect(Math.abs(selection.height - purchases.height)).toBeLessThanOrEqual(
+        1,
+      )
+    }
+    await page.screenshot({
+      path: test.info().outputPath(`live-selection-${width}.png`),
+      fullPage: true,
+    })
+    await history
+      .getByRole('button', { name: 'Visualizza tutto lo storico' })
+      .click()
+    await expect(page.getByRole('tabpanel', { name: 'Storico' })).toBeVisible()
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(width)
+  })
+}
 
-test('il listone laterale arriva alla barra inferiore e carica scorrendo', async ({
+test('il modale ricerca scorre, si chiude con Escape e X e restituisce il focus', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await setupRoom(page, { catalogSize: 60 })
-  const surface = page.locator('.auction-catalog-surface')
-  const footer = page.locator('.auction-bottom-bar')
-  async function expectAligned() {
-    await expect
-      .poll(async () => {
-        const panel = (await surface.boundingBox())!
-        const bar = (await footer.boundingBox())!
-        return Math.abs(panel.y + panel.height + 16 - bar.y)
-      })
-      .toBeLessThanOrEqual(2)
-    await expect(
-      page.getByRole('navigation', { name: 'Pagine del listone' }),
-    ).toHaveCount(0)
-  }
-  await expectAligned()
-  await page.locator('.catalog-list').evaluate((list) => {
+  const { control, state, notify } = await setupRoom(page, {
+    waiting: true,
+    catalogSize: 60,
+  })
+  const stage = page.getByRole('region', { name: 'Asta corrente', exact: true })
+  const trigger = stage.getByRole('button', {
+    name: 'Apri ricerca calciatore',
+    exact: true,
+  })
+  await trigger.click()
+  const dialog = page.getByRole('dialog', { name: 'Scegli un calciatore' })
+  await expect(
+    dialog.getByRole('textbox', { name: 'Cerca calciatore', exact: true }),
+  ).toBeFocused()
+  await expect(dialog.locator('.catalog-row')).toHaveCount(30)
+  await dialog.locator('.catalog-list').evaluate((list) => {
     list.scrollTop = list.scrollHeight
   })
-  await expect(page.locator('.auction-catalog .catalog-row')).toHaveCount(60)
-  await expectAligned()
-  await page.setViewportSize({ width: 1440, height: 700 })
-  await expectAligned()
-  await page.evaluate(() => window.scrollTo(0, 100))
-  await expectAligned()
-  await page.evaluate(() =>
-    window.scrollTo(0, document.documentElement.scrollHeight),
+  await expect(dialog.locator('.catalog-row')).toHaveCount(60)
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(trigger).toBeFocused()
+  await trigger.click()
+  await dialog.getByRole('button', { name: 'Chiudi ricerca' }).click()
+  await expect(trigger).toBeFocused()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await stage.getByRole('button', { name: 'Scegli dal listone' }).click()
+  await expect(dialog).toBeVisible()
+  expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(
+    true,
   )
-  await expectAligned()
-  expect((await surface.boundingBox())!.y).toBeGreaterThanOrEqual(16)
-  await expect(
-    page.getByRole('heading', { name: 'Listone', exact: true }),
-  ).toBeInViewport()
-  await page.screenshot({
-    path: test.info().outputPath('listone-bottom-gap.png'),
-  })
+  state.currentTeamId = teamId(1)
+  state.version++
+  notify()
+  await expect(dialog).toHaveCount(0)
+  expect(control.commands).toHaveLength(0)
 })
 
 test('test chiamante: mantiene il proprio turno, si disattiva e supporta il riordino drag', async ({
@@ -896,7 +982,7 @@ test('gestione: trascinamento touch dalla maniglia senza salvare automaticamente
 })
 
 for (const width of [390, 1440]) {
-  test(`la squadra in testa è in evidenza e le offerte sono sotto a ${width}px`, async ({
+  test(`la scheda compatta mantiene squadra in testa e rilanci accessibili a ${width}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 1000 })
@@ -908,10 +994,14 @@ for (const width of [390, 1440]) {
     await expect(leader).toContainText('Real Sbronzi')
     const contest = (await page.locator('.auction-contest').boundingBox())!
     const offer = (await page.locator('.auction-current-offer').boundingBox())!
-    expect(offer.y).toBeGreaterThanOrEqual(contest.y + contest.height)
+    expect(offer.y).toBeGreaterThanOrEqual(contest.y)
+    expect(offer.y + offer.height).toBeLessThanOrEqual(
+      contest.y + contest.height + 1,
+    )
     const quick = (await page.locator('.bid-quick').boundingBox())!
     const custom = (await page.locator('.bid-custom').boundingBox())!
-    expect(custom.y).toBeGreaterThanOrEqual(quick.y + quick.height)
+    if (width > 1200) expect(Math.abs(custom.y - quick.y)).toBeLessThan(2)
+    else expect(custom.y).toBeGreaterThanOrEqual(quick.y + quick.height)
     await page.screenshot({
       path: test.info().outputPath(`leader-other-${width}.png`),
       fullPage: true,
@@ -921,8 +1011,10 @@ for (const width of [390, 1440]) {
     state.version++
     notify()
     await expect(leader).toContainText('Atletico Spritz')
-    await expect(leader).toContainText('Sta vincendo:')
-    await expect(page.getByText('La tua squadra è in testa.')).toHaveCount(0)
+    await expect(leader).toContainText('Sta vincendo')
+    await expect(page.locator('.bid-context')).toContainText(
+      'La tua squadra è in testa.',
+    )
     await expect(
       page.getByRole('button', { name: 'Offri 27 crediti, più 1' }),
     ).toBeDisabled()
@@ -933,97 +1025,78 @@ for (const width of [390, 1440]) {
   })
 }
 
-test('il carosello squadre torna dalla prima all’ultima e viceversa', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 900 })
-  await page.emulateMedia({ reducedMotion: 'reduce' })
-  await setupRoom(page, { waiting: true })
-  const board = page.getByLabel('Scorri le squadre', { exact: true })
-  const previous = page.getByRole('button', { name: 'Squadre precedenti' })
-  const next = page.getByRole('button', { name: 'Squadre successive' })
-  const first = page.getByRole('button', { name: 'Apri rosa Atletico Spritz' })
-  const last = page.getByRole('button', {
-    name: 'Apri rosa Sporting Aperitivo',
+for (const width of [390, 900]) {
+  test(`le squadre scorrono nativamente senza frecce a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await setupRoom(page, { waiting: true, teamCount: 10 })
+    const board = page.getByLabel('Scorri le squadre', { exact: true })
+    await expect(
+      page.getByRole('button', { name: 'Squadre successive' }),
+    ).toHaveCount(0)
+    await expect(
+      page.getByRole('button', { name: 'Squadre precedenti' }),
+    ).toHaveCount(0)
+    await board.evaluate((element) =>
+      element.scrollIntoView({ block: 'start' }),
+    )
+    await board.focus()
+    await page.keyboard.press('End')
+    expect(
+      await board.evaluate((element) =>
+        Math.abs(
+          element.scrollWidth - element.clientWidth - element.scrollLeft,
+        ),
+      ),
+    ).toBeLessThanOrEqual(1)
+    await page.keyboard.press('Home')
+    expect(await board.evaluate((element) => element.scrollLeft)).toBe(0)
+    // Aspetta la fine dello scroll animato nativo prima di cambiare gesto.
+    await Promise.all([
+      board.evaluate(
+        (element) =>
+          new Promise<void>((resolve) => {
+            element.addEventListener('scrollend', () => resolve(), {
+              once: true,
+            })
+          }),
+      ),
+      page.keyboard.press('ArrowRight'),
+    ])
+    expect(
+      await board.evaluate((element) => element.scrollLeft),
+    ).toBeGreaterThan(0)
+    await page.keyboard.press('Home')
+    const bounds = (await board.boundingBox())!
+    await page.mouse.move(bounds.x + 80, Math.max(10, bounds.y) + 100)
+    await page.mouse.wheel(160, 0)
+    await expect
+      .poll(() => board.evaluate((element) => element.scrollLeft))
+      .toBeGreaterThan(100)
+    const before = await page.evaluate(() => window.scrollY)
+    await page.mouse.wheel(0, 160)
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(before)
+    expect(await board.evaluate((element) => element.scrollTop)).toBe(0)
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(width)
+    await page.screenshot({
+      path: test.info().outputPath(`native-team-scroll-${width}.png`),
+      fullPage: true,
+    })
   })
-  const position = async (card: typeof first) =>
-    Math.round((await card.boundingBox())!.x - (await board.boundingBox())!.x)
-  await expect(previous).toBeEnabled()
-  await expect(next).toBeEnabled()
-  const firstPosition = await position(first)
-  await previous.click()
-  await expect.poll(() => position(last)).toBe(firstPosition)
-  await next.click()
-  await expect.poll(() => position(first)).toBe(firstPosition)
-  await board.focus()
-  await page.keyboard.press('End')
-  await expect.poll(() => position(last)).toBe(firstPosition)
-  await page.keyboard.press('Home')
-  await expect.poll(() => position(first)).toBe(firstPosition)
-  await expect(page.locator('.team-purchases')).toHaveCount(4)
-  await page.screenshot({ path: test.info().outputPath('carousel-mobile.png') })
-  await page.setViewportSize({ width: 1440, height: 1000 })
-  await expect(previous).toBeDisabled()
-  await expect(next).toBeDisabled()
-})
-
-test('il carosello taglia le card al bordo del box e supporta il drag', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1440, height: 1000 })
-  await setupRoom(page, { waiting: true, teamCount: 8 })
-  const board = page.getByLabel('Scorri le squadre', { exact: true })
-  await board.scrollIntoViewIfNeeded()
-  const section = page.getByRole('region', { name: 'Tabellone delle squadre' })
-  const first = page.locator('.team-column').first()
-  const last = page.locator('.team-column').last()
-  await expect(
-    page.getByRole('button', { name: 'Squadre precedenti' }),
-  ).toBeEnabled()
-  const viewport = (await board.boundingBox())!
-  const box = (await section.boundingBox())!
-  expect(Math.abs(viewport.x - box.x)).toBeLessThanOrEqual(1)
-  expect(Math.abs(viewport.width - box.width)).toBeLessThanOrEqual(2)
-  const previousCard = (await last.boundingBox())!
-  expect(previousCard.x).toBeLessThan(viewport.x)
-  expect(previousCard.x + previousCard.width).toBeGreaterThan(viewport.x + 12)
-  const initialX = (await first.boundingBox())!.x
-  const y = viewport.y + 50
-  await page.mouse.move(initialX + 120, y)
-  await page.mouse.down()
-  await page.mouse.move(initialX - 80, y, { steps: 12 })
-  await page.mouse.up()
-  await expect
-    .poll(async () => Math.abs((await first.boundingBox())!.x - initialX))
-    .toBeGreaterThan(100)
-  await expect(
-    page.getByRole('tab', { name: 'Live', exact: true }),
-  ).toHaveAttribute('aria-selected', 'true')
-  await board.focus()
-  await page.keyboard.press('Home')
-  await expect
-    .poll(async () => Math.round((await first.boundingBox())!.x))
-    .toBe(Math.round(initialX))
-  await page.mouse.move(initialX + 120, y)
-  await page.mouse.wheel(150, 0)
-  await expect
-    .poll(async () => Math.abs((await first.boundingBox())!.x - initialX))
-    .toBeGreaterThan(100)
-  await board.focus()
-  await page.keyboard.press('Home')
-  await expect
-    .poll(async () => Math.round((await first.boundingBox())!.x))
-    .toBe(Math.round(initialX))
-  await page.getByRole('heading', { name: 'Le squadre', exact: true }).click()
-  await page.screenshot({
-    path: test.info().outputPath('carousel-desktop.png'),
-  })
-})
+}
 
 test('selezione privata in anteprima: annulla senza offerte e chiama solo dopo conferma', async ({
   page,
 }) => {
   const { control } = await setupRoom(page, { waiting: true })
+  await page
+    .getByRole('button', { name: 'Apri ricerca calciatore', exact: true })
+    .click()
   await page
     .getByRole('button', { name: 'Seleziona Alessandro Fabbri', exact: true })
     .click()
@@ -1041,6 +1114,9 @@ test('selezione privata in anteprima: annulla senza offerte e chiama solo dopo c
     .click()
   await expect(preview).not.toBeVisible()
   expect(control.commands).toHaveLength(0)
+  await page
+    .getByRole('button', { name: 'Apri ricerca calciatore', exact: true })
+    .click()
   await page
     .getByRole('button', { name: 'Seleziona Alessandro Fabbri', exact: true })
     .click()
@@ -1127,8 +1203,9 @@ for (const [width, role] of [
         fvm: width === 320 ? null : 25,
       },
     })
-    if (width < 1024)
-      await page.getByRole('tab', { name: 'Listone', exact: true }).click()
+    await page
+      .getByRole('button', { name: 'Apri ricerca calciatore', exact: true })
+      .click()
     await page
       .getByRole('button', { name: `Seleziona ${name}`, exact: true })
       .click()
@@ -1236,13 +1313,11 @@ for (const width of [1920, 1440, 768, 390, 320]) {
       ),
     ).toBe(true)
     if (width < 650) {
-      await page.evaluate(() => window.scrollTo(0, 500))
-      const box = await page.locator('.auction-side--bidding').boundingBox()
-      expect(box!.y).toBeGreaterThan(0)
-      expect(box!.y + box!.height).toBeLessThanOrEqual(
-        (await page.evaluate(() => innerHeight)) + 1,
-      )
+      await button.scrollIntoViewIfNeeded()
       await expect(button).toBeInViewport()
+      const box = (await button.boundingBox())!
+      const tabs = (await page.getByRole('tablist').boundingBox())!
+      expect(box.y + box.height).toBeLessThanOrEqual(tabs.y)
     }
     await page.screenshot({ path: test.info().outputPath(`live-${width}.png`) })
     await page.getByRole('tab', { name: 'Listone' }).focus()
@@ -1266,11 +1341,13 @@ test('i rilanci non rileggono le rose, una nuova aggiudicazione le aggiorna', as
   const { control, state, notify } = await setupRoom(page)
   await expect(page.locator('.team-purchases')).toHaveCount(4)
   await expect(
-    page.locator('.team-purchases').getByText('Il primo acquisto ti aspetta'),
-  ).toHaveCount(4)
+    page.locator('.team-purchases').getByLabel('Posto libero: Portieri'),
+  ).toHaveCount(12)
   const reads = control.rosterReads
   await page.getByRole('button', { name: 'Offri 21 crediti, più 1' }).click()
-  await expect(page.getByText('La tua squadra è in testa.')).toHaveCount(0)
+  await expect(page.locator('.bid-context')).toContainText(
+    'La tua squadra è in testa.',
+  )
   await expect(
     page.getByRole('region', { name: 'Squadra in testa', exact: true }),
   ).toContainText('Atletico Spritz')
@@ -1321,7 +1398,7 @@ test('una risposta persa si recupera dalla ricevuta senza duplicare il rilancio'
   await expect(
     page.getByRole('button', { name: 'Verifica esito' }),
   ).toHaveCount(0)
-  await expect(page.locator('.auction-leader')).toContainText('Sta vincendo:')
+  await expect(page.locator('.auction-leader')).toContainText('Sta vincendo')
   expect(control.commands).toHaveLength(1)
   expect(control.receiptReads).toBeGreaterThan(0)
 })
@@ -1508,7 +1585,9 @@ test('la navigazione conserva il listone e aggiorna il riepilogo live senza invi
   await expect(
     page.getByRole('region', { name: 'Asta corrente', exact: true }),
   ).not.toBeVisible()
-  await page.getByLabel('Cerca calciatore').fill('Fabbri')
+  await page
+    .getByRole('textbox', { name: 'Cerca calciatore', exact: true })
+    .fill('Fabbri')
   await page.getByRole('button', { name: 'A', exact: true }).click()
   await page.getByRole('tab', { name: 'Rose', exact: true }).click()
   state.currentAuction!.currentAmount = 25
@@ -1518,7 +1597,9 @@ test('la navigazione conserva il listone e aggiorna il riepilogo live senza invi
   await expect(summary).toContainText('25 crediti')
   await expect(summary).toContainText('Alessandro Fabbri')
   await page.getByRole('tab', { name: 'Listone' }).click()
-  await expect(page.getByLabel('Cerca calciatore')).toHaveValue('Fabbri')
+  await expect(
+    page.getByRole('textbox', { name: 'Cerca calciatore', exact: true }),
+  ).toHaveValue('Fabbri')
   await expect(
     page.getByRole('button', { name: 'A', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true')
@@ -1583,7 +1664,9 @@ test('il turno resta accessibile e il tabellone apre la rosa scelta', async ({
   await page
     .getByRole('button', { name: 'Scegli dal listone', exact: true })
     .click()
-  await expect(page.getByLabel('Cerca calciatore')).toBeFocused()
+  await expect(
+    page.getByRole('textbox', { name: 'Cerca calciatore', exact: true }),
+  ).toBeFocused()
 })
 
 test('su mobile navigazione, riepilogo e rilanci restano separati e raggiungibili', async ({
@@ -1593,16 +1676,15 @@ test('su mobile navigazione, riepilogo e rilanci restano separati e raggiungibil
   await setupRoom(page)
   const tabs = page.getByRole('tablist', { name: 'Sezioni della sala d’asta' })
   await expect(tabs).toBeInViewport()
-  const budgetBox = (await page
-    .getByRole('region', { name: 'Il tuo budget', exact: true })
-    .boundingBox())!
-  const bidBox = (await page.locator('.auction-side--bidding').boundingBox())!
-  expect(bidBox.y + bidBox.height).toBeLessThanOrEqual(budgetBox.y + 1)
+  const tabsBox = (await tabs.boundingBox())!
+  await page.locator('#live-bid-controls').scrollIntoViewIfNeeded()
+  const bidBox = (await page.locator('#live-bid-controls').boundingBox())!
+  expect(bidBox.y + bidBox.height).toBeLessThanOrEqual(tabsBox.y + 1)
   await page.getByRole('tab', { name: 'Listone' }).click()
   const summary = page.getByRole('region', { name: 'Riepilogo asta in corso' })
   await expect(summary).toBeInViewport()
   const summaryBox = (await summary.boundingBox())!
-  expect(summaryBox.y + summaryBox.height).toBeLessThanOrEqual(budgetBox.y + 1)
+  expect(summaryBox.y + summaryBox.height).toBeLessThanOrEqual(tabsBox.y + 1)
   await page.getByRole('button', { name: 'Torna ai rilanci' }).click()
   await expect(
     page.getByRole('button', { name: 'Offri 21 crediti, più 1' }),
@@ -1629,8 +1711,7 @@ for (const width of [320, 390, 768, 1440]) {
     await expect(badge).toContainText('Utenti connessi: 2')
     const logo = (await page.locator('.app-brand').boundingBox())!
     const live = (await badge.boundingBox())!
-    if (width > 650)
-      expect(Math.abs(logo.x + logo.width / 2 - width / 2)).toBeLessThan(2)
+    expect(Math.abs(logo.x + logo.width / 2 - width / 2)).toBeLessThan(2)
     expect(live.x).toBeGreaterThan(logo.x + logo.width)
     const header = page.locator('.app-header')
     if (width <= 650) {
@@ -1638,6 +1719,10 @@ for (const width of [320, 390, 768, 1440]) {
         .getByRole('button', { name: 'Apri menu profilo' })
         .boundingBox())!
       expect(logo.x).toBeGreaterThanOrEqual(profile.x + profile.width)
+      await expect(header.locator('.auction-budget-qualifier')).toBeHidden()
+      expect(await header.locator('.auction-account-budget').innerText()).toBe(
+        '500 crediti',
+      )
       expect(
         Math.abs(logo.y + logo.height / 2 - live.y - live.height / 2),
       ).toBeLessThan(2)
@@ -1711,47 +1796,54 @@ for (const width of [390, 1440]) {
       ),
     ).toBeVisible()
     await expect(online).toHaveCount(0)
-    await page.getByRole('heading', { name: 'Le squadre', exact: true }).click()
+    await page
+      .getByRole('region', { name: 'Tabellone delle squadre' })
+      .click({ position: { x: 1, y: 1 } })
     await expect(panel).not.toBeVisible()
   })
 }
 
-test('il budget personale resta fisso e segue lo snapshot nelle altre sezioni', async ({
+test('il budget personale appare sotto il nome e segue lo snapshot nelle altre sezioni', async ({
   page,
 }) => {
   const { state, notify, control } = await setupRoom(page, { waiting: true })
-  const budget = page.getByRole('region', {
+  const budget = page.getByRole('status', {
     name: 'Il tuo budget',
     exact: true,
   })
-  const progress = budget.getByRole('progressbar')
+  await expect(page.locator('.account-trigger')).toContainText(
+    '500 crediti disponibili',
+  )
+  await expect(
+    page.locator('.account-trigger .app-account-detail-fallback'),
+  ).toBeHidden()
+  await expect(page.locator('.auction-budget-strip')).toHaveCount(0)
   await expect(budget).not.toContainText('Atletico Spritz')
-  await expect(progress).toHaveAttribute('value', '500')
-  await expect(progress).toHaveAttribute('max', '500')
+  await expect(budget).toHaveText('500 crediti disponibili')
   await expect(page.locator('#live-bid-controls')).toHaveCount(0)
   await page.getByRole('tab', { name: 'Rose', exact: true }).click()
   state.teams[0]!.budget = 250
   state.version++
   notify()
-  await expect(progress).toHaveAttribute('value', '250')
+  await expect(budget).toHaveText('250 crediti disponibili')
   await expect(budget).toContainText('250')
   await page
-    .locator('.auction-bottom-bar')
-    .screenshot({ path: test.info().outputPath('bottom-bar-desktop.png') })
+    .locator('.app-header')
+    .screenshot({ path: test.info().outputPath('header-budget-desktop.png') })
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(budget).toBeInViewport()
   await page
-    .locator('.auction-bottom-bar')
-    .screenshot({ path: test.info().outputPath('bottom-bar-mobile.png') })
+    .locator('.app-header')
+    .screenshot({ path: test.info().outputPath('header-budget-mobile.png') })
   state.teams[0]!.budget = 0
   state.version++
   notify()
-  await expect(progress).toHaveAttribute('value', '0')
+  await expect(budget).toHaveText('0 crediti disponibili')
   expect(control.commands).toHaveLength(0)
 })
 
 for (const width of [390, 1440]) {
-  test(`acquisti nel carosello raggruppati in ordine P D C A a ${width}px`, async ({
+  test(`acquisti nelle squadre raggruppati in ordine P D C A a ${width}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 1000 })
@@ -1779,15 +1871,25 @@ for (const width of [390, 1440]) {
       'Calciatore 1',
     ])
     expect((await purchases.boundingBox())!.height).toBeGreaterThanOrEqual(190)
-    await purchases.evaluate((element) => {
-      element.scrollTop = element.scrollHeight
-    })
+    await expect(purchases.getByLabel('Posto libero: Portieri')).toHaveCount(1)
+    await expect(purchases.getByLabel('Posto libero: Difensori')).toHaveCount(7)
+    const card = purchases.locator('..')
+    const finances = (await card.locator('.team-finances').boundingBox())!
+    expect(finances.y + finances.height).toBeLessThanOrEqual(
+      (await purchases.boundingBox())!.y,
+    )
+    await purchases
+      .getByText('Calciatore 1', { exact: true })
+      .scrollIntoViewIfNeeded()
     await expect(
       purchases.getByText('Calciatore 1', { exact: true }),
     ).toBeInViewport()
-    await purchases.evaluate((element) => {
-      element.scrollTop = 0
-    })
+    expect(
+      await purchases.evaluate(
+        (element) => element.scrollHeight - element.clientHeight,
+      ),
+    ).toBeLessThanOrEqual(1)
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
     await page.screenshot({
       path: test.info().outputPath(`roster-groups-${width}.png`),
     })
@@ -2207,12 +2309,17 @@ for (const width of [320, 768, 1440]) {
     await expect(mine).toContainText('Budget')
     await expect(mine).toContainText('Offerta max')
     await expect(
-      panel.getByRole('article', { name: 'Rosa Real Sbronzi', exact: true }),
-    ).toContainText('Il primo acquisto ti aspetta')
+      panel
+        .getByRole('article', { name: 'Rosa Real Sbronzi', exact: true })
+        .getByLabel('Posto libero:', { exact: false }),
+    ).toHaveCount(25)
+    const finances = (await mine.locator('.team-finances').boundingBox())!
+    expect(finances.y + finances.height).toBeLessThanOrEqual(
+      (await mine.locator('.team-purchases').boundingBox())!.y,
+    )
     const next = panel.getByRole('button', { name: 'Squadre successive' })
-    if (width < 1200) {
-      await expect(next).toBeVisible()
-      await next.click()
+    if (width < 1024) {
+      await expect(next).toHaveCount(0)
       const board = panel.getByLabel('Scorri le squadre', { exact: true })
       await board.focus()
       await board.press('End')
@@ -2221,9 +2328,9 @@ for (const width of [320, 768, 1440]) {
           name: 'Rosa AS Intomatici',
           exact: true,
         }),
-      ).toBeInViewport({ ratio: 0.9 })
+      ).toBeInViewport()
       await board.press('Home')
-      await expect(mine).toBeInViewport({ ratio: 0.9 })
+      await expect(mine).toBeInViewport()
     } else {
       await expect(next).toBeHidden()
       const first = await mine.boundingBox()
@@ -2231,10 +2338,8 @@ for (const width of [320, 768, 1440]) {
         .getByRole('article', { name: 'Rosa AS Intomatici', exact: true })
         .boundingBox()
       const fifth = await panel.getByRole('article').nth(4).boundingBox()
-      const sixth = await panel.getByRole('article').nth(5).boundingBox()
       expect(fifth!.y).toBe(first!.y)
-      expect(sixth!.y).toBeGreaterThan(first!.y)
-      expect(last!.y).toBe(sixth!.y)
+      expect(last!.y).toBe(first!.y)
     }
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
@@ -2339,7 +2444,7 @@ test('ogni rosa carica scorrendo senza perdere acquisti e lo storico resta compl
   await expect(mine.getByText('Calciatore 101', { exact: true })).toBeVisible()
 })
 
-test('le rose passano da griglia a carosello al resize e raggiungono tutte le squadre', async ({
+test('le rose passano da griglia a scorrimento nativo al resize e raggiungono tutte le squadre', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
@@ -2349,7 +2454,7 @@ test('le rose passano da griglia a carosello al resize e raggiungono tutte le sq
   const next = panel.getByRole('button', { name: 'Squadre successive' })
   await expect(next).toBeHidden()
   await page.setViewportSize({ width: 390, height: 1000 })
-  await expect(next).toBeEnabled()
+  await expect(next).toHaveCount(0)
   const board = panel.getByLabel('Scorri le squadre', { exact: true })
   await board.focus()
   await board.press('End')
@@ -2357,7 +2462,7 @@ test('le rose passano da griglia a carosello al resize e raggiungono tutte le sq
     name: 'Rosa FC Mai una Gioia',
     exact: true,
   })
-  await expect(last).toBeInViewport({ ratio: 0.9 })
+  await expect(last).toBeInViewport()
   await page.setViewportSize({ width: 1440, height: 1000 })
   await expect(next).toBeHidden()
   const first = panel.getByRole('article', {
@@ -2365,9 +2470,7 @@ test('le rose passano da griglia a carosello al resize e raggiungono tutte le sq
     exact: true,
   })
   await expect(first).toBeInViewport()
-  expect((await last.boundingBox())!.y).toBeGreaterThan(
-    (await first.boundingBox())!.y,
-  )
+  expect((await last.boundingBox())!.y).toBe((await first.boundingBox())!.y)
 })
 
 test('un errore caricando la rosa conserva gli acquisti e permette di riprovare', async ({
@@ -2409,4 +2512,184 @@ test('un errore caricando la rosa conserva gli acquisti e permette di riprovare'
     })
     .click()
   await expect(mine.getByText('Calciatore 101', { exact: true })).toBeVisible()
+})
+
+for (const [width, height] of [
+  [1024, 768],
+  [1180, 820],
+  [1366, 1024],
+  [1440, 1000],
+  [1920, 1080],
+] as const) {
+  test(`dieci squadre affiancate senza carosello in Live e Rose a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height })
+    await setupRoom(page, {
+      waiting: true,
+      teamCount: 10,
+      rosterRoles: ['P', 'D', 'C', 'A'],
+    })
+    for (const tab of ['Live', 'Rose']) {
+      await page.getByRole('tab', { name: tab, exact: true }).click()
+      const panel = page.getByRole('tabpanel', { name: tab, exact: true })
+      const cards = panel.locator('.team-column')
+      await expect(cards).toHaveCount(10)
+      await expect(
+        panel.getByRole('button', { name: 'Squadre successive' }),
+      ).toBeHidden()
+      const boxes = await cards.evaluateAll((items) =>
+        items.map((item) => {
+          const { x, y, width, right } = item.getBoundingClientRect()
+          return {
+            x,
+            y,
+            width,
+            right,
+            overflow: item.scrollWidth > item.clientWidth,
+          }
+        }),
+      )
+      for (let index = 0; index < boxes.length; index++) {
+        const box = boxes[index]!
+        expect(box.y).toBe(boxes[0]!.y)
+        expect(box.x).toBeGreaterThanOrEqual(0)
+        expect(box.right).toBeLessThanOrEqual(width)
+        expect(box.width).toBeGreaterThan(85)
+        expect(box.overflow).toBe(false)
+        if (index) expect(box.x).toBeGreaterThan(boxes[index - 1]!.right)
+      }
+      const firstX = boxes[0]!.x
+      await cards.first().hover()
+      await page.mouse.wheel(200, 0)
+      expect((await cards.first().boundingBox())!.x).toBe(firstX)
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBeLessThanOrEqual(width)
+      await page.screenshot({
+        path: test.info().outputPath(`ten-teams-${tab}-${width}.png`),
+        fullPage: true,
+      })
+    }
+  })
+}
+
+test('ultimi acquisti richiudibili su mobile e sempre visibili su desktop', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const { state, notify } = await setupRoom(page, {
+    waiting: true,
+    teamCount: 10,
+    rosterRoles: ['P', 'D', 'C', 'A'],
+  })
+  const history = page.getByRole('complementary', { name: 'Ultimi acquisti' })
+  const toggle = history.getByRole('button', {
+    name: 'Ultimi acquisti',
+    exact: true,
+  })
+  const showAll = history.getByRole('button', {
+    name: 'Visualizza tutto lo storico',
+  })
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  await expect(history.getByRole('listitem')).toHaveCount(3)
+  const openHeight = (await history.boundingBox())!.height
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await expect(showAll).toBeHidden()
+  await expect(history.getByRole('listitem')).toHaveCount(0)
+  expect((await history.boundingBox())!.height).toBeLessThan(openHeight / 2)
+  state.version++
+  notify()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await page.screenshot({
+    path: test.info().outputPath('recent-purchases-collapsed.png'),
+    fullPage: true,
+  })
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await expect(toggle).toBeHidden()
+  await expect(showAll).toBeVisible()
+  await expect(history.getByRole('listitem')).toHaveCount(3)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(showAll).toBeHidden()
+  await toggle.focus()
+  await page.keyboard.press('Enter')
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  await expect(showAll).toBeVisible()
+  await showAll.click()
+  await expect(page.getByRole('tabpanel', { name: 'Storico' })).toBeVisible()
+})
+
+for (const width of [1024, 1180, 1440, 1920]) {
+  test(`durante il timer i saldi delle dieci squadre sono visibili a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 768 })
+    await setupRoom(page, { teamCount: 10 })
+    const finances = page.locator('#panel-live .team-finances')
+    await expect(finances).toHaveCount(10)
+    const tabs = (await page.getByRole('tablist').boundingBox())!
+    for (const card of await finances.all()) {
+      const box = (await card.boundingBox())!
+      expect(box.y).toBeGreaterThan(0)
+      expect(box.y + box.height).toBeLessThan(tabs.y)
+    }
+    await expect(page.locator('.auction-bid-history')).not.toHaveAttribute(
+      'open',
+      '',
+    )
+    await page.getByText('Ultimi rilanci', { exact: true }).click()
+    await expect(page.locator('.auction-recent-bids')).toBeVisible()
+    await page.getByText('Ultimi rilanci', { exact: true }).click()
+    await page.screenshot({
+      path: test.info().outputPath(`compact-${width}.png`),
+    })
+  })
+}
+
+test('le card ripetono il nome nel footer senza etichetta del turno', async ({
+  page,
+}) => {
+  await setupRoom(page, { waiting: true, teamCount: 10 })
+  await expect(page.locator('.team-column-top')).toHaveCount(0)
+  await expect(page.locator('#panel-live .team-card-footer')).toHaveText([
+    'Atletico Spritz',
+    'Real Sbronzi',
+    'Dinamo Divano',
+    'Sporting Aperitivo',
+    'Bayern Leverdure',
+    'Borussia Porcelli',
+    'AC Picchia',
+    'FC Mai una Gioia',
+    'Paris San Gennaro',
+    'AS Intomatici',
+  ])
+  await page.getByRole('tab', { name: 'Rose', exact: true }).click()
+  const footer = page
+    .getByRole('article', { name: 'Rosa Atletico Spritz', exact: true })
+    .locator('footer')
+  await footer.scrollIntoViewIfNeeded()
+  await expect(footer).toHaveText('Atletico Spritz')
+})
+
+test('sei incrementi e nomi lunghi non allargano la scheda mobile', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 568 })
+  const { state, notify } = await setupRoom(page)
+  state.currentAuction!.increments = [1, 2, 5, 10, 20, 50]
+  state.currentAuction!.name = 'Un nome del calciatore particolarmente lungo'
+  state.teams[1]!.name = 'Una squadra dal nome particolarmente lungo'
+  state.version++
+  notify()
+  await expect(page.locator('.bid-quick button')).toHaveCount(6)
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true)
+  await page.screenshot({
+    path: test.info().outputPath('compact-six-mobile.png'),
+    fullPage: true,
+  })
 })
