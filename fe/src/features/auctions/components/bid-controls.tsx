@@ -33,6 +33,10 @@ export function BidControls({
   const [custom, setCustom] = useState('')
   const auction = session.currentAuction
   if (!auction || auction.status !== 'Open') return null
+  const increments = [
+    1,
+    ...auction.increments.filter((increment) => increment !== 1),
+  ]
   const max = team ? maxOffer(team.budget, emptySlots(team, rules)) : 0
   const eligible = team && canBuyRole(team, rules, auction.role)
   const ownLead = auction.winningTeamId === team?.id
@@ -68,7 +72,7 @@ export function BidControls({
   return (
     <section className="auction-bid-controls" aria-label="Rilancia">
       <div className="bid-quick">
-        {auction.increments.map((increment) => {
+        {increments.map((increment) => {
           const total = offerTotal(auction.currentAmount, increment)
           return (
             <Button
