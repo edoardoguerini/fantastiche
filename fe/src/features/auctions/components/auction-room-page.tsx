@@ -365,6 +365,9 @@ function SessionView({
                     key={selected.playerId}
                     player={selected}
                     disabled={!canCall}
+                    bombUsed={
+                      !!team && session.usedBombTeamIds?.includes(team.id)
+                    }
                     onCancel={() => setSelection(null)}
                     onBomb={async () => {
                       await command.send('Bombs', {

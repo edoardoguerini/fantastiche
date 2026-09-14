@@ -20,12 +20,14 @@ const schema = z.object({
 export function PlayerCallForm({
   player,
   disabled,
+  bombUsed = false,
   onCancel,
   onStart,
   onBomb,
 }: {
   player: CatalogEntry
   disabled: boolean
+  bombUsed?: boolean
   onCancel: () => void
   onBomb?: () => Promise<void>
   onStart: (duration: number, increments: number[]) => Promise<void>
@@ -168,9 +170,11 @@ export function PlayerCallForm({
                     <Button
                       className="bomb-launch"
                       variant="outline"
+                      disabled={bombUsed}
                       onClick={() => void onBomb()}
                     >
-                      <Icon name="bomb" variant="jelly" /> Sgancia la bomba
+                      <Icon name="bomb" variant="jelly" />{' '}
+                      {bombUsed ? 'Bomba già usata' : 'Sgancia la bomba'}
                     </Button>
                   )}
                   <Button

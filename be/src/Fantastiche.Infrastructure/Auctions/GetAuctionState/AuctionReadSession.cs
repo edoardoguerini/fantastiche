@@ -141,9 +141,15 @@ internal sealed partial class AuctionReadSession : IAsyncDisposable
             WHERE callOrder.SessionId = @sessionId
             GROUP BY callOrder.Position, team.Id, team.Name, team.Budget
             ORDER BY callOrder.Position;
+
+            SELECT DISTINCT CallerTeamId FROM BombAuctions
+            WHERE SessionId = @sessionId AND LeagueSeasonId = @leagueSeasonId AND LeagueId = @leagueId
+              AND Status <> @CancelledBombStatus
+            ORDER BY CallerTeamId;
             """, new
         {
             sessionId = Session.Id,
+            CancelledBombStatus = BombAuctionStatus.Cancelled,
             leagueSeasonId = Session.LeagueSeasonId,
             PhotoBaseUrl = photos.PublicBaseUrl,
             ClubLogoBaseUrl = logos.PublicBaseUrl,
@@ -154,6 +160,7 @@ internal sealed partial class AuctionReadSession : IAsyncDisposable
         var teamOrder = (await grid.ReadAsync<Guid>()).AsList();
         var auctionRow = await grid.ReadSingleOrDefaultAsync<AuctionPlayerRow>();
         var teams = (await grid.ReadAsync<AuctionTeamView>()).AsList();
+        var usedBombTeamIds = (await grid.ReadAsync<Guid>()).AsList();
         var currentAuction = auctionRow is null ? null : new AuctionPlayerView(
             auctionRow.Id,
             auctionRow.PlayerId,
@@ -194,7 +201,8 @@ internal sealed partial class AuctionReadSession : IAsyncDisposable
             teams,
             header.ServerTime,
             header.Status == 2 ? null : currentAuction?.Status == "Open" ? currentAuction.Role : progress.Role,
-            currentBomb);
+            currentBomb,
+            usedBombTeamIds);
     }
 
     internal DbConnection Connection => connection;
