@@ -1,8 +1,114 @@
-.team-player-meta {
+/* Tabellone Live e Rose: riepilogo in alto e slot della rosa in righe compatte. */
+.auction-teams .team-column--compact {
+  --team-padding: 10px;
+  flex-basis: clamp(160px, calc((100% - 108px) / 8), 210px);
+  border-radius: 8px;
+}
+.team-column--compact .team-column-top {
+  margin-bottom: 6px;
+}
+.team-column--compact .team-identity {
+  min-height: 36px;
+}
+.team-column--compact .team-monogram {
+  display: none;
+}
+.team-column--compact .team-identity h3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 12px;
+}
+.auction-teams .team-column--compact > :is(header, .team-open) {
+  padding-bottom: 8px;
+  border-bottom: 0;
+}
+.auction-teams .team-column--compact > .team-capacity {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+  gap: 4px;
+}
+.team-column--compact .team-capacity > span {
+  padding-block: 4px;
+  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.auction-teams .team-column--compact .team-capacity b {
+  width: 19px;
+  height: 19px;
+  font-size: 10px;
+  border-radius: 5px;
+}
+.team-column--compact .team-finances {
+  flex-direction: column-reverse;
+  gap: 4px;
+  padding-block: 8px 10px;
+}
+.team-column--compact .team-finances p {
   display: flex;
-  align-items: center;
+  justify-content: space-between;
+  align-items: baseline;
   gap: 6px;
-  min-width: 0;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+.team-column--compact .team-finances span {
+  font-size: 10px;
+}
+.team-column--compact .team-finances strong {
+  font-size: 14px;
+}
+.team-column--compact .team-purchases {
+  --purchases-height: 340px;
+  --purchases-padding: 0px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.team-column--compact .team-purchases:focus-visible {
+  outline: 1px solid var(--primary);
+  outline-offset: -1px;
+}
+.team-column--compact .team-purchase-group + .team-purchase-group {
+  margin-top: 10px;
+  padding-top: 0;
+  border-top: 0;
+}
+.team-column--compact .team-purchase-group h4 {
+  margin-bottom: 6px;
+}
+.team-column--compact .team-purchases ul {
+  display: grid;
+  gap: 3px;
+}
+.team-column--compact .team-purchases li {
+  min-height: 26px;
+  gap: 6px;
+  padding: 3px 5px;
+  border-radius: 3px;
+  background: #ffffff06;
+  font-size: 11px;
+}
+.team-column--compact .team-purchases .catalog-role {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  font-size: 9px;
+}
+.team-column--compact .team-purchase-details > span {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.team-column--compact .team-empty-slot {
+  color: var(--muted-foreground);
+}
+.team-column--compact .team-empty-slot .catalog-role {
+  opacity: 0.55;
 }
 .auction-teams .catalog-role {
   background: var(--role-accent);
@@ -25,71 +131,16 @@
   align-items: stretch;
 }
 .auction-teams--rosters .team-column {
-  --team-padding: 20px;
-  flex: 0 0 min(86%, 320px);
-  min-width: 0;
-  margin-right: 16px;
-  padding: var(--team-padding);
-  border-radius: 14px;
+  flex: 0 0 min(76%, 220px);
+  margin-right: 12px;
   scroll-margin-block: 24px calc(var(--auction-footer-height) + 24px);
 }
 .auction-teams--rosters .team-column:focus-visible {
   outline: 1px solid var(--primary);
   outline-offset: -1px;
 }
-.auction-teams--rosters .team-identity {
-  min-height: 40px;
-  gap: 10px;
-}
-.auction-teams--rosters .team-identity h3 {
-  font-size: 16px;
-}
-.auction-teams--rosters .team-monogram {
-  width: 36px;
-  height: 36px;
-  font-size: 12px;
-}
 .auction-teams--rosters .team-purchases {
-  --purchases-height: 360px;
-  --purchases-padding: 20px;
-  scrollbar-width: none;
-}
-.auction-teams--rosters .team-purchases::-webkit-scrollbar {
-  display: none;
-}
-.auction-teams--rosters .team-purchase-group h4 {
-  font-size: 12px;
-  margin-bottom: 8px;
-}
-.auction-teams--rosters .team-purchases li {
-  gap: 10px;
-  padding-block: 6px;
-  font-size: 14px;
-}
-.auction-teams--rosters .team-purchases .player-photo {
-  width: 40px;
-}
-.auction-teams--rosters .team-purchases li > .role-badge {
-  width: 40px;
-  height: 58px;
-}
-.auction-teams--rosters .team-player-meta {
-  font-size: 11px;
-  color: var(--muted-foreground);
-  flex-wrap: wrap;
-}
-.auction-teams--rosters .team-purchases-empty {
-  font-size: 12px;
-}
-.auction-teams--rosters .team-capacity > span {
-  padding-block: 8px;
-  font-size: 12px;
-}
-.auction-teams--rosters .team-finances {
-  padding-top: 16px;
-}
-.auction-teams--rosters .team-finances strong {
-  font-size: 24px;
+  --purchases-height: clamp(220px, calc(100dvh - 440px), 400px);
 }
 @media (min-width: 1200px) {
   .auction-teams--rosters .auction-carousel-controls {
@@ -101,8 +152,8 @@
   }
   .auction-teams--rosters .auction-board-track {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
     touch-action: auto;
   }
   .auction-teams--rosters .team-column {
@@ -110,10 +161,6 @@
   }
 }
 @media (max-width: 420px) {
-  .auction-teams--rosters .team-column {
-    --team-padding: 16px;
-    margin-right: 12px;
-  }
   .auction-teams--rosters .auction-teams-navigation {
     gap: 8px;
   }
@@ -130,9 +177,4 @@
   color: var(--muted-foreground);
   font-size: 12px;
   text-align: center;
-}
-@media (max-width: 1199px) {
-  .auction-teams--rosters .team-purchases {
-    --purchases-height: clamp(220px, calc(100dvh - 530px), 360px);
-  }
 }

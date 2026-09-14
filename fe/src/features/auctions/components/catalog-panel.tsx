@@ -1,5 +1,5 @@
 import { PlayerValuation } from './player-valuation'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { Input } from '@/components/primitives/input'
 import { Button } from '@/components/primitives/button'
@@ -36,6 +36,9 @@ export function CatalogPanel({
   onSelect,
   selectedPlayerId,
   expanded = false,
+  active = true,
+  autoFocus = false,
+  portalContainer,
 }: {
   userId: string
   sessionId: string
@@ -46,7 +49,11 @@ export function CatalogPanel({
   onSelect: (player: CatalogEntry) => void
   selectedPlayerId?: string
   expanded?: boolean
+  active?: boolean
+  autoFocus?: boolean
+  portalContainer?: HTMLElement | null
 }) {
+  const searchId = useId()
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
   const [role, setRole] = useState<string>(currentRole ?? '')
@@ -59,10 +66,12 @@ export function CatalogPanel({
     }, 250)
     return () => clearTimeout(timer)
   }, [search])
-  const result = useInfiniteQuery(
-    catalogQueryOptions(userId, sessionId, debounced, role, sort),
-  )
+  const result = useInfiniteQuery({
+    ...catalogQueryOptions(userId, sessionId, debounced, role, sort),
+    enabled: active,
+  })
   const players = loadedPlayers(result.data?.pages)
+  if (!active) return null
   return (
     <div
       className={`auction-catalog ${expanded ? 'auction-catalog--expanded' : ''}`}
@@ -70,11 +79,12 @@ export function CatalogPanel({
       <div className="catalog-toolbar">
         <div className="catalog-search">
           <Icon name="magnifying-glass" />
-          <label className="sr-only" htmlFor="player-search">
+          <label className="sr-only" htmlFor={searchId}>
             Cerca calciatore
           </label>
           <Input
-            id="player-search"
+            id={searchId}
+            autoFocus={autoFocus}
             placeholder="Cerca un calciatore…"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -107,7 +117,7 @@ export function CatalogPanel({
             <SelectTrigger aria-label="Ordina il listone">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent portalContainer={portalContainer}>
               <SelectItem value="name">Ordina: Nome</SelectItem>
               <SelectItem value="fvm">Ordina: FVM ↓</SelectItem>
               <SelectItem value="quotation">Ordina: Quotazione ↓</SelectItem>

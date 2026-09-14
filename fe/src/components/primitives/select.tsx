@@ -51,10 +51,13 @@ export function SelectContent({
   children,
   position = 'popper',
   sideOffset = 5,
+  portalContainer,
   ...props
-}: ComponentProps<typeof SelectPrimitive.Content>) {
+}: ComponentProps<typeof SelectPrimitive.Content> & {
+  portalContainer?: HTMLElement | null
+}) {
   return (
-    <SelectPrimitive.Portal>
+    <SelectPrimitive.Portal container={portalContainer}>
       <SelectPrimitive.Content
         data-slot="select-content"
         position={position}

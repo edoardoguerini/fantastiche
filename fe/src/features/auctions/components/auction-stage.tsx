@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { PlayerValuation } from './player-valuation'
 import { Icon } from '@/components/common/icon'
 import { Button } from '@/components/primitives/button'
@@ -12,6 +13,8 @@ export function AuctionStage({
   connected,
   canCall,
   onChoose,
+  children,
+  showLastPurchase = true,
 }: {
   session: TimedSession
   seconds: number
@@ -19,6 +22,8 @@ export function AuctionStage({
   connected: boolean
   canCall: boolean
   onChoose: () => void
+  children?: ReactNode
+  showLastPurchase?: boolean
 }) {
   const auction = session.currentAuction
   const caller = session.teams.find((team) => team.id === session.currentTeamId)
@@ -164,7 +169,7 @@ export function AuctionStage({
               Scegli dal listone
             </Button>
           )}
-          {auction && (
+          {auction && showLastPurchase && (
             <div className="auction-last-purchase" data-role={auction.role}>
               <PlayerPhoto url={auction.photoUrl} role={auction.role} />
               <div>
@@ -222,6 +227,7 @@ export function AuctionStage({
           )}
         </div>
       )}
+      {!open && children}
     </section>
   )
 }

@@ -41,12 +41,6 @@
 .auction-console .player-call-form {
   scroll-margin-top: 16px;
 }
-.auction-console--live {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(300px, 23vw, 380px);
-  gap: 20px;
-  align-items: start;
-}
 .auction-console > #panel-live {
   min-width: 0;
 }
@@ -608,49 +602,6 @@
 .auction-catalog-surface {
   min-width: 0;
 }
-.auction-catalog-surface .catalog-list,
-.auction-catalog-surface .auction-catalog {
-  scrollbar-width: none;
-}
-.auction-catalog-surface .catalog-list::-webkit-scrollbar,
-.auction-catalog-surface .auction-catalog::-webkit-scrollbar {
-  display: none;
-}
-.auction-catalog-slot {
-  display: contents;
-}
-.auction-console--live .auction-catalog-slot {
-  display: block;
-  min-width: 0;
-  min-height: var(--catalog-viewport-height, 0px);
-}
-.auction-console--live .auction-catalog-surface {
-  position: fixed;
-  top: var(--catalog-viewport-top, 102px);
-  left: var(--catalog-viewport-left);
-  width: var(--catalog-viewport-width);
-  display: flex;
-  flex-direction: column;
-  height: var(--catalog-viewport-height, calc(100dvh - 204px));
-  overflow: hidden;
-  padding: 18px;
-  border-radius: 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-}
-.auction-console--live .auction-catalog-surface > h2 {
-  flex-shrink: 0;
-  font-size: 20px;
-  margin-bottom: 16px;
-}
-.auction-console--live .auction-section-description {
-  display: none;
-}
-.auction-console--live .catalog-toolbar {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 12px;
-}
 .auction-console .role-filters {
   gap: 2px;
   padding: 3px;
@@ -719,23 +670,6 @@
   pointer-events: none;
   border-radius: 10px;
   background: var(--auction-accent-soft);
-}
-.auction-console--live .auction-catalog-surface .catalog-list {
-  flex: 1;
-  min-height: 0;
-  max-height: none;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-.auction-console--live .auction-catalog {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-}
-.auction-console--live .auction-catalog > :not(.catalog-list) {
-  flex-shrink: 0;
 }
 .auction-teams {
   --teams-padding: 16px;
@@ -1023,17 +957,6 @@
     min-height: 0;
     padding: 16px 18px;
     gap: 10px;
-  }
-}
-@media (max-width: 1023px) {
-  .auction-console--live {
-    display: block;
-  }
-  .auction-console--live .auction-catalog-surface {
-    display: none;
-  }
-  .auction-console--live .auction-catalog-slot {
-    display: none;
   }
 }
 @media (max-width: 650px) {

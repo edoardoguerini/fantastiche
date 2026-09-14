@@ -4,6 +4,7 @@ import { useRouterState } from '@tanstack/react-router'
 import { authQueryOptions } from '@/features/auth'
 import { leagueQueryOptions, type League } from '@/features/leagues'
 import { ErrorState, LoadingState } from '@/components/common/page-state'
+import { Icon } from '@/components/common/icon'
 import { Button } from '@/components/primitives/button'
 import {
   AppBrandContent,
@@ -18,7 +19,6 @@ import { useAuctionLive } from '../hooks/use-auction-live'
 import { useAuctionCommand } from '../hooks/use-auction-command'
 import { useAuctionClock } from '../hooks/use-auction-clock'
 import { canBuyRole } from '../validations/auction-rules'
-import { useCatalogHeight } from '../hooks/use-catalog-height'
 import { useTestCaller } from '../hooks/use-test-caller'
 import type {
   AuctionRoom,
@@ -40,12 +40,15 @@ import { BidControls } from './bid-controls'
 import { CatalogPanel } from './catalog-panel'
 import { PlayerCallForm } from './player-call-form'
 import { RosterPanel } from './roster-panel'
+import { RecentPurchases } from './recent-purchases'
+import { PlayerSearchDialog } from './player-search-dialog'
 import { SessionSetup } from './session-setup'
 import { OrganizerControls } from './organizer-controls'
 import '../auction.css'
 import '../auction-navigation.css'
 import '../auction-console.css'
 import '../auction-rosters.css'
+import '../auction-live-layout.css'
 
 export function AuctionRoomPage({ leagueId }: { leagueId: string }) {
   const { data: user } = useQuery(authQueryOptions())
@@ -212,7 +215,9 @@ function SessionView({
     send: command.send,
   })
   const [tab, setTab] = useState<AuctionSection>('live')
-  const catalogSurface = useCatalogHeight(tab === 'live')
+  const [searchDialogVersion, setSearchDialogVersion] = useState<number | null>(
+    null,
+  )
   const [selection, setSelection] = useState<{
     player: CatalogEntry
     version: number
@@ -272,6 +277,19 @@ function SessionView({
   const selectTeam = (id: string) => {
     selectSection('roster')
     setRosterTeam(id)
+  }
+  const selectPlayer = (player: CatalogEntry) => {
+    if (!canCall || player.role !== session.currentRole) return
+    setSearchDialogVersion(null)
+    setSelection({ player, version: session.version })
+    selectSection('live')
+    requestAnimationFrame(() => {
+      const timer = document.getElementById('call-duration')
+      timer
+        ?.closest('form')
+        ?.scrollIntoView({ block: 'start', behavior: 'instant' })
+      timer?.focus({ preventScroll: true })
+    })
   }
   return (
     <div className="auction-session" data-section={tab}>
@@ -336,6 +354,18 @@ function SessionView({
           }}
         />
       )}
+      {searchDialogVersion === session.version && canCall && !showBomb && (
+        <PlayerSearchDialog
+          userId={userId}
+          sessionId={session.id}
+          currentRole={session.currentRole}
+          team={team}
+          rules={league}
+          canCall={canCall}
+          onSelect={selectPlayer}
+          onClose={() => setSearchDialogVersion(null)}
+        />
+      )}
       <div className="auction-standard-room" hidden={showBomb}>
         <AuctionNavigation
           userId={userId}
@@ -358,99 +388,114 @@ function SessionView({
             tabIndex={0}
             hidden={tab !== 'live'}
           >
-            <div className="auction-workspace">
-              <div className="auction-main">
-                {selected ? (
-                  <PlayerCallForm
-                    key={selected.playerId}
-                    player={selected}
-                    disabled={!canCall}
-                    bombUsed={
-                      !!team && session.usedBombTeamIds?.includes(team.id)
-                    }
-                    onCancel={() => setSelection(null)}
-                    onBomb={async () => {
-                      await command.send('Bombs', {
-                        playerId: selected.playerId,
-                      })
-                    }}
-                    onStart={async (duration, increments) => {
-                      await command.send('Players', {
-                        playerId: selected.playerId,
-                        durationSeconds: duration,
-                        increments,
-                      })
-                    }}
-                  />
-                ) : (
-                  <AuctionStage
-                    session={session}
-                    seconds={seconds}
-                    myTeamId={room.myTeamId}
-                    connected={connected}
-                    canCall={canCall}
-                    onChoose={() => {
-                      selectSection(
-                        window.matchMedia('(min-width: 1024px)').matches
-                          ? 'live'
-                          : 'catalog',
-                      )
-                      requestAnimationFrame(() =>
-                        document.getElementById('player-search')?.focus(),
-                      )
-                    }}
-                  />
+            <div className="auction-live-top">
+              <div className="auction-workspace">
+                <div className="auction-main">
+                  {selected ? (
+                    <PlayerCallForm
+                      key={selected.playerId}
+                      player={selected}
+                      disabled={!canCall}
+                      bombUsed={
+                        !!team && session.usedBombTeamIds?.includes(team.id)
+                      }
+                      onCancel={() => setSelection(null)}
+                      onBomb={async () => {
+                        await command.send('Bombs', {
+                          playerId: selected.playerId,
+                        })
+                      }}
+                      onStart={async (duration, increments) => {
+                        await command.send('Players', {
+                          playerId: selected.playerId,
+                          durationSeconds: duration,
+                          increments,
+                        })
+                      }}
+                    />
+                  ) : (
+                    <AuctionStage
+                      session={session}
+                      seconds={seconds}
+                      myTeamId={room.myTeamId}
+                      connected={connected}
+                      canCall={canCall}
+                      showLastPurchase={false}
+                      onChoose={() => setSearchDialogVersion(session.version)}
+                    >
+                      {canCall && (
+                        <button
+                          type="button"
+                          className="auction-player-search-trigger"
+                          aria-label="Apri ricerca calciatore"
+                          aria-haspopup="dialog"
+                          onClick={() =>
+                            setSearchDialogVersion(session.version)
+                          }
+                        >
+                          <Icon name="magnifying-glass" />
+                          Cerca un calciatore…
+                        </button>
+                      )}
+                    </AuctionStage>
+                  )}
+                </div>
+                {open && (
+                  <aside
+                    id="live-bid-controls"
+                    tabIndex={-1}
+                    className={`auction-side ${open ? 'auction-side--bidding' : ''}`}
+                    aria-label="La tua partecipazione"
+                  >
+                    <BidControls
+                      key={session.currentAuction?.id ?? 'waiting'}
+                      session={session}
+                      team={team}
+                      rules={league}
+                      connected={connected}
+                      blocked={!!command.pending || command.busy}
+                      seconds={seconds}
+                      onBid={(amount) => {
+                        if (session.currentAuction)
+                          void command.send('Bids', {
+                            playerAuctionId: session.currentAuction.id,
+                            amount,
+                          })
+                      }}
+                    />
+                    {open && session.currentAuction && (
+                      <div className="auction-recent-bids">
+                        <h3>Ultimi rilanci</h3>
+                        {bids.isError ? (
+                          <p>Storico momentaneamente non disponibile.</p>
+                        ) : bids.data?.items.length ? (
+                          [...bids.data.items]
+                            .sort((a, b) => b.sequence - a.sequence)
+                            .slice(0, 5)
+                            .map((bid) => (
+                              <p key={bid.id}>
+                                <span>
+                                  {session.teams.find(
+                                    (value) => value.id === bid.teamId,
+                                  )?.name ?? 'Squadra'}
+                                </span>
+                                <strong>{bid.amount}</strong>
+                              </p>
+                            ))
+                        ) : (
+                          <p>Le offerte accettate appariranno qui.</p>
+                        )}
+                      </div>
+                    )}
+                  </aside>
                 )}
               </div>
-              {open && (
-                <aside
-                  id="live-bid-controls"
-                  tabIndex={-1}
-                  className={`auction-side ${open ? 'auction-side--bidding' : ''}`}
-                  aria-label="La tua partecipazione"
-                >
-                  <BidControls
-                    key={session.currentAuction?.id ?? 'waiting'}
-                    session={session}
-                    team={team}
-                    rules={league}
-                    connected={connected}
-                    blocked={!!command.pending || command.busy}
-                    seconds={seconds}
-                    onBid={(amount) => {
-                      if (session.currentAuction)
-                        void command.send('Bids', {
-                          playerAuctionId: session.currentAuction.id,
-                          amount,
-                        })
-                    }}
-                  />
-                  {open && session.currentAuction && (
-                    <div className="auction-recent-bids">
-                      <h3>Ultimi rilanci</h3>
-                      {bids.isError ? (
-                        <p>Storico momentaneamente non disponibile.</p>
-                      ) : bids.data?.items.length ? (
-                        [...bids.data.items]
-                          .sort((a, b) => b.sequence - a.sequence)
-                          .slice(0, 5)
-                          .map((bid) => (
-                            <p key={bid.id}>
-                              <span>
-                                {session.teams.find(
-                                  (value) => value.id === bid.teamId,
-                                )?.name ?? 'Squadra'}
-                              </span>
-                              <strong>{bid.amount}</strong>
-                            </p>
-                          ))
-                      ) : (
-                        <p>Le offerte accettate appariranno qui.</p>
-                      )}
-                    </div>
-                  )}
-                </aside>
-              )}
+              <RecentPurchases
+                userId={userId}
+                sessionId={session.id}
+                teams={session.teams}
+                onShowAll={() => selectSection('history')}
+              />
             </div>
             <TeamBoard
               userId={userId}
@@ -462,41 +507,28 @@ function SessionView({
               onSelect={selectTeam}
             />
           </section>
-          <div className="auction-catalog-slot" ref={catalogSurface}>
-            <section
-              className="auction-section auction-catalog-surface"
-              id="panel-catalog"
-              role={tab === 'catalog' ? 'tabpanel' : 'region'}
-              aria-labelledby="tab-catalog"
-              tabIndex={0}
-              hidden={tab !== 'catalog' && tab !== 'live'}
-            >
-              {tab === 'live' && <h2>Listone</h2>}
-              <CatalogPanel
-                expanded={tab === 'catalog'}
-                key={`${session.id}:${session.currentRole}`}
-                currentRole={session.currentRole}
-                userId={userId}
-                sessionId={session.id}
-                canCall={canCall}
-                team={team}
-                rules={league}
-                selectedPlayerId={selected?.playerId}
-                onSelect={(player) => {
-                  if (!canCall || player.role !== session.currentRole) return
-                  setSelection({ player, version: session.version })
-                  selectSection('live')
-                  requestAnimationFrame(() => {
-                    const timer = document.getElementById('call-duration')
-                    timer
-                      ?.closest('form')
-                      ?.scrollIntoView({ block: 'start', behavior: 'instant' })
-                    timer?.focus({ preventScroll: true })
-                  })
-                }}
-              />
-            </section>
-          </div>
+          <section
+            className="auction-section"
+            id="panel-catalog"
+            role="tabpanel"
+            aria-labelledby="tab-catalog"
+            tabIndex={0}
+            hidden={tab !== 'catalog'}
+          >
+            <CatalogPanel
+              active={tab === 'catalog'}
+              expanded
+              key={`${session.id}:${session.currentRole}`}
+              currentRole={session.currentRole}
+              userId={userId}
+              sessionId={session.id}
+              canCall={canCall}
+              team={team}
+              rules={league}
+              selectedPlayerId={selected?.playerId}
+              onSelect={selectPlayer}
+            />
+          </section>
         </div>
         <section
           className="auction-section"

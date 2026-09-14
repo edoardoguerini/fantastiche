@@ -647,7 +647,9 @@ for (const width of [320, 1440]) {
         r.url().includes('/Catalog?') &&
         new URL(r.url()).searchParams.get('search') === 'Fabbri',
     )
-    await page.getByLabel('Cerca calciatore').fill('Fabbri')
+    await page
+      .getByRole('textbox', { name: 'Cerca calciatore', exact: true })
+      .fill('Fabbri')
     await searchRequest
     const nextRequest = page.waitForRequest(
       (r) =>
@@ -684,7 +686,9 @@ for (const width of [320, 1440]) {
     await expect(
       page.getByRole('combobox', { name: 'Ordina il listone' }),
     ).toHaveText('Ordina: Nome')
-    await expect(page.getByLabel('Cerca calciatore')).toHaveValue('Fabbri')
+    await expect(
+      page.getByRole('textbox', { name: 'Cerca calciatore', exact: true }),
+    ).toHaveValue('Fabbri')
     await expect(
       page.getByRole('button', { name: 'Precedente', exact: true }),
     ).toHaveCount(0)
@@ -703,63 +707,136 @@ for (const width of [320, 1440]) {
   })
 }
 
-test('il Live desktop affianca il listone e dispone le squadre sotto il giocatore', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1440, height: 1000 })
-  await setupRoom(page)
-  await expect(page.getByLabel('Cerca calciatore')).toBeVisible()
-  const player = (await page
-    .getByRole('region', { name: 'Asta corrente', exact: true })
-    .boundingBox())!
-  const catalog = (await page.getByLabel('Cerca calciatore').boundingBox())!
-  const board = (await page
-    .getByRole('region', { name: 'Tabellone delle squadre' })
-    .boundingBox())!
-  expect(catalog.x).toBeGreaterThan(player.x + player.width)
-  expect(board.y).toBeGreaterThan(player.y + player.height)
-})
+for (const width of [390, 1440]) {
+  test(`Live: ricerca nel turno, ultimi acquisti e squadre a tutta larghezza a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    const { control } = await setupRoom(page, {
+      waiting: true,
+      teamCount: 8,
+      rosterRoles: ['A', 'P', 'C', 'D', 'A'],
+    })
+    const stage = page.getByRole('region', {
+      name: 'Asta corrente',
+      exact: true,
+    })
+    const history = page.getByRole('complementary', { name: 'Ultimi acquisti' })
+    await expect(history.getByRole('listitem')).toHaveCount(4)
+    await expect(history.getByRole('heading', { level: 3 })).toHaveText([
+      'Calciatore 1',
+      'Calciatore 2',
+      'Calciatore 3',
+      'Calciatore 4',
+    ])
+    const player = (await stage.boundingBox())!
+    const recent = (await history.boundingBox())!
+    const board = (await page
+      .getByRole('region', { name: 'Tabellone delle squadre' })
+      .boundingBox())!
+    expect(Math.abs(board.x - player.x)).toBeLessThanOrEqual(1)
+    if (width >= 1024) {
+      expect(Math.abs(player.width / recent.width - 7 / 3)).toBeLessThan(0.02)
+      expect(recent.x).toBeGreaterThan(player.x + player.width)
+      expect(
+        Math.abs(board.x + board.width - recent.x - recent.width),
+      ).toBeLessThanOrEqual(1)
+    } else {
+      expect(recent.y).toBeGreaterThanOrEqual(player.y + player.height)
+    }
+    expect(board.y).toBeGreaterThanOrEqual(recent.y + recent.height)
+    await expect(page.locator('.auction-catalog-slot')).toHaveCount(0)
+    const trigger = stage.getByRole('button', {
+      name: 'Apri ricerca calciatore',
+      exact: true,
+    })
+    await expect(trigger).toBeVisible()
+    await page.screenshot({
+      path: test.info().outputPath(`live-layout-${width}.png`),
+      fullPage: true,
+    })
+    await trigger.click()
+    const dialog = page.getByRole('dialog', { name: 'Scegli un calciatore' })
+    await expect(dialog).toBeVisible()
+    const search = dialog.getByRole('textbox', {
+      name: 'Cerca calciatore',
+      exact: true,
+    })
+    await expect(search).toBeFocused()
+    const bounds = (await dialog.boundingBox())!
+    expect(bounds.x).toBe(0)
+    expect(bounds.y).toBe(0)
+    expect(bounds.width).toBe(width)
+    expect(bounds.height).toBe(1000)
+    await dialog.getByRole('combobox', { name: 'Ordina il listone' }).click()
+    await page.getByRole('option', { name: 'Ordina: FVM ↓' }).click()
+    await search.fill('Fabbri')
+    await page.screenshot({
+      path: test.info().outputPath(`search-dialog-${width}.png`),
+    })
+    await dialog
+      .getByRole('button', { name: 'Seleziona Alessandro Fabbri' })
+      .click()
+    await expect(
+      page.getByRole('button', { name: 'Chiama', exact: true }),
+    ).toBeVisible()
+    expect(control.commands).toHaveLength(0)
+    await expect(dialog).toHaveCount(0)
+    await expect(history).toBeVisible()
+    await page.screenshot({
+      path: test.info().outputPath(`live-selection-${width}.png`),
+      fullPage: true,
+    })
+    await history
+      .getByRole('button', { name: 'Visualizza tutto lo storico' })
+      .click()
+    await expect(page.getByRole('tabpanel', { name: 'Storico' })).toBeVisible()
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(width)
+  })
+}
 
-test('il listone laterale arriva alla barra inferiore e carica scorrendo', async ({
+test('il modale ricerca scorre, si chiude con Escape e X e restituisce il focus', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await setupRoom(page, { catalogSize: 60 })
-  const surface = page.locator('.auction-catalog-surface')
-  const footer = page.locator('.auction-bottom-bar')
-  async function expectAligned() {
-    await expect
-      .poll(async () => {
-        const panel = (await surface.boundingBox())!
-        const bar = (await footer.boundingBox())!
-        return Math.abs(panel.y + panel.height + 16 - bar.y)
-      })
-      .toBeLessThanOrEqual(2)
-    await expect(
-      page.getByRole('navigation', { name: 'Pagine del listone' }),
-    ).toHaveCount(0)
-  }
-  await expectAligned()
-  await page.locator('.catalog-list').evaluate((list) => {
+  const { control, state, notify } = await setupRoom(page, {
+    waiting: true,
+    catalogSize: 60,
+  })
+  const stage = page.getByRole('region', { name: 'Asta corrente', exact: true })
+  const trigger = stage.getByRole('button', {
+    name: 'Apri ricerca calciatore',
+    exact: true,
+  })
+  await trigger.click()
+  const dialog = page.getByRole('dialog', { name: 'Scegli un calciatore' })
+  await expect(
+    dialog.getByRole('textbox', { name: 'Cerca calciatore', exact: true }),
+  ).toBeFocused()
+  await expect(dialog.locator('.catalog-row')).toHaveCount(30)
+  await dialog.locator('.catalog-list').evaluate((list) => {
     list.scrollTop = list.scrollHeight
   })
-  await expect(page.locator('.auction-catalog .catalog-row')).toHaveCount(60)
-  await expectAligned()
-  await page.setViewportSize({ width: 1440, height: 700 })
-  await expectAligned()
-  await page.evaluate(() => window.scrollTo(0, 100))
-  await expectAligned()
-  await page.evaluate(() =>
-    window.scrollTo(0, document.documentElement.scrollHeight),
+  await expect(dialog.locator('.catalog-row')).toHaveCount(60)
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(trigger).toBeFocused()
+  await trigger.click()
+  await dialog.getByRole('button', { name: 'Chiudi ricerca' }).click()
+  await expect(trigger).toBeFocused()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await stage.getByRole('button', { name: 'Scegli dal listone' }).click()
+  await expect(dialog).toBeVisible()
+  expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(
+    true,
   )
-  await expectAligned()
-  expect((await surface.boundingBox())!.y).toBeGreaterThanOrEqual(16)
-  await expect(
-    page.getByRole('heading', { name: 'Listone', exact: true }),
-  ).toBeInViewport()
-  await page.screenshot({
-    path: test.info().outputPath('listone-bottom-gap.png'),
-  })
+  state.currentTeamId = teamId(1)
+  state.version++
+  notify()
+  await expect(dialog).toHaveCount(0)
+  expect(control.commands).toHaveLength(0)
 })
 
 test('test chiamante: mantiene il proprio turno, si disattiva e supporta il riordino drag', async ({
@@ -971,7 +1048,7 @@ test('il carosello taglia le card al bordo del box e supporta il drag', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await setupRoom(page, { waiting: true, teamCount: 8 })
+  await setupRoom(page, { waiting: true, teamCount: 10 })
   const board = page.getByLabel('Scorri le squadre', { exact: true })
   await board.scrollIntoViewIfNeeded()
   const section = page.getByRole('region', { name: 'Tabellone delle squadre' })
@@ -1025,6 +1102,9 @@ test('selezione privata in anteprima: annulla senza offerte e chiama solo dopo c
 }) => {
   const { control } = await setupRoom(page, { waiting: true })
   await page
+    .getByRole('button', { name: 'Apri ricerca calciatore', exact: true })
+    .click()
+  await page
     .getByRole('button', { name: 'Seleziona Alessandro Fabbri', exact: true })
     .click()
   const preview = page.getByRole('form', { name: 'Anteprima chiamata' })
@@ -1041,6 +1121,9 @@ test('selezione privata in anteprima: annulla senza offerte e chiama solo dopo c
     .click()
   await expect(preview).not.toBeVisible()
   expect(control.commands).toHaveLength(0)
+  await page
+    .getByRole('button', { name: 'Apri ricerca calciatore', exact: true })
+    .click()
   await page
     .getByRole('button', { name: 'Seleziona Alessandro Fabbri', exact: true })
     .click()
@@ -1127,8 +1210,9 @@ for (const [width, role] of [
         fvm: width === 320 ? null : 25,
       },
     })
-    if (width < 1024)
-      await page.getByRole('tab', { name: 'Listone', exact: true }).click()
+    await page
+      .getByRole('button', { name: 'Apri ricerca calciatore', exact: true })
+      .click()
     await page
       .getByRole('button', { name: `Seleziona ${name}`, exact: true })
       .click()
@@ -1266,8 +1350,8 @@ test('i rilanci non rileggono le rose, una nuova aggiudicazione le aggiorna', as
   const { control, state, notify } = await setupRoom(page)
   await expect(page.locator('.team-purchases')).toHaveCount(4)
   await expect(
-    page.locator('.team-purchases').getByText('Il primo acquisto ti aspetta'),
-  ).toHaveCount(4)
+    page.locator('.team-purchases').getByLabel('Posto libero: Portieri'),
+  ).toHaveCount(12)
   const reads = control.rosterReads
   await page.getByRole('button', { name: 'Offri 21 crediti, più 1' }).click()
   await expect(page.getByText('La tua squadra è in testa.')).toHaveCount(0)
@@ -1508,7 +1592,9 @@ test('la navigazione conserva il listone e aggiorna il riepilogo live senza invi
   await expect(
     page.getByRole('region', { name: 'Asta corrente', exact: true }),
   ).not.toBeVisible()
-  await page.getByLabel('Cerca calciatore').fill('Fabbri')
+  await page
+    .getByRole('textbox', { name: 'Cerca calciatore', exact: true })
+    .fill('Fabbri')
   await page.getByRole('button', { name: 'A', exact: true }).click()
   await page.getByRole('tab', { name: 'Rose', exact: true }).click()
   state.currentAuction!.currentAmount = 25
@@ -1518,7 +1604,9 @@ test('la navigazione conserva il listone e aggiorna il riepilogo live senza invi
   await expect(summary).toContainText('25 crediti')
   await expect(summary).toContainText('Alessandro Fabbri')
   await page.getByRole('tab', { name: 'Listone' }).click()
-  await expect(page.getByLabel('Cerca calciatore')).toHaveValue('Fabbri')
+  await expect(
+    page.getByRole('textbox', { name: 'Cerca calciatore', exact: true }),
+  ).toHaveValue('Fabbri')
   await expect(
     page.getByRole('button', { name: 'A', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true')
@@ -1583,7 +1671,9 @@ test('il turno resta accessibile e il tabellone apre la rosa scelta', async ({
   await page
     .getByRole('button', { name: 'Scegli dal listone', exact: true })
     .click()
-  await expect(page.getByLabel('Cerca calciatore')).toBeFocused()
+  await expect(
+    page.getByRole('textbox', { name: 'Cerca calciatore', exact: true }),
+  ).toBeFocused()
 })
 
 test('su mobile navigazione, riepilogo e rilanci restano separati e raggiungibili', async ({
@@ -1779,9 +1869,16 @@ for (const width of [390, 1440]) {
       'Calciatore 1',
     ])
     expect((await purchases.boundingBox())!.height).toBeGreaterThanOrEqual(190)
-    await purchases.evaluate((element) => {
-      element.scrollTop = element.scrollHeight
-    })
+    await expect(purchases.getByLabel('Posto libero: Portieri')).toHaveCount(1)
+    await expect(purchases.getByLabel('Posto libero: Difensori')).toHaveCount(7)
+    const card = purchases.locator('..')
+    const finances = (await card.locator('.team-finances').boundingBox())!
+    expect(finances.y + finances.height).toBeLessThanOrEqual(
+      (await purchases.boundingBox())!.y,
+    )
+    await purchases
+      .getByText('Calciatore 1', { exact: true })
+      .scrollIntoViewIfNeeded()
     await expect(
       purchases.getByText('Calciatore 1', { exact: true }),
     ).toBeInViewport()
@@ -2207,8 +2304,14 @@ for (const width of [320, 768, 1440]) {
     await expect(mine).toContainText('Budget')
     await expect(mine).toContainText('Offerta max')
     await expect(
-      panel.getByRole('article', { name: 'Rosa Real Sbronzi', exact: true }),
-    ).toContainText('Il primo acquisto ti aspetta')
+      panel
+        .getByRole('article', { name: 'Rosa Real Sbronzi', exact: true })
+        .getByLabel('Posto libero:', { exact: false }),
+    ).toHaveCount(25)
+    const finances = (await mine.locator('.team-finances').boundingBox())!
+    expect(finances.y + finances.height).toBeLessThanOrEqual(
+      (await mine.locator('.team-purchases').boundingBox())!.y,
+    )
     const next = panel.getByRole('button', { name: 'Squadre successive' })
     if (width < 1200) {
       await expect(next).toBeVisible()
@@ -2231,10 +2334,8 @@ for (const width of [320, 768, 1440]) {
         .getByRole('article', { name: 'Rosa AS Intomatici', exact: true })
         .boundingBox()
       const fifth = await panel.getByRole('article').nth(4).boundingBox()
-      const sixth = await panel.getByRole('article').nth(5).boundingBox()
       expect(fifth!.y).toBe(first!.y)
-      expect(sixth!.y).toBeGreaterThan(first!.y)
-      expect(last!.y).toBe(sixth!.y)
+      expect(last!.y).toBeGreaterThan(first!.y)
     }
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
