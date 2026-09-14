@@ -707,7 +707,7 @@ for (const width of [320, 1440]) {
   })
 }
 
-for (const width of [390, 1440]) {
+for (const width of [390, 1024, 1440]) {
   test(`Live: ricerca nel turno, ultimi acquisti e squadre a tutta larghezza a ${width}px`, async ({
     page,
   }) => {
@@ -722,12 +722,11 @@ for (const width of [390, 1440]) {
       exact: true,
     })
     const history = page.getByRole('complementary', { name: 'Ultimi acquisti' })
-    await expect(history.getByRole('listitem')).toHaveCount(4)
+    await expect(history.getByRole('listitem')).toHaveCount(3)
     await expect(history.getByRole('heading', { level: 3 })).toHaveText([
       'Calciatore 1',
       'Calciatore 2',
       'Calciatore 3',
-      'Calciatore 4',
     ])
     const player = (await stage.boundingBox())!
     const recent = (await history.boundingBox())!
@@ -737,6 +736,8 @@ for (const width of [390, 1440]) {
     expect(Math.abs(board.x - player.x)).toBeLessThanOrEqual(1)
     if (width >= 1024) {
       expect(Math.abs(player.width / recent.width - 7 / 3)).toBeLessThan(0.02)
+      expect(Math.abs(player.y - recent.y)).toBeLessThanOrEqual(1)
+      expect(Math.abs(player.height - recent.height)).toBeLessThanOrEqual(1)
       expect(recent.x).toBeGreaterThan(player.x + player.width)
       expect(
         Math.abs(board.x + board.width - recent.x - recent.width),
@@ -783,6 +784,14 @@ for (const width of [390, 1440]) {
     expect(control.commands).toHaveLength(0)
     await expect(dialog).toHaveCount(0)
     await expect(history).toBeVisible()
+    if (width >= 1024) {
+      const selection = (await page.locator('.player-call-form').boundingBox())!
+      const purchases = (await history.boundingBox())!
+      expect(Math.abs(selection.y - purchases.y)).toBeLessThanOrEqual(1)
+      expect(Math.abs(selection.height - purchases.height)).toBeLessThanOrEqual(
+        1,
+      )
+    }
     await page.screenshot({
       path: test.info().outputPath(`live-selection-${width}.png`),
       fullPage: true,
@@ -1010,92 +1019,59 @@ for (const width of [390, 1440]) {
   })
 }
 
-test('il carosello squadre torna dalla prima all’ultima e viceversa', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 900 })
-  await page.emulateMedia({ reducedMotion: 'reduce' })
-  await setupRoom(page, { waiting: true })
-  const board = page.getByLabel('Scorri le squadre', { exact: true })
-  const previous = page.getByRole('button', { name: 'Squadre precedenti' })
-  const next = page.getByRole('button', { name: 'Squadre successive' })
-  const first = page.getByRole('button', { name: 'Apri rosa Atletico Spritz' })
-  const last = page.getByRole('button', {
-    name: 'Apri rosa Sporting Aperitivo',
+for (const width of [390, 900]) {
+  test(`le squadre scorrono nativamente senza frecce a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await setupRoom(page, { waiting: true, teamCount: 10 })
+    const board = page.getByLabel('Scorri le squadre', { exact: true })
+    await expect(
+      page.getByRole('button', { name: 'Squadre successive' }),
+    ).toHaveCount(0)
+    await expect(
+      page.getByRole('button', { name: 'Squadre precedenti' }),
+    ).toHaveCount(0)
+    await board.evaluate((element) =>
+      element.scrollIntoView({ block: 'start' }),
+    )
+    await board.focus()
+    await page.keyboard.press('End')
+    expect(
+      await board.evaluate((element) =>
+        Math.abs(
+          element.scrollWidth - element.clientWidth - element.scrollLeft,
+        ),
+      ),
+    ).toBeLessThanOrEqual(1)
+    await page.keyboard.press('Home')
+    expect(await board.evaluate((element) => element.scrollLeft)).toBe(0)
+    await page.keyboard.press('ArrowRight')
+    await expect
+      .poll(() => board.evaluate((element) => element.scrollLeft))
+      .toBeGreaterThan(0)
+    await page.keyboard.press('Home')
+    const bounds = (await board.boundingBox())!
+    await page.mouse.move(bounds.x + 80, Math.max(10, bounds.y) + 100)
+    await page.mouse.wheel(160, 0)
+    await expect
+      .poll(() => board.evaluate((element) => element.scrollLeft))
+      .toBeGreaterThan(100)
+    const before = await page.evaluate(() => window.scrollY)
+    await page.mouse.wheel(0, 160)
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(before)
+    expect(await board.evaluate((element) => element.scrollTop)).toBe(0)
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(width)
+    await page.screenshot({
+      path: test.info().outputPath(`native-team-scroll-${width}.png`),
+      fullPage: true,
+    })
   })
-  const position = async (card: typeof first) =>
-    Math.round((await card.boundingBox())!.x - (await board.boundingBox())!.x)
-  await expect(previous).toBeEnabled()
-  await expect(next).toBeEnabled()
-  const firstPosition = await position(first)
-  await previous.click()
-  await expect.poll(() => position(last)).toBe(firstPosition)
-  await next.click()
-  await expect.poll(() => position(first)).toBe(firstPosition)
-  await board.focus()
-  await page.keyboard.press('End')
-  await expect.poll(() => position(last)).toBe(firstPosition)
-  await page.keyboard.press('Home')
-  await expect.poll(() => position(first)).toBe(firstPosition)
-  await expect(page.locator('.team-purchases')).toHaveCount(4)
-  await page.screenshot({ path: test.info().outputPath('carousel-mobile.png') })
-  await page.setViewportSize({ width: 1440, height: 1000 })
-  await expect(previous).toBeDisabled()
-  await expect(next).toBeDisabled()
-})
-
-test('il carosello taglia le card al bordo del box e supporta il drag', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1440, height: 1000 })
-  await setupRoom(page, { waiting: true, teamCount: 10 })
-  const board = page.getByLabel('Scorri le squadre', { exact: true })
-  await board.scrollIntoViewIfNeeded()
-  const section = page.getByRole('region', { name: 'Tabellone delle squadre' })
-  const first = page.locator('.team-column').first()
-  const last = page.locator('.team-column').last()
-  await expect(
-    page.getByRole('button', { name: 'Squadre precedenti' }),
-  ).toBeEnabled()
-  const viewport = (await board.boundingBox())!
-  const box = (await section.boundingBox())!
-  expect(Math.abs(viewport.x - box.x)).toBeLessThanOrEqual(1)
-  expect(Math.abs(viewport.width - box.width)).toBeLessThanOrEqual(2)
-  const previousCard = (await last.boundingBox())!
-  expect(previousCard.x).toBeLessThan(viewport.x)
-  expect(previousCard.x + previousCard.width).toBeGreaterThan(viewport.x + 12)
-  const initialX = (await first.boundingBox())!.x
-  const y = viewport.y + 50
-  await page.mouse.move(initialX + 120, y)
-  await page.mouse.down()
-  await page.mouse.move(initialX - 80, y, { steps: 12 })
-  await page.mouse.up()
-  await expect
-    .poll(async () => Math.abs((await first.boundingBox())!.x - initialX))
-    .toBeGreaterThan(100)
-  await expect(
-    page.getByRole('tab', { name: 'Live', exact: true }),
-  ).toHaveAttribute('aria-selected', 'true')
-  await board.focus()
-  await page.keyboard.press('Home')
-  await expect
-    .poll(async () => Math.round((await first.boundingBox())!.x))
-    .toBe(Math.round(initialX))
-  await page.mouse.move(initialX + 120, y)
-  await page.mouse.wheel(150, 0)
-  await expect
-    .poll(async () => Math.abs((await first.boundingBox())!.x - initialX))
-    .toBeGreaterThan(100)
-  await board.focus()
-  await page.keyboard.press('Home')
-  await expect
-    .poll(async () => Math.round((await first.boundingBox())!.x))
-    .toBe(Math.round(initialX))
-  await page.getByRole('heading', { name: 'Le squadre', exact: true }).click()
-  await page.screenshot({
-    path: test.info().outputPath('carousel-desktop.png'),
-  })
-})
+}
 
 test('selezione privata in anteprima: annulla senza offerte e chiama solo dopo conferma', async ({
   page,
@@ -1719,8 +1695,7 @@ for (const width of [320, 390, 768, 1440]) {
     await expect(badge).toContainText('Utenti connessi: 2')
     const logo = (await page.locator('.app-brand').boundingBox())!
     const live = (await badge.boundingBox())!
-    if (width > 650)
-      expect(Math.abs(logo.x + logo.width / 2 - width / 2)).toBeLessThan(2)
+    expect(Math.abs(logo.x + logo.width / 2 - width / 2)).toBeLessThan(2)
     expect(live.x).toBeGreaterThan(logo.x + logo.width)
     const header = page.locator('.app-header')
     if (width <= 650) {
@@ -1728,6 +1703,10 @@ for (const width of [320, 390, 768, 1440]) {
         .getByRole('button', { name: 'Apri menu profilo' })
         .boundingBox())!
       expect(logo.x).toBeGreaterThanOrEqual(profile.x + profile.width)
+      await expect(header.locator('.auction-budget-qualifier')).toBeHidden()
+      expect(await header.locator('.auction-account-budget').innerText()).toBe(
+        '500 crediti',
+      )
       expect(
         Math.abs(logo.y + logo.height / 2 - live.y - live.height / 2),
       ).toBeLessThan(2)
@@ -1801,47 +1780,54 @@ for (const width of [390, 1440]) {
       ),
     ).toBeVisible()
     await expect(online).toHaveCount(0)
-    await page.getByRole('heading', { name: 'Le squadre', exact: true }).click()
+    await page
+      .getByRole('region', { name: 'Tabellone delle squadre' })
+      .click({ position: { x: 1, y: 1 } })
     await expect(panel).not.toBeVisible()
   })
 }
 
-test('il budget personale resta fisso e segue lo snapshot nelle altre sezioni', async ({
+test('il budget personale appare sotto il nome e segue lo snapshot nelle altre sezioni', async ({
   page,
 }) => {
   const { state, notify, control } = await setupRoom(page, { waiting: true })
-  const budget = page.getByRole('region', {
+  const budget = page.getByRole('status', {
     name: 'Il tuo budget',
     exact: true,
   })
-  const progress = budget.getByRole('progressbar')
+  await expect(page.locator('.account-trigger')).toContainText(
+    '500 crediti disponibili',
+  )
+  await expect(
+    page.locator('.account-trigger .app-account-detail-fallback'),
+  ).toBeHidden()
+  await expect(page.locator('.auction-budget-strip')).toHaveCount(0)
   await expect(budget).not.toContainText('Atletico Spritz')
-  await expect(progress).toHaveAttribute('value', '500')
-  await expect(progress).toHaveAttribute('max', '500')
+  await expect(budget).toHaveText('500 crediti disponibili')
   await expect(page.locator('#live-bid-controls')).toHaveCount(0)
   await page.getByRole('tab', { name: 'Rose', exact: true }).click()
   state.teams[0]!.budget = 250
   state.version++
   notify()
-  await expect(progress).toHaveAttribute('value', '250')
+  await expect(budget).toHaveText('250 crediti disponibili')
   await expect(budget).toContainText('250')
   await page
-    .locator('.auction-bottom-bar')
-    .screenshot({ path: test.info().outputPath('bottom-bar-desktop.png') })
+    .locator('.app-header')
+    .screenshot({ path: test.info().outputPath('header-budget-desktop.png') })
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(budget).toBeInViewport()
   await page
-    .locator('.auction-bottom-bar')
-    .screenshot({ path: test.info().outputPath('bottom-bar-mobile.png') })
+    .locator('.app-header')
+    .screenshot({ path: test.info().outputPath('header-budget-mobile.png') })
   state.teams[0]!.budget = 0
   state.version++
   notify()
-  await expect(progress).toHaveAttribute('value', '0')
+  await expect(budget).toHaveText('0 crediti disponibili')
   expect(control.commands).toHaveLength(0)
 })
 
 for (const width of [390, 1440]) {
-  test(`acquisti nel carosello raggruppati in ordine P D C A a ${width}px`, async ({
+  test(`acquisti nelle squadre raggruppati in ordine P D C A a ${width}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 1000 })
@@ -1882,9 +1868,12 @@ for (const width of [390, 1440]) {
     await expect(
       purchases.getByText('Calciatore 1', { exact: true }),
     ).toBeInViewport()
-    await purchases.evaluate((element) => {
-      element.scrollTop = 0
-    })
+    expect(
+      await purchases.evaluate(
+        (element) => element.scrollHeight - element.clientHeight,
+      ),
+    ).toBeLessThanOrEqual(1)
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
     await page.screenshot({
       path: test.info().outputPath(`roster-groups-${width}.png`),
     })
@@ -2313,9 +2302,8 @@ for (const width of [320, 768, 1440]) {
       (await mine.locator('.team-purchases').boundingBox())!.y,
     )
     const next = panel.getByRole('button', { name: 'Squadre successive' })
-    if (width < 1200) {
-      await expect(next).toBeVisible()
-      await next.click()
+    if (width < 1024) {
+      await expect(next).toHaveCount(0)
       const board = panel.getByLabel('Scorri le squadre', { exact: true })
       await board.focus()
       await board.press('End')
@@ -2324,9 +2312,9 @@ for (const width of [320, 768, 1440]) {
           name: 'Rosa AS Intomatici',
           exact: true,
         }),
-      ).toBeInViewport({ ratio: 0.9 })
+      ).toBeInViewport()
       await board.press('Home')
-      await expect(mine).toBeInViewport({ ratio: 0.9 })
+      await expect(mine).toBeInViewport()
     } else {
       await expect(next).toBeHidden()
       const first = await mine.boundingBox()
@@ -2335,7 +2323,7 @@ for (const width of [320, 768, 1440]) {
         .boundingBox()
       const fifth = await panel.getByRole('article').nth(4).boundingBox()
       expect(fifth!.y).toBe(first!.y)
-      expect(last!.y).toBeGreaterThan(first!.y)
+      expect(last!.y).toBe(first!.y)
     }
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
@@ -2440,7 +2428,7 @@ test('ogni rosa carica scorrendo senza perdere acquisti e lo storico resta compl
   await expect(mine.getByText('Calciatore 101', { exact: true })).toBeVisible()
 })
 
-test('le rose passano da griglia a carosello al resize e raggiungono tutte le squadre', async ({
+test('le rose passano da griglia a scorrimento nativo al resize e raggiungono tutte le squadre', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
@@ -2450,7 +2438,7 @@ test('le rose passano da griglia a carosello al resize e raggiungono tutte le sq
   const next = panel.getByRole('button', { name: 'Squadre successive' })
   await expect(next).toBeHidden()
   await page.setViewportSize({ width: 390, height: 1000 })
-  await expect(next).toBeEnabled()
+  await expect(next).toHaveCount(0)
   const board = panel.getByLabel('Scorri le squadre', { exact: true })
   await board.focus()
   await board.press('End')
@@ -2458,7 +2446,7 @@ test('le rose passano da griglia a carosello al resize e raggiungono tutte le sq
     name: 'Rosa FC Mai una Gioia',
     exact: true,
   })
-  await expect(last).toBeInViewport({ ratio: 0.9 })
+  await expect(last).toBeInViewport()
   await page.setViewportSize({ width: 1440, height: 1000 })
   await expect(next).toBeHidden()
   const first = panel.getByRole('article', {
@@ -2466,9 +2454,7 @@ test('le rose passano da griglia a carosello al resize e raggiungono tutte le sq
     exact: true,
   })
   await expect(first).toBeInViewport()
-  expect((await last.boundingBox())!.y).toBeGreaterThan(
-    (await first.boundingBox())!.y,
-  )
+  expect((await last.boundingBox())!.y).toBe((await first.boundingBox())!.y)
 })
 
 test('un errore caricando la rosa conserva gli acquisti e permette di riprovare', async ({
@@ -2510,4 +2496,110 @@ test('un errore caricando la rosa conserva gli acquisti e permette di riprovare'
     })
     .click()
   await expect(mine.getByText('Calciatore 101', { exact: true })).toBeVisible()
+})
+
+for (const [width, height] of [
+  [1024, 768],
+  [1180, 820],
+  [1366, 1024],
+  [1440, 1000],
+  [1920, 1080],
+] as const) {
+  test(`dieci squadre affiancate senza carosello in Live e Rose a ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height })
+    await setupRoom(page, {
+      waiting: true,
+      teamCount: 10,
+      rosterRoles: ['P', 'D', 'C', 'A'],
+    })
+    for (const tab of ['Live', 'Rose']) {
+      await page.getByRole('tab', { name: tab, exact: true }).click()
+      const panel = page.getByRole('tabpanel', { name: tab, exact: true })
+      const cards = panel.locator('.team-column')
+      await expect(cards).toHaveCount(10)
+      await expect(
+        panel.getByRole('button', { name: 'Squadre successive' }),
+      ).toBeHidden()
+      const boxes = await cards.evaluateAll((items) =>
+        items.map((item) => {
+          const { x, y, width, right } = item.getBoundingClientRect()
+          return {
+            x,
+            y,
+            width,
+            right,
+            overflow: item.scrollWidth > item.clientWidth,
+          }
+        }),
+      )
+      for (let index = 0; index < boxes.length; index++) {
+        const box = boxes[index]!
+        expect(box.y).toBe(boxes[0]!.y)
+        expect(box.x).toBeGreaterThanOrEqual(0)
+        expect(box.right).toBeLessThanOrEqual(width)
+        expect(box.width).toBeGreaterThan(85)
+        expect(box.overflow).toBe(false)
+        if (index) expect(box.x).toBeGreaterThan(boxes[index - 1]!.right)
+      }
+      const firstX = boxes[0]!.x
+      await cards.first().hover()
+      await page.mouse.wheel(200, 0)
+      expect((await cards.first().boundingBox())!.x).toBe(firstX)
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBeLessThanOrEqual(width)
+      await page.screenshot({
+        path: test.info().outputPath(`ten-teams-${tab}-${width}.png`),
+        fullPage: true,
+      })
+    }
+  })
+}
+
+test('ultimi acquisti richiudibili su mobile e sempre visibili su desktop', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const { state, notify } = await setupRoom(page, {
+    waiting: true,
+    teamCount: 10,
+    rosterRoles: ['P', 'D', 'C', 'A'],
+  })
+  const history = page.getByRole('complementary', { name: 'Ultimi acquisti' })
+  const toggle = history.getByRole('button', {
+    name: 'Ultimi acquisti',
+    exact: true,
+  })
+  const showAll = history.getByRole('button', {
+    name: 'Visualizza tutto lo storico',
+  })
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  await expect(history.getByRole('listitem')).toHaveCount(3)
+  const openHeight = (await history.boundingBox())!.height
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await expect(showAll).toBeHidden()
+  await expect(history.getByRole('listitem')).toHaveCount(0)
+  expect((await history.boundingBox())!.height).toBeLessThan(openHeight / 2)
+  state.version++
+  notify()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await page.screenshot({
+    path: test.info().outputPath('recent-purchases-collapsed.png'),
+    fullPage: true,
+  })
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await expect(toggle).toBeHidden()
+  await expect(showAll).toBeVisible()
+  await expect(history.getByRole('listitem')).toHaveCount(3)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(showAll).toBeHidden()
+  await toggle.focus()
+  await page.keyboard.press('Enter')
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  await expect(showAll).toBeVisible()
+  await showAll.click()
+  await expect(page.getByRole('tabpanel', { name: 'Storico' })).toBeVisible()
 })

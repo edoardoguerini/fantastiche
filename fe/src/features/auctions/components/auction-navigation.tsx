@@ -21,8 +21,6 @@ export function AuctionNavigation({
   seconds,
   connected,
   canManage,
-  myTeamId,
-  initialBudget,
 }: {
   userId: string
   active: AuctionSection
@@ -31,10 +29,7 @@ export function AuctionNavigation({
   seconds: number
   connected: boolean
   canManage: boolean
-  myTeamId: string | null
-  initialBudget: number
 }) {
-  const team = session.teams.find((item) => item.id === myTeamId)
   const auction = session.currentAuction
   const visibleSections = sections.filter(
     (section) => section.id !== 'manage' || canManage,
@@ -81,21 +76,6 @@ export function AuctionNavigation({
             <span className="auction-mini-action-label">Vai al Live</span>{' '}
             <Icon name="arrow-up" variant="jelly" />
           </Button>
-        </section>
-      )}
-      {team && (
-        <section className="auction-budget-strip" aria-label="Il tuo budget">
-          <div className="auction-budget-content">
-            <p className="auction-budget-amount">
-              <strong>{team.budget}</strong> <span>crediti disponibili</span>
-            </p>
-            <progress
-              aria-label={`Budget residuo di ${team.name}`}
-              aria-valuetext={`${team.budget} crediti disponibili su ${initialBudget} iniziali`}
-              value={Math.max(0, Math.min(team.budget, initialBudget))}
-              max={Math.max(1, initialBudget)}
-            />
-          </div>
         </section>
       )}
       <div className="auction-bottom-navigation" data-manage={canManage}>

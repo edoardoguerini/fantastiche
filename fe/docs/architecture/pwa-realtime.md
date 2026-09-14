@@ -16,7 +16,7 @@ Con `viewport-fit=cover` e la barra di stato iOS `black-translucent`, l’header
 
 `pnpm build` genera `dist/client/sw.js` da `pwa/sw.js` con `scripts/build-pwa.mjs`, senza nuove dipendenze. La versione deriva dal contenuto di template, asset e risorse offline. Solo la build di produzione registra il worker: Vite dev ne resta privo per evitare cache del codice durante HMR.
 
-Il worker conserva una pagina offline neutra, logo e font Sora; mette in cache al primo uso soltanto gli URL esatti degli asset pubblici della build. Non conserva pagine SSR, redirect, sessioni, dati lega, prezzi, foto remote o risposte API. Esclude richieste con query dagli asset, risposte private/no-store, HTML e redirect. `/api`, `/hubs` e `/_server` passano direttamente dalla rete; nessuna scrittura viene intercettata o accodata.
+Il worker conserva una pagina offline neutra, logo e font Inter; mette in cache al primo uso soltanto gli URL esatti degli asset pubblici della build. Non conserva pagine SSR, redirect, sessioni, dati lega, prezzi, foto remote o risposte API. Esclude richieste con query dagli asset, risposte private/no-store, HTML e redirect. `/api`, `/hubs` e `/_server` passano direttamente dalla rete; nessuna scrittura viene intercettata o accodata.
 
 Le navigazioni richiedono sempre la rete. Se manca, compare «Torniamo in campo appena sei online», senza dati dell’utente; Riprova richiede nuovamente la pagina corrente. Non si può consultare una copia offline della lega o rilanciare offline. Una pagina mai visitata può mostrare il fallback soltanto dopo la prima installazione online del worker.
 

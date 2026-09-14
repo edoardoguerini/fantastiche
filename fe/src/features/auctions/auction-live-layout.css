@@ -5,7 +5,7 @@
   display: grid;
   grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
   gap: 20px;
-  align-items: start;
+  align-items: stretch;
 }
 .auction-live-top > .auction-workspace {
   min-width: 0;
@@ -104,6 +104,8 @@
   }
 }
 .auction-recent-purchases {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   padding: 18px;
   border: 1px solid var(--border);
@@ -121,11 +123,10 @@
   font-size: 16px;
   font-weight: 500;
 }
-.auction-recent-purchases header > i {
-  color: var(--muted-foreground);
-}
 .auction-recent-purchases ul {
   display: grid;
+  flex: 1;
+  align-content: start;
   gap: 6px;
   list-style: none;
   padding: 0;
@@ -171,12 +172,13 @@
   font-size: 14px;
   font-variant-numeric: tabular-nums;
 }
-.auction-recent-purchases > button {
+.recent-purchases-content > button {
   width: 100%;
   margin-top: 12px;
   font-size: 12px;
 }
 .recent-purchases-empty {
+  flex: 1;
   min-height: 148px;
   display: grid;
   align-content: center;
@@ -184,6 +186,16 @@
   color: var(--muted-foreground);
   font-size: 13px;
   line-height: 1.6;
+}
+@media (min-width: 1024px) {
+  .auction-live-top .auction-main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+  .auction-live-top .auction-main > .auction-stage {
+    flex: 1;
+  }
 }
 @media (max-width: 1023px) {
   .auction-live-top {
@@ -194,5 +206,42 @@
 @media (max-width: 650px) {
   .auction-recent-purchases {
     padding: 16px;
+  }
+}
+
+.recent-purchases-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.recent-purchases-toggle {
+  display: none;
+}
+@media (max-width: 650px) {
+  .auction-recent-purchases h2 {
+    width: 100%;
+  }
+  .recent-purchases-title {
+    display: none;
+  }
+  .recent-purchases-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    min-height: 44px;
+    text-align: left;
+    border-radius: 4px;
+  }
+  .recent-purchases-toggle > i {
+    color: var(--muted-foreground);
+    font-size: 13px;
+  }
+  .auction-recent-purchases[data-expanded='false'] header {
+    margin-bottom: 0;
+  }
+  .auction-recent-purchases[data-expanded='false'] .recent-purchases-content {
+    display: none;
   }
 }

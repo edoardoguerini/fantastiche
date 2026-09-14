@@ -5,8 +5,8 @@ const client = new URL('../dist/client/', import.meta.url)
 const files = (await readdir(new URL('assets/', client), { recursive: true }))
   .filter((name) => /\.(js|css|woff2?|png|webp|svg|m4a|mp3)$/.test(name))
   .sort()
-const font = files.find((name) => name.startsWith('sora-latin-wght-normal-'))
-if (!font) throw new Error('Font Sora mancante nella build PWA')
+const font = files.find((name) => name.startsWith('inter-latin-wght-normal-'))
+if (!font) throw new Error('Font Inter mancante nella build PWA')
 const fontPath = `/assets/${font}`
 const offline = await readFile(
   new URL('../public/offline.html', import.meta.url),

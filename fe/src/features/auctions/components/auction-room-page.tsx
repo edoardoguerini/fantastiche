@@ -9,6 +9,7 @@ import { Button } from '@/components/primitives/button'
 import {
   AppBrandContent,
   AppHeaderContent,
+  AppAccountContent,
 } from '@/components/layout/app-shell'
 import {
   roomQueryOptions,
@@ -142,6 +143,21 @@ function LiveRoom({
     )
   return (
     <>
+      <AppAccountContent>
+        {state.data.teams
+          .filter((team) => team.id === room.myTeamId)
+          .map((team) => (
+            <span
+              key={team.id}
+              className="auction-account-budget"
+              role="status"
+              aria-label="Il tuo budget"
+            >
+              <strong>{team.budget}</strong> crediti
+              <span className="auction-budget-qualifier"> disponibili</span>
+            </span>
+          ))}
+      </AppAccountContent>
       <AppHeaderContent>
         <AuctionPresence
           connected={connected}
@@ -369,8 +385,6 @@ function SessionView({
       <div className="auction-standard-room" hidden={showBomb}>
         <AuctionNavigation
           userId={userId}
-          myTeamId={room.myTeamId}
-          initialBudget={league.budget}
           canManage={room.canManage}
           active={tab}
           onSelect={selectSection}

@@ -1,9 +1,6 @@
 .app-shell:has(.auction-room) {
   --auction-nav-height: 60px;
-  --auction-budget-height: 0px;
-  --auction-footer-height: calc(
-    var(--auction-nav-height) + var(--auction-budget-height)
-  );
+  --auction-footer-height: var(--auction-nav-height);
 }
 .auction-room:has(.auction-session) {
   padding-bottom: calc(
@@ -366,76 +363,5 @@
   .auction-audio-toggle {
     font-size: 12px;
     padding-inline: 2px;
-  }
-}
-
-/* Il budget segue la squadra autenticata e resta agganciato alla navigazione. */
-.app-shell:has(.auction-budget-strip) {
-  --auction-budget-height: 88px;
-}
-.auction-budget-strip {
-  height: var(--auction-budget-height);
-  background: var(--auction-raised);
-  border-bottom: 1px solid var(--border);
-  padding-inline: max(16px, var(--auction-gutter));
-}
-.auction-budget-content {
-  height: 100%;
-  width: 84%;
-  max-width: 1600px;
-  margin-inline: auto;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-content: center;
-  align-items: center;
-  gap: 6px;
-  text-align: center;
-}
-.auction-budget-amount span {
-  color: var(--muted-foreground);
-  font-size: 14px;
-}
-.auction-budget-amount {
-  white-space: nowrap;
-  font-size: 18px;
-  line-height: 24px;
-  font-variant-numeric: tabular-nums;
-}
-.auction-budget-content progress {
-  appearance: none;
-  width: 70%;
-  justify-self: center;
-  height: 6px;
-  overflow: hidden;
-  border: 0;
-  border-radius: 10px;
-  background: var(--background);
-  color: var(--primary);
-}
-.auction-budget-content progress::-webkit-progress-bar {
-  background: var(--background);
-  border-radius: 10px;
-}
-.auction-budget-content progress::-webkit-progress-value {
-  background: var(--primary);
-  border-radius: 10px;
-}
-.auction-budget-content progress::-moz-progress-bar {
-  background: var(--primary);
-  border-radius: 10px;
-}
-@media (max-width: 650px) {
-  .app-shell:has(.auction-budget-strip) {
-    --auction-budget-height: 80px;
-  }
-  .auction-budget-content {
-    width: 100%;
-    gap: 4px;
-  }
-  .auction-budget-amount {
-    font-size: 17px;
-  }
-  .auction-budget-amount span {
-    font-size: 12px;
   }
 }

@@ -13,7 +13,6 @@ export function TeamRosterCard({
   userId,
   sessionId,
   team,
-  index,
   mine,
   current,
   rules,
@@ -23,7 +22,6 @@ export function TeamRosterCard({
   userId: string
   sessionId: string
   team: AuctionTeam
-  index: number
   mine: boolean
   current: boolean
   rules: RosterRules
@@ -37,10 +35,9 @@ export function TeamRosterCard({
   const header = (
     <>
       <div className="team-column-top">
-        <span className={`team-turn ${current ? 'team-turn--active' : ''}`}>
-          {current ? 'Di turno' : String(index + 1).padStart(2, '0')}
-        </span>
-        {mine && <span className="team-mine">Tu</span>}
+        {current && (
+          <span className="team-turn team-turn--active">Di turno</span>
+        )}
       </div>
       <div className="team-identity">
         <span className="team-monogram" aria-hidden="true">
@@ -50,7 +47,7 @@ export function TeamRosterCard({
             .map((part) => part[0])
             .join('')}
         </span>
-        <h3>{team.name}</h3>
+        <h3 title={team.name}>{team.name}</h3>
       </div>
     </>
   )
@@ -99,7 +96,6 @@ export function TeamRosterCard({
       <div
         className="team-purchases"
         aria-busy={roster.isFetching}
-        tabIndex={0}
         aria-label={`Acquisti ${team.name}`}
       >
         {roster.isPending ? (
