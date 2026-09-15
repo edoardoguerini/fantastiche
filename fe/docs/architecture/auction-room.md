@@ -4,6 +4,14 @@ Implementata nella feature `auctions`, esposta da `/leghe/$leagueId/asta`. Il de
 
 ## Dati e permessi
 
+La tab **Rose** include «Esporta per Fantacalcio.it»: scarica il CSV completo
+della stagione tramite `GET /Auctions/Sessions/{sessionId}/Roster/Export`,
+indipendentemente dalle pagine di rose caricate a video. Il pulsante gestisce
+attesa, doppio clic, errori e annullamento all’uscita/cambio sessione; il file
+non entra nella cache applicativa. Disponibile con gli stessi permessi di
+lettura delle rose. Istruzioni, tracciato verificato e limite della prova
+in una lega esterna nella [guida export](../../../be/docs/domains/roster-export.md).
+
 `GET /Leagues/{leagueId}/Seasons/{seasonId}/AuctionRoom` fornisce squadra personale, permesso di gestione, squadre disponibili e sessione attiva o ultima completata. `myTeamId` è indipendente da `canManage`: l’organizzatore senza squadra osserva e gestisce, senza rilanciare. Il backend verifica tutti i permessi a ogni operazione.
 
 Lo snapshot `/Auctions/Sessions/{id}` contiene prezzo, vincitore provvisorio, turno, budget e conteggi. Catalogo, rose e rilanci sono letture paginate della stessa sessione; il catalogo disponibile esclude acquisti della stagione e giocatore già chiamato. Lo storico mostra acquisti persistiti, mentre Ultimi rilanci mostra offerte accettate per il giocatore corrente. Il tabellone riassume gli ultimi acquisti presenti nella prima pagina di 100 risultati; le rose complete e lo storico restano consultabili con paginazione.

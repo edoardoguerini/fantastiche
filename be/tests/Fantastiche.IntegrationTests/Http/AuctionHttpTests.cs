@@ -20,6 +20,7 @@ public sealed partial class HttpFlowTests
         await using var factory = Factory();
         using var client = Client(factory);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync($"/api/Auctions/Sessions/{Guid.NewGuid()}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync($"/api/Auctions/Sessions/{Guid.NewGuid()}/Roster/Export")).StatusCode);
     }
 
     [Fact]
@@ -52,6 +53,7 @@ public sealed partial class HttpFlowTests
         var session = await Data(await organizer.PostAsJsonAsync("/api/Auctions/Sessions", new { leagueId = setup.LeagueId, leagueSeasonId = setup.SeasonId, teamOrder = new[] { setup.FirstTeamId, setup.SecondTeamId } }), HttpStatusCode.Created);
         var sessionId = session.GetProperty("id").GetGuid();
         var route = $"/api/Auctions/Sessions/{sessionId}";
+        Assert.Equal(HttpStatusCode.Conflict, (await participant.GetAsync(route + "/Roster/Export")).StatusCode);
         Assert.Equal(setup.FirstTeamId, session.GetProperty("currentTeamId").GetGuid());
         var active = await Data(await participant.GetAsync($"/api/Leagues/{setup.LeagueId}/Seasons/{setup.SeasonId}/Auction"), HttpStatusCode.OK);
         Assert.Equal(sessionId, active.GetProperty("id").GetGuid());
@@ -104,6 +106,12 @@ public sealed partial class HttpFlowTests
         var roster = await Data(await participant.GetAsync(route + $"/Roster?teamId={setup.SecondTeamId}"), HttpStatusCode.OK);
         Assert.Equal(1, roster.GetProperty("total").GetInt32());
         Assert.Equal(playerId, roster.GetProperty("items")[0].GetProperty("playerId").GetGuid());
+        var exportResponse = await participant.GetAsync(route + "/Roster/Export");
+        Assert.True(exportResponse.Headers.CacheControl!.NoStore);
+        var export = await Data(exportResponse, HttpStatusCode.OK);
+        Assert.StartsWith("$,$,$\nDue,", export.GetProperty("csv").GetString());
+        Assert.EndsWith(",5\n", export.GetProperty("csv").GetString());
+        Assert.Equal($"fantastiche-rosters-{setup.SeasonId:N}.csv", export.GetProperty("fileName").GetString());
         var bids = await Data(await participant.GetAsync(route + $"/Players/{auctionId}/Bids"), HttpStatusCode.OK);
         Assert.Equal(2, bids.GetProperty("total").GetInt32());
         await Data(await organizer.PostAsJsonAsync(route + "/Control", new { requestId = Guid.NewGuid(), action = "Complete" }), HttpStatusCode.OK);

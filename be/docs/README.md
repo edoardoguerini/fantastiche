@@ -14,6 +14,7 @@
 - [Inviti, logo ed email Mailgun tramite Scheduler](domains/invitations-email.md).
 - [Catalogo e listoni Classic](domains/catalog.md).
 - [Motore d’asta, ricevute e SignalR](domains/auctions.md).
+- [Esportazione rose per Leghe Fantacalcio](domains/roster-export.md).
 - [Aggiungere una feature](how-to/add-a-module.md).
 - [Aggiungere un’entità](how-to/add-an-entity.md).
 - [Aggiungere un command](how-to/add-a-command.md).

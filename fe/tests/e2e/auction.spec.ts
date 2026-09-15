@@ -1,4 +1,5 @@
 import { setSsrSession } from '../ssr-fixture'
+import { readFile } from 'node:fs/promises'
 import { test, expect, type Page, type WebSocketRoute } from '../ssr-fixture'
 import type {
   BombAuctionView,
@@ -28,6 +29,124 @@ const user = {
 const teamId = (index: number) =>
   `10000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`
 const url = '/leghe/league-1/asta'
+
+test('esporta le rose complete nel CSV Fantacalcio senza BOM anche su mobile', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await setupRoom(page)
+  const csv =
+    '$,$,$\n' +
+    Array.from({ length: 103 }, (_, i) => `Virtù FC,${i + 1},7\n`).join('')
+  await page.route('**/Roster/Export', (route) =>
+    route.fulfill({
+      json: {
+        isSuccess: true,
+        data: { fileName: 'fantastiche-rosters-test.csv', csv },
+        errors: [],
+      },
+    }),
+  )
+  await page.goto(url)
+  await page.getByRole('tab', { name: 'Rose', exact: true }).click()
+  const button = page.getByRole('button', {
+    name: 'Esporta per Fantacalcio.it',
+  })
+  await expect(button).toBeVisible()
+  const downloadPromise = page.waitForEvent('download')
+  await button.click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toBe('fantastiche-rosters-test.csv')
+  expect(await readFile((await download.path())!)).toEqual(
+    Buffer.from(csv, 'utf8'),
+  )
+  await expect(page.getByText('CSV scaricato.')).toBeVisible()
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true)
+  await page.screenshot({
+    path: '/tmp/fantastiche-roster-export-mobile.png',
+    fullPage: true,
+  })
+})
+
+test('mostra errori export e consente un nuovo tentativo senza scaricare file errati', async ({
+  page,
+}) => {
+  await setupRoom(page)
+  let calls = 0
+  let downloads = 0
+  page.on('download', () => downloads++)
+  await page.route('**/Roster/Export', async (route) => {
+    calls++
+    await route.fulfill({
+      status: 409,
+      json: {
+        isSuccess: false,
+        data: null,
+        errors: [
+          {
+            code: 'auction.export_invalid_player',
+            message:
+              'Una o più assegnazioni non hanno un ID Fantacalcio valido.',
+          },
+        ],
+      },
+    })
+  })
+  await page.goto(url)
+  await page.getByRole('tab', { name: 'Rose', exact: true }).click()
+  const button = page.getByRole('button', {
+    name: 'Esporta per Fantacalcio.it',
+  })
+  await button.click()
+  await expect(page.getByRole('alert')).toContainText('ID Fantacalcio valido')
+  await expect(button).toBeEnabled()
+  await button.click()
+  await expect.poll(() => calls).toBe(2)
+  expect(downloads).toBe(0)
+})
+
+test('impedisce export duplicati durante la preparazione del CSV', async ({
+  page,
+}) => {
+  await setupRoom(page)
+  let release!: () => void
+  const pending = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  let calls = 0
+  await page.route('**/Roster/Export', async (route) => {
+    calls++
+    await pending
+    await route.fulfill({
+      json: {
+        isSuccess: true,
+        data: {
+          fileName: 'fantastiche-rosters-test.csv',
+          csv: '$,$,$\nPrima,123,1\n',
+        },
+        errors: [],
+      },
+    })
+  })
+  await page.goto(url)
+  await page.getByRole('tab', { name: 'Rose', exact: true }).click()
+  await page.getByRole('button', { name: 'Esporta per Fantacalcio.it' }).click()
+  const preparing = page.getByRole('button', { name: 'Preparazione CSV…' })
+  await expect(preparing).toBeDisabled()
+  await preparing.dispatchEvent('click')
+  const downloaded = page.waitForEvent('download')
+  release()
+  await downloaded
+  await expect(
+    page.getByRole('button', { name: 'Esporta per Fantacalcio.it' }),
+  ).toBeEnabled()
+  expect(calls).toBe(1)
+})
+
 async function setupRoom(
   page: Page,
   options: {

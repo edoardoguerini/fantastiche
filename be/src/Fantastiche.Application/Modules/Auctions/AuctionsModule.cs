@@ -49,6 +49,11 @@ public sealed class AuctionsModule : IRegistrableModule
             .WithSummary("Rosa della stagione")
             .WithDescription("Acquisti della stagione, con nome e ruolo originali dell’aggiudicazione. Filtro facoltativo per squadra e paginazione.")
             .Produces<ApiResponse<AuctionPage<AuctionRosterView>>>();
+        group.MapGet("/{sessionId:guid}/Roster/Export", ExportRoster).WithName("ExportAuctionRoster")
+            .WithSummary("Esporta le rose per Leghe Fantacalcio")
+            .WithDescription("Restituisce nome file e CSV UTF-8 di tutti gli acquisti salvati della stagione, senza paginazione. Richiede appartenenza attiva alla lega o SuperAdmin. Rifiuta rose vuote, ID non Fantacalcio e nomi incompatibili.")
+            .Produces<ApiResponse<AuctionRosterExportView>>()
+            .Produces<ApiResponse<object>>(StatusCodes.Status409Conflict);
         group.MapGet("/{sessionId:guid}/Catalog", Catalog).WithName("GetAuctionCatalog")
             .WithSummary("Listone della sessione con disponibilità stagionale")
             .WithDescription("Ricerca e ruolo paginati. sort=name (default), fvm o quotation: i valori numerici sono decrescenti, con valori mancanti in fondo e nome/ID come spareggio. Per default esclude acquisti della stagione e giocatore chiamato; availableOnly=false include anche gli indisponibili e la squadra acquirente.")
@@ -154,5 +159,12 @@ public sealed class AuctionsModule : IRegistrableModule
         await validator.ValidateAndThrowAsync(request, ct);
         return ApiResults.Ok(await publisher.QueryAsync<GetAuctionRosterQuery, AuctionPage<AuctionRosterView>>(
             new(context.CreateRequestContext(), sessionId, teamId, request.Page, request.PageSize), ct));
+    }
+
+    private static async Task<IResult> ExportRoster(Guid sessionId, HttpContext context, IRequestPublisher publisher, CancellationToken ct)
+    {
+        context.Response.Headers.CacheControl = "private, no-store";
+        return ApiResults.Ok(await publisher.QueryAsync<ExportAuctionRosterQuery, AuctionRosterExportView>(
+            new(context.CreateRequestContext(), sessionId), ct));
     }
 }
