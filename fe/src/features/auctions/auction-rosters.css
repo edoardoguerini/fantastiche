@@ -1,4 +1,29 @@
 /* Tabellone Live e Rose: riepilogo in alto e slot della rosa in righe compatte. */
+.roster-export {
+  display: grid;
+  gap: 8px;
+  padding-top: 24px;
+}
+.roster-export-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.roster-export h2 {
+  margin-bottom: 6px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.roster-export p {
+  color: var(--muted-foreground);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.roster-export .roster-export-error {
+  color: var(--destructive);
+}
 .auction-teams .team-column--compact {
   --team-padding: 10px;
   flex-basis: clamp(160px, calc((100% - 108px) / 8), 210px);

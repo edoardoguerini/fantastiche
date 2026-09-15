@@ -41,6 +41,7 @@ import { BidControls } from './bid-controls'
 import { CatalogPanel } from './catalog-panel'
 import { PlayerCallForm } from './player-call-form'
 import { RosterPanel } from './roster-panel'
+import { RosterExport } from './roster-export'
 import { RecentPurchases } from './recent-purchases'
 import { PlayerSearchDialog } from './player-search-dialog'
 import { SessionSetup } from './session-setup'
@@ -564,6 +565,11 @@ function SessionView({
           tabIndex={0}
           hidden={tab !== 'roster'}
         >
+          <RosterExport
+            key={`${userId}:${session.id}`}
+            sessionId={session.id}
+            completed={session.status === 'Completed'}
+          />
           {rosterOpened && (
             <TeamBoard
               userId={userId}
